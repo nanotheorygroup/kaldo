@@ -80,7 +80,7 @@ def test_v2_tilde_quantum_is_reweighted_harmonic_energy():
 
 def test_print_thermo_table_runs(capsys):
     """print_thermo_table must not raise (regression: it referenced F_offset)."""
-    from kaldo.cumulant.api import CumulantResult, print_thermo_table
+    from kaldo.cumulant.thermodynamics import CumulantResult, print_thermo_table
 
     z3 = np.zeros(3)
     r = CumulantResult(

@@ -49,7 +49,7 @@ def _make_atoms(n=6, seed=0):
 
 
 def test_fallback_energy_matches_direct_ase():
-    from kaldo.cumulant._lammps_batch import BatchEnergyEvaluator
+    from kaldo.cumulant._energy_evaluator import BatchEnergyEvaluator
 
     atoms, eq = _make_atoms()
     atoms.calc = _SpringCalc(eq, k=2.5)
@@ -67,7 +67,7 @@ def test_fallback_energy_matches_direct_ase():
 
 
 def test_zero_displacement_is_equilibrium_energy():
-    from kaldo.cumulant._lammps_batch import BatchEnergyEvaluator
+    from kaldo.cumulant._energy_evaluator import BatchEnergyEvaluator
 
     atoms, eq = _make_atoms(seed=3)
     atoms.calc = _SpringCalc(eq, k=1.0)
@@ -77,7 +77,7 @@ def test_zero_displacement_is_equilibrium_energy():
 
 def test_displacement_atom_order_is_respected():
     """A displacement on atom j must move only atom j's contribution."""
-    from kaldo.cumulant._lammps_batch import BatchEnergyEvaluator
+    from kaldo.cumulant._energy_evaluator import BatchEnergyEvaluator
 
     atoms, eq = _make_atoms(n=4, seed=5)
     atoms.calc = _SpringCalc(eq, k=1.0)
@@ -91,7 +91,7 @@ def test_displacement_atom_order_is_respected():
 
 
 def test_bad_equilibrium_shape_raises():
-    from kaldo.cumulant._lammps_batch import BatchEnergyEvaluator
+    from kaldo.cumulant._energy_evaluator import BatchEnergyEvaluator
 
     atoms, eq = _make_atoms(n=4)
     import pytest

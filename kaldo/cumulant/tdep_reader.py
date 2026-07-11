@@ -1,6 +1,5 @@
 """
-Constants, TDEP IFC parsers, and dynamical-matrix helpers shared across the
-cumulant modules.
+TDEP force-constant file readers for the cumulant kernels.
 
 Naming and conventions follow Ethan Meitz's LatticeDynamicsToolkit.jl where
 applicable (CumulantAnalysis.jl reference).
@@ -8,29 +7,6 @@ applicable (CumulantAnalysis.jl reference).
 from __future__ import annotations
 
 import numpy as np
-
-
-# --- Physical constants (SI) ------------------------------------------------
-# These match the cumulant Julia LDT reference (CODATA 2018). They are not
-# imported from ``ase.units`` because that module uses an internal unit
-# system (eV-Å convention with ``Ang = 1.0``) which is incompatible with
-# the SI-meter ``ANG = 1e-10`` convention the cumulant kernels rely on for
-# their ``EV/ANG**2``-style unit conversions in ``dynmat_and_eigs``.
-HBAR = 1.054_571_817e-34
-KB = 1.380_649e-23
-EV = 1.602_176_634e-19
-AMU = 1.660_539_068_92e-27
-ANG = 1e-10
-
-# Default mass for Ne-solid reference runs (matches Ethan's thermo_out_full).
-NE_MASS_AMU = 20.1797
-
-# Frequencies below this THz value are treated as acoustic / unphysical modes
-# and excluded from Bose–Einstein sums.
-FREQ_TOL_THZ = 1e-3
-
-# eV-scale Boltzmann constant, useful when everything else is in eV/atom.
-KB_eV_per_K = KB / EV  # ≈ 8.617e-5 eV/K
 
 
 # --- TDEP IFC parsers -------------------------------------------------------
@@ -240,41 +216,3 @@ def read_tdep_ifc4(fc4_path, na_uc=None):
 
 
 # --- Dynamical matrix ------------------------------------------------------
-
-def dynmat_and_eigs(neighbors_pair, uc_positions, masses_kg, q_cart):
-    """
-    Build and diagonalize the mass-weighted dynamical matrix at a single q.
-
-    Uses the **sum convention** (= TDEP / LDT convention):
-        D_{a,b}(q) = sum_R Phi_{a,b}(R) exp(i q . R) / sqrt(m_a m_b)
-    where R is the lattice vector between primitive cells. This makes the
-    eigenvectors compatible with the IFC3 / IFC4 triplet and quartet
-    pretransforms in this package - which phase only by lattice vectors.
-
-    For single-atom-per-cell systems (Ne) the convention doesn't matter
-    (tau_i = 0). For multi-atom primitives (Si, diamond) the atomic
-    convention `exp(iq.(r_j - r_i))` with r_j = tau_j + R produces
-    eigenvectors shifted by `exp(iq.(tau_j - tau_i))` relative to the sum
-    convention - which breaks the IFC3/IFC4 quartet contraction for
-    multi-atom cells.
-
-    Returns ``(omegas, egvs)``:
-      * ``omegas`` (n_bands,): frequencies in rad/s, with sign preserved
-        for imaginary modes (negative omega**2 -> negative omega).
-      * ``egvs`` (n_bands, n_bands): complex eigenvectors of the
-        dynamical matrix, column-indexed by band.
-    """
-    n = len(neighbors_pair)
-    nb = 3 * n
-    D = np.zeros((nb, nb), dtype=complex)
-    for i, il in enumerate(neighbors_pair):
-        for (j, rj, _lp, phi) in il:
-            # R is the pure lattice vector between cell of atom i and cell of
-            # atom j. rj = tau_j + R and uc_positions[j] = tau_j, so
-            # R = rj - tau_j = rj - uc_positions[j].
-            R = rj - uc_positions[j]
-            ph = np.exp(1j * np.dot(q_cart, R))
-            D[3*i:3*i+3, 3*j:3*j+3] += phi * ph / np.sqrt(masses_kg[i] * masses_kg[j])
-    D = 0.5 * (D + D.conj().T)
-    w2, egv = np.linalg.eigh(D * (EV / ANG ** 2))
-    return np.sign(w2) * np.sqrt(np.abs(w2)), egv

@@ -76,7 +76,7 @@ class SCContractors:
         then expanded to the supercell flat form via the SNF replica
         mapping. No tensor is ever materialized; only the nonzero entries.
         """
-        from .common import (
+        from .tdep_reader import (
             read_tdep_pair_fcs, read_tdep_ifc3, read_tdep_ifc4,
         )
         from kaldo.interfaces.tdep_io import build_supercell_replica_mapping

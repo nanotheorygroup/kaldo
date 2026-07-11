@@ -42,15 +42,16 @@ def test_cumulant_package_imports():
 
 def test_cumulant_submodules_importable():
     """Each submodule is directly importable."""
-    import kaldo.cumulant.common
+    import kaldo.cumulant.tdep_reader
     import kaldo.cumulant.harmonic
     import kaldo.cumulant.free_energy
     import kaldo.cumulant.sampler
-    import kaldo.cumulant.taylor
+    import kaldo.cumulant.contractors
     import kaldo.cumulant.estimator
     import kaldo.cumulant.bootstrap
-    import kaldo.cumulant.api
-    assert hasattr(kaldo.cumulant.common, "dynmat_and_eigs")
+    import kaldo.cumulant.thermodynamics
+    assert hasattr(kaldo.cumulant.tdep_reader, "read_tdep_pair_fcs")
+    assert hasattr(kaldo.cumulant.harmonic, "dynmat_and_eigs")
     assert hasattr(kaldo.cumulant.harmonic, "harmonic_thermo_quantum")
     assert hasattr(kaldo.cumulant.free_energy, "F1_vectorized")
     assert hasattr(kaldo.cumulant.free_energy, "F2_vectorized")

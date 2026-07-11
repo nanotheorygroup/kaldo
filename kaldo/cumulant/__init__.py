@@ -35,18 +35,19 @@ Entry-point modules:
     consume a ``kaldo.ForceConstants`` object and work on both diagonal
     and non-diagonal TDEP supercells.
   * :mod:`kaldo.cumulant.sampler` - supercell-Gamma canonical sampler
-  * :mod:`kaldo.cumulant.taylor` - SC-remapped V_2/V_3/V_4 contractors
+  * :mod:`kaldo.cumulant.contractors` - SC-remapped V_2/V_3/V_4 contractors
   * :mod:`kaldo.cumulant.estimator` - calculate_cumulants (F_offset etc.)
   * :mod:`kaldo.cumulant.bootstrap` - bootstrap SEs
-  * :mod:`kaldo.cumulant.api` - ``cumulant_thermo`` top-level runner
+  * :mod:`kaldo.cumulant.thermodynamics` - ``cumulant_thermo`` top-level runner
 """
 from __future__ import annotations
 
 from .constants import (
     HBAR, KB, EV, AMU, ANG, NE_MASS_AMU, FREQ_TOL_THZ, KB_eV_per_K,
 )
-from .common import (
-    dynmat_and_eigs, load_tdep_folder,
+from .harmonic import dynmat_and_eigs
+from .tdep_reader import (
+    load_tdep_folder,
     read_tdep_pair_fcs, read_tdep_ifc3, read_tdep_ifc4,
 )
 
@@ -67,15 +68,15 @@ from .free_energy import (
 )
 
 from .sampler import SCSampler
-from .taylor import SCContractors
+from .contractors import SCContractors
 from .estimator import calculate_cumulants, dA_dT, d2A_dT2
 from .bootstrap import bootstrap_corrections
-from .api import cumulant_thermo, CumulantResult, print_thermo_table
+from .thermodynamics import cumulant_thermo, CumulantResult, print_thermo_table
 
 # Public surface — kept minimal. Internal helpers (constants like HBAR,
 # parsers like read_tdep_*, kernel helpers like flatten_* and build_psi*,
 # adaptive-sigma shims, etc.) remain importable from their submodules
-# (e.g. ``from kaldo.cumulant.common import HBAR``) but are not part of
+# (e.g. ``from kaldo.cumulant.constants import HBAR``) but are not part of
 # the documented top-level API.
 __all__ = [
     # cumulant-specific constants

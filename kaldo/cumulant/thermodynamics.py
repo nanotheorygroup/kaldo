@@ -26,7 +26,7 @@ from kaldo.helpers.logger import get_logger
 from .constants import AMU
 from .harmonic import compute_all_frequencies_THz, harmonic_thermo_quantum
 from .sampler import SCSampler
-from .taylor import SCContractors
+from .contractors import SCContractors
 from .bootstrap import bootstrap_corrections
 from kaldo.forceconstants import ForceConstants
 
@@ -333,8 +333,8 @@ def cumulant_thermo(
     # positions move), so keep one LAMMPS instance alive and, per config,
     # only scatter the new coordinates + `run 0 pre no post no` (reuse the
     # neighbor lists, skip setup). The first energy() call does the full ASE
-    # setup; the rest take the fast path. See _lammps_batch.BatchEnergyEvaluator.
-    from ._lammps_batch import BatchEnergyEvaluator
+    # setup; the rest take the fast path. See _energy_evaluator.BatchEnergyEvaluator.
+    from ._energy_evaluator import BatchEnergyEvaluator
     energy_eval = BatchEnergyEvaluator(at, sc_pos_eq_A)
 
     V = np.zeros(nconf)

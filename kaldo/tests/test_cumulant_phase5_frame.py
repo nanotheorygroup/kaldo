@@ -33,7 +33,7 @@ FIX = Path(__file__).parent / "cumulant_fixtures" / "SW" / "100K_3UC"
 def test_sampler_and_contractors_share_ssposcar_frame():
     from kaldo.forceconstants import ForceConstants
     from kaldo.cumulant.sampler import SCSampler
-    from kaldo.cumulant.taylor import SCContractors
+    from kaldo.cumulant.contractors import SCContractors
     from kaldo.interfaces.tdep_io import build_supercell_replica_mapping
 
     uc = ase.io.read(str(FIX / "infile.ucposcar"), format="vasp")
@@ -77,7 +77,7 @@ def test_unpermuted_ifc2_is_detectably_wrong():
     the contractors, so this test would have caught the original bug."""
     from kaldo.forceconstants import ForceConstants
     from kaldo.cumulant.sampler import SCSampler
-    from kaldo.cumulant.taylor import SCContractors
+    from kaldo.cumulant.contractors import SCContractors
 
     sc = ase.io.read(str(FIX / "infile.ssposcar"), format="vasp")
     n_sc = len(sc)

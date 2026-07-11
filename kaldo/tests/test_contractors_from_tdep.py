@@ -2,7 +2,7 @@
 Prototype: SCContractors.from_tdep_folder -> V_4 on a TDEP run.
 
 Demonstrates that the per-atom-quartet representation already used by
-``kaldo.cumulant.taylor.SCContractors`` (Julia HDF5 path) can be built
+``kaldo.cumulant.contractors.SCContractors`` (Julia HDF5 path) can be built
 directly from a TDEP run, no Julia involved. The V_4 evaluator is
 unchanged.
 
@@ -42,7 +42,7 @@ def _stage_tdep_folder(tmp_path, ifc_dir: Path, struct_dir: Path) -> Path:
 @pytest.mark.skipif(not LJ_TDEP.exists(), reason="LJ fixture missing")
 def test_v4_from_tdep_lj_diagonal(tmp_path):
     """LJ Ar 4^3: diagonal supercell, n_uc=1, det M=64."""
-    from kaldo.cumulant.taylor import SCContractors
+    from kaldo.cumulant.contractors import SCContractors
 
     folder = _stage_tdep_folder(tmp_path, LJ_TDEP, LJ_TDEP.parent)
     sc = SCContractors.from_tdep_folder(folder, include_fourth=True)
@@ -71,7 +71,7 @@ def test_v4_from_tdep_lj_diagonal(tmp_path):
 @pytest.mark.skipif(not SW_TDEP.exists(), reason="SW Si fixture missing")
 def test_v4_from_tdep_sw_si_nondiagonal(tmp_path):
     """SW Si 100K_3UC: non-diagonal rhombo->cubic supercell, n_uc=2, det M=108."""
-    from kaldo.cumulant.taylor import SCContractors
+    from kaldo.cumulant.contractors import SCContractors
 
     folder = _stage_tdep_folder(tmp_path, SW_TDEP, SW_TDEP.parent)
     sc = SCContractors.from_tdep_folder(folder, include_fourth=True)
