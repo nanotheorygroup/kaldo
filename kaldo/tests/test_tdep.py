@@ -20,6 +20,7 @@ def phonons():
         folder=".",
         storage="memory",
         is_unfolding=False,
+        third_bandwidth=0.5,  # fixed: gauge-invariant regression config (#290)
     )
     return phonons
 
@@ -27,5 +28,5 @@ def phonons():
 def test_tdep_conductivity_300(phonons):
     phonons.temperature = 300
     cond = Conductivity(phonons=phonons, method="rta", storage="memory").conductivity.sum(axis=0).diagonal().mean()
-    expected_cond = 72.0
-    np.testing.assert_approx_equal(cond, expected_cond, significant=2)
+    expected_cond = 68.753938
+    np.testing.assert_allclose(cond, expected_cond, rtol=5e-3, atol=0.0)

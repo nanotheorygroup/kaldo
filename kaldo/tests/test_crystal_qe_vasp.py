@@ -23,6 +23,7 @@ def phonons():
         kpts=[3, 3, 3],
         is_classic=False,
         temperature=300,
+        third_bandwidth=0.5,  # fixed: gauge-invariant regression config (#290)
         storage="memory",
     )
     return phonons
@@ -88,7 +89,7 @@ def test_rta_conductivity(phonons):
     )
     # recalibrated after the ShengBTE FC3 parser fix (mod-wrapped cell offsets); the old value baked in
     # silently dropped force constants
-    np.testing.assert_approx_equal(cond, 2.8, significant=2)
+    np.testing.assert_allclose(cond, 4.500018, rtol=5e-3, atol=0.0)
 
 
 def test_inverse_conductivity(phonons):
@@ -97,4 +98,4 @@ def test_inverse_conductivity(phonons):
     )
     # recalibrated after the ShengBTE FC3 parser fix (mod-wrapped cell offsets); the old value baked in
     # silently dropped force constants
-    np.testing.assert_approx_equal(cond, 2.5, significant=2)
+    np.testing.assert_allclose(cond, 5.049113, rtol=5e-3, atol=0.0)
