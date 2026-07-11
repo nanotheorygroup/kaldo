@@ -1180,54 +1180,12 @@ class SecondOrder(ForceConstant, Storable):
 
     def _gonze_build_mapping(self, matrix=None):
         matrix = normalize_bvk_supercell_matrix(matrix)
-        if matrix is not None:
-            return _build_supercell_matrix_mapping(self.atoms, matrix)
-        atoms = self.atoms
-        n_atom = len(atoms)
-        wrapped_indices = self._direct_grid.grid(is_wrapping=True)
-        s2p_map = np.tile(np.arange(n_atom, dtype=int), len(wrapped_indices))
-        p2s_map = np.arange(n_atom, dtype=int)
-        s2pp_map = s2p_map.copy()
-        supercell = np.array(self.supercell, dtype=float)
-        primitive_cell = np.array(atoms.cell.array, dtype=float, copy=True)
-        supercell_cell = np.array(self.replicated_atoms.cell.array, dtype=float, copy=True)
-        svecs = []
-        phase_svecs = []
-        multi = np.zeros((len(s2p_map), n_atom, 2), dtype=np.int64)
-        primitive_scaled = atoms.get_scaled_positions(wrap=False)
-        for i_s, atom_j in enumerate(s2p_map):
-            wrapped_index = wrapped_indices[i_s // n_atom]
-            primitive_scaled_j = primitive_scaled[atom_j] + wrapped_index
-            for i_p in range(n_atom):
-                primitive_scaled_i = primitive_scaled[i_p]
-                candidates = []
-                distances = []
-                for a in (-1, 0, 1):
-                    for b in (-1, 0, 1):
-                        for c in (-1, 0, 1):
-                            shift = np.array([a, b, c], dtype=float)
-                            phase_vec = primitive_scaled_j - primitive_scaled_i + shift * supercell
-                            vec = phase_vec / supercell
-                            cart = vec @ supercell_cell
-                            candidates.append((vec, phase_vec))
-                            distances.append(np.linalg.norm(cart))
-                min_distance = min(distances)
-                start = len(svecs)
-                for (vec, phase_vec), distance in zip(candidates, distances):
-                    if abs(distance - min_distance) < 1e-8:
-                        svecs.append(vec)
-                        phase_svecs.append(phase_vec)
-                multi[i_s, i_p, 0] = len(svecs) - start
-                multi[i_s, i_p, 1] = start
-        return {
-            "svecs": np.array(svecs, dtype=float),
-            "phase_svecs": np.array(phase_svecs, dtype=float),
-            "multi": multi,
-            "s2p_map": s2p_map,
-            "p2s_map": p2s_map,
-            "s2pp_map": s2pp_map,
-            "svecs_cell": supercell_cell,
-        }
+        if matrix is None:
+            # The dedicated no-matrix builder ordered supercell atoms replica-major,
+            # inconsistent with the atom-major layout _build_interleaved_fc produces.
+            # A diagonal BvK matrix reproduces it through the tested code path.
+            matrix = np.diag(np.asarray(self.supercell, dtype=int))
+        return _build_supercell_matrix_mapping(self.atoms, matrix)
 
     @classmethod
     def from_supercell(cls,
