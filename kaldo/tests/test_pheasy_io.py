@@ -126,6 +126,29 @@ def test_supercell_order_check_warns_on_atom_count_mismatch(tmp_path, caplog):
     assert [r for r in caplog.records if "skipping the ordering check" in r.getMessage()]
 
 
+def test_supercell_order_check_warns_on_species_mismatch(tmp_path, caplog):
+    import ase.io
+    from ase import Atoms
+    from kaldo.interfaces.pheasy_io import check_pheasy_supercell_order
+    _write_poscar(tmp_path)
+    atoms = ase.io.read(tmp_path / "POSCAR", format="vasp")
+    d0, d1, d2 = 2, 1, 1
+    n_cells = d0 * d1 * d2
+    scaled = atoms.get_scaled_positions()
+    positions, numbers = [], []
+    for i in range(len(atoms)):
+        for c in range(n_cells):
+            ox, oy, oz = c % d0, (c // d0) % d1, c // (d0 * d1)
+            positions.append((scaled[i] + np.array([ox, oy, oz])) / np.array([d0, d1, d2]))
+            numbers.append(atoms.numbers[i])
+    numbers = [32, 32, 14, 14]
+    sposcar = Atoms(numbers=numbers, scaled_positions=positions,
+                    cell=np.array(atoms.cell) * np.array([[d0], [d1], [d2]]), pbc=True)
+    ase.io.write(tmp_path / "SPOSCAR", sposcar, format="vasp")
+    check_pheasy_supercell_order(str(tmp_path), atoms, (d0, d1, d2))
+    assert [r for r in caplog.records if "species order inconsistent" in r.getMessage()]
+
+
 def test_supercell_order_check_warns_instead_of_raising_on_bare_supercell_in(tmp_path, caplog):
     """pheasy's own write_pw_in emits only CELL_PARAMETERS/ATOMIC_POSITIONS for
     supercell.in (no &CONTROL/&SYSTEM/&ELECTRONS), which is not a standalone

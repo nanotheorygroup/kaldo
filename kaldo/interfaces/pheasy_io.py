@@ -197,7 +197,7 @@ def _read_fc2_text(filename, n_unit_atoms, n_cells, supercell):
             for alpha in range(3):
                 blocks[kept, alpha] = [float(x) for x in file.readline().split()]
             kept += 1
-    return rows, cols, blocks, is_full
+    return rows[:kept], cols[:kept], blocks[:kept], is_full
 
 
 def read_pheasy_second(folder, atoms, supercell):
