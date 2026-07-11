@@ -146,6 +146,26 @@ def read_second_order_qe_matrix(filename):
         return second, supercell, charges
 
 
+def _resolve_cell_id(cell_position, cell_inv, supercell, current_grid, source):
+    """Resolve a Cartesian cell offset to a replica id, independent of the sign
+    convention the writer used for half-box (even-supercell) offsets.
+
+    ``Grid.cell_position_to_id`` rounds the raw Cartesian offset to an integer
+    cell index and looks it up against kaldo's minimum-image-wrapped grid. On
+    even supercells the half-box replica is representable as either +d/2 or
+    -d/2 (same physical replica); kaldo's wrapped grid only keeps +d/2, so a
+    file written with the -d/2 convention fails that lookup. Resolve instead
+    by wrapping the raw integer index into [0, d) ourselves and looking it up
+    against the unwrapped grid, which enumerates every 0..d-1 triplet exactly
+    once and so is unique and total for any integer input.
+    """
+    frac = cell_position.dot(cell_inv)
+    if np.max(np.abs(frac - np.round(frac))) > 1e-3:
+        raise ValueError(f"{source}: cell offset {cell_position} is not a lattice vector of the supercell.")
+    cell_index = np.mod(frac.round(0).astype(int), np.array(supercell, dtype=int))
+    ids = current_grid.grid_index_to_id(cell_index, is_wrapping=False)
+    return int(ids[0])
+
 
 def read_third_order_matrix(third_file: str,
                             atoms: Atoms,
@@ -157,6 +177,7 @@ def read_third_order_matrix(third_file: str,
     n_replicas = np.prod(supercell)
     third_order = np.zeros((n_unit_atoms, 3, n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
     current_grid = Grid(supercell, order=order)
+    cell_inv = np.linalg.inv(np.array(atoms.cell))
 
     with open(third_file, 'r') as file:
         first_line = file.readline()
@@ -168,15 +189,17 @@ def read_third_order_matrix(third_file: str,
 
             # next two lines are the positions of the second and third cell
             second_cell_position = np.array([float(x) for x in file.readline().split()])
-            second_cell_id = current_grid.cell_position_to_id(second_cell_position, atoms.cell, is_wrapping=True)
+            second_cell_id = _resolve_cell_id(second_cell_position, cell_inv, supercell, current_grid, third_file)
 
             third_cell_position = np.array([float(x) for x in file.readline().split()])
-            third_cell_id = current_grid.cell_position_to_id(third_cell_position, atoms.cell, is_wrapping=True)
+            third_cell_id = _resolve_cell_id(third_cell_position, cell_inv, supercell, current_grid, third_file)
 
             # index to atom
             atom_i, atom_j, atom_k = np.array([int(x) for x in file.readline().split()]) - 1
 
             # for x,y,z directions with 3 atoms
+            # FC3 assigns each quartet's block directly into its slot (ShengBTE-format writers emit
+            # unique (atom, cell) slots here).
             for _ in range(27):
                 values = np.array([float(x) for x in file.readline().split()])
                 alpha, beta, gamma = values[:3].round(0).astype(int) - 1
