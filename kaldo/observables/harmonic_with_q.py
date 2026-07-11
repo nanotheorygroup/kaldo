@@ -13,59 +13,30 @@ from kaldo.storable import lazy_property, Storable
 import tensorflow as tf
 from scipy.linalg.lapack import zheev
 from kaldo.helpers.logger import get_logger, log_size
-from kaldo.observables.secondorder import (
+from kaldo.controllers.nac import (
     normalize_bvk_supercell_matrix,
     _ensure_gonze_kernel_cache,
     _gonze_dynamical_matrices,
+    GONZE_VELOCITY_Q_LENGTH,
+    GONZE_VELOCITY_CUTOFF_FREQUENCY,
+    GONZE_VELOCITY_DIRECTIONS_CART,
+    _PHONOPY_TO_KALDO_DM,
+    _gonze_degenerate_sets,
+    _gonze_to_phonopy_dm,
+    _gonze_phonopy_frequencies_from_eigenvalues,
 )
 # from numpy.linalg import eigh
 
 logging = get_logger()
 
 MIN_N_MODES_TO_STORE = 1000
-
-GONZE_VELOCITY_Q_LENGTH = 1e-5
-GONZE_VELOCITY_DEGENERACY_TOLERANCE = 1e-4
-GONZE_VELOCITY_CUTOFF_FREQUENCY = 1e-4
 # DM conversion: 1 Ry/bohr²/amu in (rad/ps)² = (Ry_to_eV/Å²) × eV_to_10Jmol
 # = (units.Ry/units.Bohr²) × (units.mol/(10*units.J))
 # Used to convert kALDo-unit DM to phonopy-unit DM for cross-validation.
-_PHONOPY_TO_KALDO_DM = (units.Ry / units.Bohr ** 2) * (units.mol / (10 * units.J))
-GONZE_VELOCITY_DIRECTIONS_CART = np.array(
-    [
-        np.array([1.0, 2.0, 3.0], dtype=float) / np.sqrt(14.0),
-        np.array([1.0, 0.0, 0.0], dtype=float),
-        np.array([0.0, 1.0, 0.0], dtype=float),
-        np.array([0.0, 0.0, 1.0], dtype=float),
-    ],
-    dtype=float,
-)
-
-
-def _gonze_degenerate_sets(frequencies, tolerance=GONZE_VELOCITY_DEGENERACY_TOLERANCE):
-    sets = []
-    current = [0]
-    for index in range(1, len(frequencies)):
-        if abs(frequencies[index] - frequencies[current[-1]]) < tolerance:
-            current.append(index)
-        else:
-            sets.append(current)
-            current = [index]
-    sets.append(current)
-    return sets
 
 
 def _gonze_to_phonopy_q_cart(q_cart):
     return np.array(q_cart, dtype=float, copy=True) * units.Bohr
-
-
-def _gonze_to_phonopy_dm(dm):
-    return np.array(dm, copy=True) / _PHONOPY_TO_KALDO_DM
-
-
-def _gonze_phonopy_frequencies_from_eigenvalues(eigenvalues):
-    factor = np.sqrt(_PHONOPY_TO_KALDO_DM) / (2 * np.pi)
-    return np.sign(eigenvalues) * np.sqrt(np.abs(eigenvalues)) * factor
 
 
 _warned_incommensurate = False
