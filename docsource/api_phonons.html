@@ -1189,7 +1189,7 @@
       <span aria-label="Python property" class="objinfo-icon objinfo-icon__alias" title="Python property">P</span>
     
     <span class="md-ellipsis">
-      <span title="kaldo.phonons.Phonons.population (Python property) — Calculate the phonons population for each k point in k_points and each mode. If classical, it returns the temperature divided by each frequency, using equipartition theorem. If quantum it returns the Bose-Einstein distribution"><span>population</span></span>
+      <span title="kaldo.phonons.Phonons.population (Python property) — Calculate the phonons population for each k point in k_points and each mode. If quantum, it returns the Bose-Einstein distribution. If classical, it returns the equipartition occupation k_B*T/(hbar*omega) scaled by the internal 1/CLASSICAL_HBAR_SCALE convention, minus 1/2 (see kaldo.observables.harmonic_with_q_temp); the convention factors cancel in the scattering rates, so bandwidth and conductivity are unaffected, but the array itself is not the physical occupation."><span>population</span></span>
     </span>
   </a>
   
@@ -1227,7 +1227,7 @@
       <span aria-label="Python property" class="objinfo-icon objinfo-icon__alias" title="Python property">P</span>
     
     <span class="md-ellipsis">
-      <span title="kaldo.phonons.Phonons.free_energy (Python property) — Harmonic free energy, already Brillouin-zone averaged, returned in eV per mode (including zero-point energy)."><span>free_<wbr>energy</span></span>
+      <span title="kaldo.phonons.Phonons.free_energy (Python property) — Harmonic free energy, already Brillouin-zone averaged, returned in eV per mode."><span>free_<wbr>energy</span></span>
     </span>
   </a>
   
@@ -2477,7 +2477,7 @@
       <span aria-label="Python property" class="objinfo-icon objinfo-icon__alias" title="Python property">P</span>
     
     <span class="md-ellipsis">
-      <span title="kaldo.phonons.Phonons.population (Python property) — Calculate the phonons population for each k point in k_points and each mode. If classical, it returns the temperature divided by each frequency, using equipartition theorem. If quantum it returns the Bose-Einstein distribution"><span>population</span></span>
+      <span title="kaldo.phonons.Phonons.population (Python property) — Calculate the phonons population for each k point in k_points and each mode. If quantum, it returns the Bose-Einstein distribution. If classical, it returns the equipartition occupation k_B*T/(hbar*omega) scaled by the internal 1/CLASSICAL_HBAR_SCALE convention, minus 1/2 (see kaldo.observables.harmonic_with_q_temp); the convention factors cancel in the scattering rates, so bandwidth and conductivity are unaffected, but the array itself is not the physical occupation."><span>population</span></span>
     </span>
   </a>
   
@@ -2515,7 +2515,7 @@
       <span aria-label="Python property" class="objinfo-icon objinfo-icon__alias" title="Python property">P</span>
     
     <span class="md-ellipsis">
-      <span title="kaldo.phonons.Phonons.free_energy (Python property) — Harmonic free energy, already Brillouin-zone averaged, returned in eV per mode (including zero-point energy)."><span>free_<wbr>energy</span></span>
+      <span title="kaldo.phonons.Phonons.free_energy (Python property) — Harmonic free energy, already Brillouin-zone averaged, returned in eV per mode."><span>free_<wbr>energy</span></span>
     </span>
   </a>
   
@@ -3073,7 +3073,7 @@ cases the <a class="reference internal" href="introduction.html"><span class="do
 <tr class="row-even"><td><p><a class="reference internal" href="#kaldo.phonons.Phonons.heat_capacity_2d" title="kaldo.phonons.Phonons.heat_capacity_2d (Python property) — Calculate the generalized 2d heat capacity for each k point in k_points and each mode. If classical, it returns the Boltzmann constant in W/m/K."><code class="xref py py-obj docutils literal notranslate"><span class="pre">Phonons.heat_capacity_2d</span></code></a></p></td>
 <td><p>Calculate the generalized 2d heat capacity for each k point in k_points and each mode.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#kaldo.phonons.Phonons.population" title="kaldo.phonons.Phonons.population (Python property) — Calculate the phonons population for each k point in k_points and each mode. If classical, it returns the temperature divided by each frequency, using equipartition theorem. If quantum it returns the Bose-Einstein distribution"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Phonons.population</span></code></a></p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#kaldo.phonons.Phonons.population" title="kaldo.phonons.Phonons.population (Python property) — Calculate the phonons population for each k point in k_points and each mode. If quantum, it returns the Bose-Einstein distribution. If classical, it returns the equipartition occupation k_B*T/(hbar*omega) scaled by the internal 1/CLASSICAL_HBAR_SCALE convention, minus 1/2 (see kaldo.observables.harmonic_with_q_temp); the convention factors cancel in the scattering rates, so bandwidth and conductivity are unaffected, but the array itself is not the physical occupation."><code class="xref py py-obj docutils literal notranslate"><span class="pre">Phonons.population</span></code></a></p></td>
 <td><p>Calculate the phonons population for each k point in k_points and each mode.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="#kaldo.phonons.Phonons.phase_space" title="kaldo.phonons.Phonons.phase_space (Python property) — Calculate the 3-phonons-processes phase_space, for each k point in k_points and each mode."><code class="xref py py-obj docutils literal notranslate"><span class="pre">Phonons.phase_space</span></code></a></p></td>
@@ -3329,8 +3329,12 @@ If classical, it returns the Boltzmann constant in W/m/K.</p>
 <dt class="sig sig-object highlight py" id="kaldo.phonons.Phonons.population">
 <em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">population</span></span><span class="p"> <span class="pre">:</span> </span><span class="desctype"><span class="pre">Any</span></span><a class="headerlink" href="#kaldo.phonons.Phonons.population" title="Link to this definition">¶</a></dt>
 <dd><p>Calculate the phonons population for each k point in k_points and each mode.
-If classical, it returns the temperature divided by each frequency, using equipartition theorem.
-If quantum it returns the Bose-Einstein distribution</p>
+If quantum, it returns the Bose-Einstein distribution.
+If classical, it returns the equipartition occupation k_B*T/(hbar*omega)
+scaled by the internal 1/CLASSICAL_HBAR_SCALE convention, minus 1/2
+(see kaldo.observables.harmonic_with_q_temp); the convention factors
+cancel in the scattering rates, so bandwidth and conductivity are
+unaffected, but the array itself is not the physical occupation.</p>
 <dl class="field-list simple">
 <dt class="field-odd" id="kaldo.phonons.Phonons.population-returns">Returns<span class="colon">:</span><a class="headerlink" href="#kaldo.phonons.Phonons.population-returns" title="Permalink to this headline">¶</a></dt>
 <dd class="field-odd"><p><strong>population</strong> – population for each k point and each mode</p>
@@ -3345,15 +3349,13 @@ If quantum it returns the Bose-Einstein distribution</p>
 <dt class="sig sig-object highlight py" id="kaldo.phonons.Phonons.free_energy">
 <em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">free_energy</span></span><span class="p"> <span class="pre">:</span> </span><span class="desctype"><span class="pre">Any</span></span><a class="headerlink" href="#kaldo.phonons.Phonons.free_energy" title="Link to this definition">¶</a></dt>
 <dd><p>Harmonic free energy, already Brillouin-zone averaged,
-returned in eV per mode (including zero-point energy).</p>
-<p>Formula: F = k_B * T * ln(1 - exp(-hbar*omega/(k_B*T))) + hbar*omega/2</p>
-<dl class="simple">
-<dt>where:</dt><dd><p>k_B: Boltzmann constant
-T: temperature
-hbar: reduced Planck constant
-omega: angular frequency (2*pi*frequency)</p>
-</dd>
-</dl>
+returned in eV per mode.</p>
+<p>Quantum: F = k_B * T * ln(1 - exp(-x)) + hbar*omega/2, with
+x = hbar*omega/(k_B*T), including zero-point energy.</p>
+<p>Classical (<code class="docutils literal notranslate"><span class="pre">is_classic=True</span></code>): F = k_B * T * ln(x), the x -&gt; 0
+limit of the quantum expression (the zero-point term cancels
+against the expansion of the logarithm). It uses the physical hbar
+as the phase-space measure and contains no zero-point energy.</p>
 <dl class="field-list simple">
 <dt class="field-odd" id="kaldo.phonons.Phonons.free_energy-returns">Returns<span class="colon">:</span><a class="headerlink" href="#kaldo.phonons.Phonons.free_energy-returns" title="Permalink to this headline">¶</a></dt>
 <dd class="field-odd"><p>Free energy array with shape matching frequency array. Non-physical modes
@@ -3366,7 +3368,8 @@ have zero free energy in the returned array.</p>
 </dl>
 <p class="rubric">Notes</p>
 <ul class="simple">
-<li><p>At T=0, only the zero-point energy contributes (thermal term vanishes)</p></li>
+<li><p>At T=0, the quantum result reduces to the zero-point energy; the
+classical result reduces to its T -&gt; 0 limit, zero</p></li>
 <li><p>Modes with imaginary frequencies (negative frequency values) are automatically
 excluded and will trigger a warning, as they may indicate structural instability</p></li>
 </ul>
@@ -3377,6 +3380,9 @@ excluded and will trigger a warning, as they may indicate structural instability
 <em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">zero_point_harmonic_energy</span></span><span class="p"> <span class="pre">:</span> </span><span class="desctype"><span class="pre">Any</span></span><a class="headerlink" href="#kaldo.phonons.Phonons.zero_point_harmonic_energy" title="Link to this definition">¶</a></dt>
 <dd><p>Harmonic zero-point energy, Brillouin-zone averaged,
 returned in eV per mode.</p>
+<p>This is a quantum quantity (hbar*omega/2); it has no classical
+counterpart and <code class="docutils literal notranslate"><span class="pre">free_energy</span></code> with <code class="docutils literal notranslate"><span class="pre">is_classic=True</span></code> does not
+include it.</p>
 </dd></dl>
 
 <dl class="py property objdesc">
@@ -3426,6 +3432,10 @@ Defined by equations in DOI:https://doi.org/10.1103/PhysRevB.27.858</p>
 <dt class="sig sig-object highlight py" id="kaldo.phonons.Phonons.phase_space">
 <em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">phase_space</span></span><span class="p"> <span class="pre">:</span> </span><span class="desctype"><span class="pre">Any</span></span><a class="headerlink" href="#kaldo.phonons.Phonons.phase_space" title="Link to this definition">¶</a></dt>
 <dd><p>Calculate the 3-phonons-processes phase_space, for each k point in k_points and each mode.</p>
+<p>With <code class="docutils literal notranslate"><span class="pre">is_classic=True</span></code> the values carry the internal
+1/CLASSICAL_HBAR_SCALE population convention (see
+kaldo.observables.harmonic_with_q_temp), so classical and quantum
+phase spaces are not directly comparable in magnitude.</p>
 <dl class="field-list simple">
 <dt class="field-odd" id="kaldo.phonons.Phonons.phase_space-returns">Returns<span class="colon">:</span><a class="headerlink" href="#kaldo.phonons.Phonons.phase_space-returns" title="Permalink to this headline">¶</a></dt>
 <dd class="field-odd"><p><strong>phase_space</strong> – phase_space for each k point and each mode</p>

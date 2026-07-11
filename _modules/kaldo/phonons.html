@@ -832,7 +832,7 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.storable</span><span class="w"> </span><span class="kn">import</span> <span class="n">FOLDER_NAME</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.grid</span><span class="w"> </span><span class="kn">import</span> <span class="n">Grid</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.observables.harmonic_with_q</span><span class="w"> </span><span class="kn">import</span> <span class="n">HarmonicWithQ</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.observables.harmonic_with_q_temp</span><span class="w"> </span><span class="kn">import</span> <span class="n">HarmonicWithQTemp</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.observables.harmonic_with_q_temp</span><span class="w"> </span><span class="kn">import</span> <span class="n">HarmonicWithQTemp</span><span class="p">,</span> <span class="n">CLASSICAL_HBAR_SCALE</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.forceconstants</span><span class="w"> </span><span class="kn">import</span> <span class="n">ForceConstants</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">kaldo.controllers.anharmonic</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">aha</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">tensorflow</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">tf</span>
@@ -1385,9 +1385,6 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">n_atoms</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">n_atoms</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">n_modes</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">n_phonons</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">hbar</span> <span class="o">=</span> <span class="n">units</span><span class="o">.</span><span class="n">_hbar</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_classic</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">hbar</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">hbar</span> <span class="o">*</span> <span class="mf">1e-6</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">g_factor</span> <span class="o">=</span> <span class="n">g_factor</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">include_isotopes</span> <span class="o">=</span> <span class="n">include_isotopes</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">iso_speed_up</span> <span class="o">=</span> <span class="n">iso_speed_up</span>
@@ -1700,8 +1697,12 @@
     <span class="k">def</span><span class="w"> </span><span class="nf">population</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Calculate the phonons population for each k point in k_points and each mode.</span>
-<span class="sd">        If classical, it returns the temperature divided by each frequency, using equipartition theorem.</span>
-<span class="sd">        If quantum it returns the Bose-Einstein distribution</span>
+<span class="sd">        If quantum, it returns the Bose-Einstein distribution.</span>
+<span class="sd">        If classical, it returns the equipartition occupation k_B*T/(hbar*omega)</span>
+<span class="sd">        scaled by the internal 1/CLASSICAL_HBAR_SCALE convention, minus 1/2</span>
+<span class="sd">        (see kaldo.observables.harmonic_with_q_temp); the convention factors</span>
+<span class="sd">        cancel in the scattering rates, so bandwidth and conductivity are</span>
+<span class="sd">        unaffected, but the array itself is not the physical occupation.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
@@ -1726,19 +1727,19 @@
             <span class="n">population</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span> <span class="o">=</span> <span class="n">phonon</span><span class="o">.</span><span class="n">population</span>
         <span class="k">return</span> <span class="n">population</span>
 
-    <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">&#39;&lt;temperature&gt;&#39;</span><span class="p">)</span>
+    <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s1">&#39;&lt;temperature&gt;/&lt;statistics&gt;&#39;</span><span class="p">)</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">free_energy</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Harmonic free energy, already Brillouin-zone averaged,</span>
-<span class="sd">        returned in eV per mode (including zero-point energy).</span>
+<span class="sd">        returned in eV per mode.</span>
 
-<span class="sd">        Formula: F = k_B * T * ln(1 - exp(-hbar*omega/(k_B*T))) + hbar*omega/2</span>
+<span class="sd">        Quantum: F = k_B * T * ln(1 - exp(-x)) + hbar*omega/2, with</span>
+<span class="sd">        x = hbar*omega/(k_B*T), including zero-point energy.</span>
 
-<span class="sd">        where:</span>
-<span class="sd">            k_B: Boltzmann constant</span>
-<span class="sd">            T: temperature</span>
-<span class="sd">            hbar: reduced Planck constant</span>
-<span class="sd">            omega: angular frequency (2*pi*frequency)</span>
+<span class="sd">        Classical (``is_classic=True``): F = k_B * T * ln(x), the x -&gt; 0</span>
+<span class="sd">        limit of the quantum expression (the zero-point term cancels</span>
+<span class="sd">        against the expansion of the logarithm). It uses the physical hbar</span>
+<span class="sd">        as the phase-space measure and contains no zero-point energy.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
@@ -1749,12 +1750,15 @@
 
 <span class="sd">        Notes</span>
 <span class="sd">        -----</span>
-<span class="sd">        - At T=0, only the zero-point energy contributes (thermal term vanishes)</span>
+<span class="sd">        - At T=0, the quantum result reduces to the zero-point energy; the</span>
+<span class="sd">          classical result reduces to its T -&gt; 0 limit, zero</span>
 <span class="sd">        - Modes with imaginary frequencies (negative frequency values) are automatically</span>
 <span class="sd">          excluded and will trigger a warning, as they may indicate structural instability</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="c1"># At T=0, F = ZPE only (thermal contribution vanishes)</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">temperature</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="c1"># atol: any temperature below 1e-12 K is physically zero</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isclose</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">temperature</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="n">rtol</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="mf">1e-12</span><span class="p">):</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_classic</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">frequency</span><span class="p">)</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">zero_point_harmonic_energy</span>
 
         <span class="c1"># Check for imaginary frequencies (negative values)</span>
@@ -1774,6 +1778,12 @@
         <span class="c1"># This avoids both log(0) for low frequencies and log(negative) for imaginary frequencies</span>
         <span class="n">physical</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">physical_mode</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">frequency</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
         <span class="n">valid_modes</span> <span class="o">=</span> <span class="n">physical</span> <span class="o">&amp;</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">frequency</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_classic</span><span class="p">:</span>
+            <span class="n">ln_term</span><span class="p">[</span><span class="n">valid_modes</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">x_vals</span><span class="p">[</span><span class="n">valid_modes</span><span class="p">])</span>
+            <span class="n">f_cell</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">_e</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">_k</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">temperature</span> <span class="o">*</span> <span class="n">ln_term</span>
+            <span class="k">return</span> <span class="n">f_cell</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span>
+
         <span class="n">ln_term</span><span class="p">[</span><span class="n">valid_modes</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log1p</span><span class="p">(</span><span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">x_vals</span><span class="p">[</span><span class="n">valid_modes</span><span class="p">]))</span>  <span class="c1"># ln(1 − e^{-x})</span>
 
         <span class="c1"># Thermal contribution: k_B*T*ln(1 - exp(-hbar*omega/(k_B*T))) in eV</span>
@@ -1791,6 +1801,10 @@
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Harmonic zero-point energy, Brillouin-zone averaged,</span>
 <span class="sd">        returned in eV per mode.</span>
+
+<span class="sd">        This is a quantum quantity (hbar*omega/2); it has no classical</span>
+<span class="sd">        counterpart and ``free_energy`` with ``is_classic=True`` does not</span>
+<span class="sd">        include it.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">zpe_cell</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">_hbar</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">frequency</span> <span class="o">*</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="mf">1.0e12</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">_e</span>
         <span class="k">return</span> <span class="n">zpe_cell</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span>
@@ -1857,6 +1871,11 @@
     <span class="k">def</span><span class="w"> </span><span class="nf">phase_space</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Calculate the 3-phonons-processes phase_space, for each k point in k_points and each mode.</span>
+
+<span class="sd">        With ``is_classic=True`` the values carry the internal</span>
+<span class="sd">        1/CLASSICAL_HBAR_SCALE population convention (see</span>
+<span class="sd">        kaldo.observables.harmonic_with_q_temp), so classical and quantum</span>
+<span class="sd">        phase spaces are not directly comparable in magnitude.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
@@ -2264,8 +2283,10 @@
         <span class="c1"># Reshape population to 1D for unified indexing</span>
         <span class="n">population_flat</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">population</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
 
-        <span class="c1"># Apply hbar scaling factor for classical vs quantum</span>
-        <span class="n">hbar_factor</span> <span class="o">=</span> <span class="mf">1e-6</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_classic</span> <span class="k">else</span> <span class="mi">1</span>
+        <span class="c1"># Classical statistics: cancel the 1/CLASSICAL_HBAR_SCALE the</span>
+        <span class="c1"># population carries (see harmonic_with_q_temp.CLASSICAL_HBAR_SCALE)</span>
+        <span class="c1"># by scaling the potential with the matching factor.</span>
+        <span class="n">hbar_factor</span> <span class="o">=</span> <span class="n">CLASSICAL_HBAR_SCALE</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_classic</span> <span class="k">else</span> <span class="mi">1</span>
 
         <span class="n">ps_and_gamma</span> <span class="o">=</span> <span class="n">aha</span><span class="o">.</span><span class="n">calculate_ps_and_gamma</span><span class="p">(</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">sparse_phase</span><span class="p">,</span>
