@@ -14,6 +14,7 @@ specific. Here we assert:
 from __future__ import annotations
 
 import inspect
+from pathlib import Path
 
 import pytest
 
@@ -34,6 +35,68 @@ def test_cumulant_thermo_signature_pinned():
     assert sig.parameters["nconf"].default == 100_000
     assert sig.parameters["nboot"].default == 5_000
     assert sig.parameters["use_q_symmetry"].default is True
+    # The potential comes from exactly one of lammps_cmds / calculator.
+    assert sig.parameters["lammps_cmds"].default is None
+    assert sig.parameters["calculator"].default is None
+
+
+def test_cumulant_thermo_requires_exactly_one_potential_source(tmp_path):
+    """lammps_cmds and calculator are mutually exclusive and one is required."""
+    from kaldo.cumulant import cumulant_thermo
+    with pytest.raises(ValueError, match="exactly one"):
+        cumulant_thermo(str(tmp_path), (1, 1, 1), 100.0, True)
+    with pytest.raises(ValueError, match="exactly one"):
+        cumulant_thermo(str(tmp_path), (1, 1, 1), 100.0, True,
+                        lammps_cmds=["pair_style lj/cut 8.5"], calculator=object())
+
+
+SW_FIX = Path(__file__).parent / "cumulant_fixtures" / "SW"
+LJ_FIX = Path(__file__).parent / "cumulant_fixtures" / "LJ"
+
+
+@pytest.mark.skipif(not (LJ_FIX / "infile.ucposcar").exists(), reason="LJ cumulant fixture missing")
+def test_cumulant_thermo_end_to_end_with_ase_calculator(tmp_path):
+    """Full pipeline (harmonic + F1 + F2 + Phase-5 sampling + bootstrap) on
+    the vendored LJ Ar fixture, with ase's LennardJones standing in for
+    LAMMPS via the calculator= path. First CI-runnable end-to-end drive of
+    cumulant_thermo: every phase executes with real energies.
+
+    The ASE LJ parameters approximate the potential behind the TDEP fit, so
+    F_0 (which measures potential-vs-Taylor anharmonicity) is asserted
+    finite and small rather than pinned.
+    """
+    import shutil
+
+    import numpy as np
+    from ase.calculators.lj import LennardJones
+
+    from kaldo.cumulant import cumulant_thermo
+
+    folder = tmp_path / "lj_ar"
+    folder.mkdir()
+    for fn in ("infile.ucposcar", "infile.ssposcar"):
+        shutil.copy(str(LJ_FIX / fn), str(folder / fn))
+    for fn in ("infile.forceconstant", "infile.forceconstant_thirdorder",
+               "infile.forceconstant_fourthorder"):
+        shutil.copy(str(LJ_FIX / "80K_4UC" / fn), str(folder / fn))
+
+    r = cumulant_thermo(
+        str(folder), (4, 4, 4), temperature=80.0, is_classic=True,
+        calculator=LennardJones(epsilon=0.0104, sigma=3.4, rc=8.5),
+        nconf=10, nboot=20,
+        harmonic_mesh=(4, 4, 4), free_energy_mesh=(2, 2, 2),
+        use_q_symmetry=True, verbose=False,
+    )
+
+    for name in ("F_H", "F_0", "F_1", "F_2", "F_total",
+                 "U_total", "S_total", "Cv_total", "F_total_SE"):
+        assert np.isfinite(getattr(r, name)), f"{name} is not finite"
+    assert r.N_conf == 10
+    assert np.all(np.isfinite(r.V)) and np.any(r.V != 0.0)
+    # The potentials differ slightly, but the constant correction must be a
+    # sane per-atom energy, not a blow-up (the historical failure mode was
+    # ~1e12 from frame/cell mismatches).
+    assert abs(r.F_0) < 1.0
 
 
 @pytest.mark.skipif(not NE_REF.exists(), reason="Ne production fixture unavailable")

@@ -22,12 +22,15 @@ from typing import Sequence
 
 import numpy as np
 
+from kaldo.helpers.logger import get_logger
 from .constants import AMU
 from .harmonic import compute_all_frequencies_THz, harmonic_thermo_quantum
 from .sampler import SCSampler
 from .taylor import SCContractors
 from .bootstrap import bootstrap_corrections
 from kaldo.forceconstants import ForceConstants
+
+logging = get_logger()
 
 
 @dataclass
@@ -38,15 +41,37 @@ class CumulantResult:
     N_boot: int
     # Per-atom totals and component parts
     # F: eV / atom, U: eV / atom, S: kB / atom, Cv: kB / atom
-    F_H: float; U_H: float; S_H: float; Cv_H: float
-    F_0: float; U_0: float; S_0: float; Cv_0: float
-    F_1: float; U_1: float; S_1: float; Cv_1: float
-    F_2: float; U_2: float; S_2: float; Cv_2: float
-    F_total: float; U_total: float; S_total: float; Cv_total: float
+    F_H: float
+    U_H: float
+    S_H: float
+    Cv_H: float
+    F_0: float
+    U_0: float
+    S_0: float
+    Cv_0: float
+    F_1: float
+    U_1: float
+    S_1: float
+    Cv_1: float
+    F_2: float
+    U_2: float
+    S_2: float
+    Cv_2: float
+    F_total: float
+    U_total: float
+    S_total: float
+    Cv_total: float
     # Standard Errors, only from the 0th order correction
-    F_total_SE: float; U_total_SE: float; S_total_SE: float; Cv_total_SE: float
+    F_total_SE: float
+    U_total_SE: float
+    S_total_SE: float
+    Cv_total_SE: float
     # Raw energy samples (for size studies / re-bootstrapping)
-    V: np.ndarray; V2: np.ndarray; V3: np.ndarray; V4: np.ndarray; V2_tilde: np.ndarray
+    V: np.ndarray
+    V2: np.ndarray
+    V3: np.ndarray
+    V4: np.ndarray
+    V2_tilde: np.ndarray
 
 
 def _harmonic_thermo(neighbors_pair, uc_positions, uc_cell, masses_amu, kmesh, T_K):
@@ -61,11 +86,11 @@ def _harmonic_thermo(neighbors_pair, uc_positions, uc_cell, masses_amu, kmesh, T
 
 
 def cumulant_thermo(
-    tdep_folder : str,
-    supercell : tuple[int, int, int],
+    tdep_folder: str,
+    supercell: tuple[int, int, int],
     temperature: float,
-    is_classic : bool,
-    lammps_cmds : Sequence[str] | str,
+    is_classic: bool,
+    lammps_cmds: Sequence[str] | str | None = None,
     nconf: int = 100_000,
     nboot: int = 5_000,
     harmonic_mesh: Sequence[int] = (30, 30, 30),
@@ -73,6 +98,7 @@ def cumulant_thermo(
     seed: int = 987654,
     use_q_symmetry: bool = True,
     lammps_kwargs: dict | None = None,
+    calculator=None,
     verbose: bool = True,
 ) -> CumulantResult:
     """
@@ -90,11 +116,13 @@ def cumulant_thermo(
         Temperature in Kelvin.
     is_classic : bool
         True for classical statistics, False for quantum. Required.
-    lammps_cmds : str or sequence of str
+    lammps_cmds : str or sequence of str, optional
         ASE ``LAMMPSlib`` commands (pair_style, pair_coeff, ...) defining
-        the potential; the sampler hits this calculator in a tight loop.
+        the potential; the sampler hits this calculator in a tight loop and
+        reuses one live LAMMPS instance with ``run 0 pre no post no``.
         For example:
         ["pair_style lj/cut 6.955", "pair_coeff * * 0.0032135 2.782", "pair_modify shift yes"]
+        Exactly one of ``lammps_cmds`` and ``calculator`` must be given.
     nconf : int
         Number of configurations to sample for 0th order correction. Default is 100_000.
     nboot : int
@@ -112,8 +140,15 @@ def cumulant_thermo(
     lammps_kwargs : dict
         Keyword arguments for the LAMMPSlib calculator. LAMMPS commands should be provided via
         the `lammps_cmds` argument. `atom_types` and `atom_type_masses` will be populated automatically
-        based on the unit-cell species and masses, but can be overridden if needed. See the 
-        ASE LAMMPSlib documentation for more details.
+        based on the unit-cell species and masses, but can be overridden if needed. See the
+        ASE LAMMPSlib documentation for more details. Only valid with ``lammps_cmds``.
+    calculator : ase Calculator, optional
+        Any ASE calculator (an ML potential, EMT, ase's LennardJones, ...)
+        to evaluate the sampled configurations instead of LAMMPS. The
+        Phase-5 energies then go through the plain
+        ``atoms.get_potential_energy()`` path (correct, without the LAMMPS
+        neighbor-list reuse speedup). Exactly one of ``lammps_cmds`` and
+        ``calculator`` must be given.
     verbose : bool
         If True, print progress messages. Default is True.
 
@@ -123,20 +158,31 @@ def cumulant_thermo(
     """
 
     from ase import Atoms
-    from ase.calculators.lammpslib import LAMMPSlib
 
-    # Normalize lammps commands to a list of strings
-    if isinstance(lammps_cmds, str):
-        lammps_cmds = [lammps_cmds]
-    else:
-        lammps_cmds = list(lammps_cmds)
+    if (lammps_cmds is None) == (calculator is None):
+        raise ValueError(
+            "cumulant_thermo requires exactly one of lammps_cmds= (an ASE "
+            "LAMMPSlib potential definition) or calculator= (any ASE calculator)."
+        )
+    if calculator is not None and lammps_kwargs:
+        raise ValueError("lammps_kwargs is only valid together with lammps_cmds.")
 
-    # Copy so neither a caller-supplied dict nor a shared default is mutated
-    # by the atom_types / atom_type_masses auto-population below.
-    lammps_kwargs = dict(lammps_kwargs) if lammps_kwargs else {}
+    if lammps_cmds is not None:
+        # Normalize lammps commands to a list of strings
+        if isinstance(lammps_cmds, str):
+            lammps_cmds = [lammps_cmds]
+        else:
+            lammps_cmds = list(lammps_cmds)
 
-    if "lmpcmds" in lammps_kwargs:
-        raise ValueError("lmpcmds should be provided directly to `cumulant_thermo` function via lammps_cmds argument not the lammps_kwargs.")
+        # Copy so neither a caller-supplied dict nor a shared default is mutated
+        # by the atom_types / atom_type_masses auto-population below.
+        lammps_kwargs = dict(lammps_kwargs) if lammps_kwargs else {}
+
+        if "lmpcmds" in lammps_kwargs:
+            raise ValueError(
+                "lmpcmds should be provided directly to `cumulant_thermo` "
+                "via the lammps_cmds argument, not through lammps_kwargs."
+            )
 
     forceconstants = ForceConstants.from_folder(
             tdep_folder,
@@ -154,12 +200,12 @@ def cumulant_thermo(
     species_uc = uc.get_chemical_symbols()
     masses_amu_uc = uc.get_masses()
     if verbose:
-        print(f"Parsed unit-cell species with ASE as: {species_uc}", flush=True)
-        print(f"Parsed unit-cell masses with ASE as: {masses_amu_uc}", flush=True)
+        logging.info(f"Parsed unit-cell species with ASE as: {species_uc}")
+        logging.info(f"Parsed unit-cell masses with ASE as: {masses_amu_uc}")
 
     # ---- Phase 1: harmonic (closed form) ----
     if verbose:
-        print(f"Phase 1: harmonic {harmonic_mesh} ...", flush=True)
+        logging.info(f"Phase 1: harmonic {harmonic_mesh} ...")
     t0 = time.time()
     from .free_energy import _neighbors_from_fc
     harm_neighbors = _neighbors_from_fc(forceconstants)
@@ -168,13 +214,13 @@ def cumulant_thermo(
         tuple(harmonic_mesh), temperature,
     )
     if verbose:
-        print(f"  F_H={harm['F_H']:+.4e}  U_H={harm['U_H']:+.4e}  "
-              f"S_H={harm['S_H']:+.4e}  Cv_H={harm['Cv_H']:+.4e}  "
-              f"({time.time()-t0:.1f}s)", flush=True)
+        logging.info(f"  F_H={harm['F_H']:+.4e}  U_H={harm['U_H']:+.4e}  "
+                     f"S_H={harm['S_H']:+.4e}  Cv_H={harm['Cv_H']:+.4e}  "
+              f"({time.time()-t0:.1f}s)")
 
     # ---- Phase 3: F1 analytic ----
     if verbose:
-        print(f"Phase 3: F1/S1/U1/Cv1 at mesh {free_energy_mesh} ...", flush=True)
+        logging.info(f"Phase 3: F1/S1/U1/Cv1 at mesh {free_energy_mesh} ...")
     t0 = time.time()
     from .free_energy import F1_from_fc
     res1 = F1_from_fc(
@@ -183,13 +229,13 @@ def cumulant_thermo(
         use_q_symmetry=use_q_symmetry,
     )
     if verbose:
-        print(f"  F1={res1['F1']:+.4e}  U1={res1['U1']:+.4e}  "
-              f"S1={res1['S1']:+.4e}  Cv1={res1['Cv1']:+.4e}  "
-              f"({time.time()-t0:.1f}s)", flush=True)
+        logging.info(f"  F1={res1['F1']:+.4e}  U1={res1['U1']:+.4e}  "
+                     f"S1={res1['S1']:+.4e}  Cv1={res1['Cv1']:+.4e}  "
+              f"({time.time()-t0:.1f}s)")
 
     # ---- Phase 4: F2 analytic ----
     if verbose:
-        print(f"Phase 4: F2/S2/U2/Cv2 at mesh {free_energy_mesh} ...", flush=True)
+        logging.info(f"Phase 4: F2/S2/U2/Cv2 at mesh {free_energy_mesh} ...")
     t0 = time.time()
     from .free_energy import F2_from_fc
     res2 = F2_from_fc(
@@ -198,13 +244,13 @@ def cumulant_thermo(
         use_q_symmetry=use_q_symmetry,
     )
     if verbose:
-        print(f"  F2={res2['F2']:+.4e}  U2={res2['U2']:+.4e}  "
-              f"S2={res2['S2']:+.4e}  Cv2={res2['Cv2']:+.4e}  "
-              f"({time.time()-t0:.1f}s)", flush=True)
+        logging.info(f"  F2={res2['F2']:+.4e}  U2={res2['U2']:+.4e}  "
+                     f"S2={res2['S2']:+.4e}  Cv2={res2['Cv2']:+.4e}  "
+              f"({time.time()-t0:.1f}s)")
 
     # ---- Phase 5: MC constant correction (F0) ----
     if verbose:
-        print(f"Phase 5: sampling N={nconf} configs ...", flush=True)
+        logging.info(f"Phase 5: sampling N={nconf} configs ...")
 
     # The whole of Phase 5 works in ONE atom frame: infile.ssposcar order.
     #  * The LAMMPS Atoms is read straight from ssposcar, so its cell,
@@ -236,7 +282,7 @@ def cumulant_thermo(
     ifc2_sc = ifc2_replica_major[np.ix_(dof_perm, dof_perm)]
 
     if verbose:
-        print(f"Phase 5: Remapped IFC2 to ssposcar frame, shape {ifc2_sc.shape} ...", flush=True)
+        logging.info(f"Phase 5: Remapped IFC2 to ssposcar frame, shape {ifc2_sc.shape} ...")
 
     sampler = SCSampler(
         ifc2_sc,
@@ -246,35 +292,43 @@ def cumulant_thermo(
         seed=seed
     )
     if verbose:
-        print(f"Phase 5: Built sampler ...", flush=True)
+        logging.info(f"Phase 5: Built sampler ...")
 
     contractors = SCContractors.from_tdep_folder(tdep_folder, include_fourth=True)
 
     if verbose:
-        print(f"Phase 5: Build contractors ...", flush=True)
+        logging.info(f"Phase 5: Build contractors ...")
 
     sc_cell_A = np.asarray(sc.get_cell())
     sc_pos_eq_A = np.asarray(sc.get_positions())
 
-    # Build mappings for LAMMPS calculator
-    _, unique_species_idx = np.unique(species_uc, return_index=True)
-    if "atom_types" not in lammps_kwargs:
-        lammps_kwargs["atom_types"] = {species_uc[idx] : i + 1 for i, idx in enumerate(unique_species_idx)}
-    if "atom_type_masses" not in lammps_kwargs:
-        lammps_kwargs["atom_type_masses"] = {species_uc[idx] : masses_amu_uc[idx] for i, idx in enumerate(unique_species_idx)}
-
-    if verbose:
-        print(f"Phase 5: Building LAMMPS calculator ...", flush=True)
-        print(f"  LAMMPS atom_types: {lammps_kwargs['atom_types']}", flush=True)
-        print(f"  LAMMPS atom_type_masses: {lammps_kwargs['atom_type_masses']}", flush=True)
-
     at = Atoms(species_sc, positions=sc_pos_eq_A, cell=sc_cell_A, pbc=True)
-    at.calc = LAMMPSlib(
-        lmpcmds=list(lammps_cmds),
-        keep_alive=True,
-        log_file="/tmp/cumulant_thermo_lammps.log",
-        **lammps_kwargs
-    )
+    if calculator is not None:
+        if verbose:
+            logging.info(f"Phase 5: Using ASE calculator {type(calculator).__name__} ...")
+        at.calc = calculator
+    else:
+        from ase.calculators.lammpslib import LAMMPSlib
+
+        # Build mappings for the LAMMPS calculator
+        _, unique_species_idx = np.unique(species_uc, return_index=True)
+        if "atom_types" not in lammps_kwargs:
+            lammps_kwargs["atom_types"] = {species_uc[idx]: i + 1 for i, idx in enumerate(unique_species_idx)}
+        if "atom_type_masses" not in lammps_kwargs:
+            lammps_kwargs["atom_type_masses"] = {species_uc[idx]: masses_amu_uc[idx]
+                                                 for i, idx in enumerate(unique_species_idx)}
+
+        if verbose:
+            logging.info("Phase 5: Building LAMMPS calculator ...")
+            logging.info(f"  LAMMPS atom_types: {lammps_kwargs['atom_types']}")
+            logging.info(f"  LAMMPS atom_type_masses: {lammps_kwargs['atom_type_masses']}")
+
+        at.calc = LAMMPSlib(
+            lmpcmds=list(lammps_cmds),
+            keep_alive=True,
+            log_file="/tmp/cumulant_thermo_lammps.log",
+            **lammps_kwargs
+        )
     # Every sampled configuration shares topology (same atoms, same box; only
     # positions move), so keep one LAMMPS instance alive and, per config,
     # only scatter the new coordinates + `run 0 pre no post no` (reuse the
@@ -283,8 +337,11 @@ def cumulant_thermo(
     from ._lammps_batch import BatchEnergyEvaluator
     energy_eval = BatchEnergyEvaluator(at, sc_pos_eq_A)
 
-    V = np.zeros(nconf); V2 = np.zeros(nconf); V3 = np.zeros(nconf)
-    V4 = np.zeros(nconf); V2_tilde = np.zeros(nconf)
+    V = np.zeros(nconf)
+    V2 = np.zeros(nconf)
+    V3 = np.zeros(nconf)
+    V4 = np.zeros(nconf)
+    V2_tilde = np.zeros(nconf)
     t0 = time.time()
     for n in range(nconf):
         u, z = sampler.draw_with_z()
@@ -294,7 +351,7 @@ def cumulant_thermo(
         V4[n] = contractors.V4(u)
         V2_tilde[n] = sampler.V2_tilde_from_z(z)
         if verbose and (n + 1) % max(1, nconf // 10) == 0:
-            print(f"  n={n+1}/{nconf}  ({time.time()-t0:.1f}s)", flush=True)
+            logging.info(f"  n={n+1}/{nconf}  ({time.time()-t0:.1f}s)")
 
     V_ref = V2 if is_classic else V2_tilde
     point, se = bootstrap_corrections(
@@ -302,11 +359,10 @@ def cumulant_thermo(
         n_boot=nboot, seed=seed + 1, verbose=False,
     )
     if verbose:
-        print(f"F0={point['F0']:+.4e} +- {se['F0']:.2e}  "
-              f"U0={point['U0']:+.4e} +- {se['U0']:.2e}  "
+        logging.info(f"F0={point['F0']:+.4e} +- {se['F0']:.2e}  "
+                     f"U0={point['U0']:+.4e} +- {se['U0']:.2e}  "
               f"S0={point['S0']:+.4e} +- {se['S0']:.2e}  "
-              f"Cv0={point['Cv0']:+.4e} +- {se['Cv0']:.2e}",
-              flush=True)
+              f"Cv0={point['Cv0']:+.4e} +- {se['Cv0']:.2e}")
 
     # ---- Assemble totals (Julia bootstrap.jl convention) ----
     F_total = harm["F_H"] + point["F0"] + res1["F1"] + res2["F2"]
@@ -329,7 +385,7 @@ def cumulant_thermo(
     return result
 
 
-def print_ethan_table(result: CumulantResult) -> None:
+def print_thermo_table(result: CumulantResult) -> None:
     """Print the result in Ethan's ``*_mean.txt`` column layout."""
     print(f"# Cumulant thermo, T = {result.T_K} K, Nat = {result.Nat}, "
           f"N_conf = {result.N_conf}")
