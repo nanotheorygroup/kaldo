@@ -511,11 +511,13 @@ def calculate_qha(atoms, calculator, temperatures,
         fc_config = {
             'atoms': atoms_scaled,
             'supercell': supercell,
-            'folder': f'{folder}/fcs_{i_grid}'
+            'folder': f'{folder}/fcs_{i_grid}',
+            'is_acoustic_sum': True
         }
         force_constants = ForceConstants(**fc_config)
-        force_constants.second.is_acoustic_sum = True
-        force_constants.second.calculate(calculator, delta_shift=1e-4)
+        # Honor storage='memory': don't persist force constants either
+        force_constants.second.calculate(calculator, delta_shift=1e-4,
+                                         is_storing=(storage != 'memory'))
 
         # Calculate vibrational free energy for each temperature
         for i_temp, temp in enumerate(temperatures):
@@ -541,7 +543,6 @@ def calculate_qha(atoms, calculator, temperatures,
                 potential_energy + vibrational_free_energy
             )
 
-    np.save('raw_free_energy.npy', free_energy_matrix)
     # Fit and find minimum for each temperature
     logging.info("Fitting polynomials and finding minima...")
     lattice_constants = []

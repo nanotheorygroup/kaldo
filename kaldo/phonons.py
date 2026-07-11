@@ -980,11 +980,18 @@ class Phonons(Storable):
         Harmonic zero-point energy, Brillouin-zone averaged,
         returned in eV per mode.
 
+        Non-physical modes and modes with imaginary (negative) frequencies
+        contribute zero, matching the ``free_energy`` contract; summing
+        hbar*omega/2 over imaginary modes would otherwise poison the total
+        with negative spurious contributions on unstable structures.
+
         This is a quantum quantity (hbar*omega/2); it has no classical
         counterpart and ``free_energy`` with ``is_classic=True`` does not
         include it.
         """
-        zpe_cell = 0.5 * units._hbar * self.frequency * 2.0 * np.pi * 1.0e12 / units._e
+        zpe_cell = np.zeros_like(self.frequency)
+        valid = self.physical_mode.reshape(self.frequency.shape) & (self.frequency > 0)
+        zpe_cell[valid] = 0.5 * units._hbar * self.frequency[valid] * 2.0 * np.pi * 1.0e12 / units._e
         return zpe_cell / self.n_k_points
 
 
