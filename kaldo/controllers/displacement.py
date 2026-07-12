@@ -5,7 +5,7 @@ import numpy as np
 from concurrent.futures import as_completed
 from kaldo.helpers.logger import get_logger
 from kaldo.parallel import (
-    dispatch_with_resume, get_executor, is_parallel, validate_parallel_calculator,
+    dispatch_with_resume, get_executor, is_parallel, resolve_n_workers, validate_parallel_calculator,
 )
 from sparse import COO
 logging = get_logger()
@@ -367,6 +367,16 @@ def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=Fal
             validate_parallel_calculator(calculator, method='calculate_second')
         elif getattr(replicated_atoms, 'calc', None) is not None:
             validate_parallel_calculator(replicated_atoms.calc, method='calculate_second')
+        # Memory-safe worker resolution (kaldo.parallel.memory): auto-select
+        # when n_workers is None, raise before dispatch when an explicit
+        # request would exhaust memory and swap-thrash.
+        n_workers = resolve_n_workers(
+            n_workers, len(atoms), len(replicated_atoms) // len(atoms),
+            use_scratch=scratch_dir is not None,
+            calculator=calculator if calculator is not None else getattr(replicated_atoms, 'calc', None),
+            replicated_atoms=replicated_atoms,
+            mode='second',
+        )
     if use_symmetry and scratch_dir is not None:
         raise ValueError(
             "use_symmetry=True is not compatible with scratch_dir. "
@@ -677,6 +687,17 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
             validate_parallel_calculator(calculator, method='calculate_third')
         elif getattr(replicated_atoms, 'calc', None) is not None:
             validate_parallel_calculator(replicated_atoms.calc, method='calculate_third')
+        # Memory-safe worker resolution (kaldo.parallel.memory): auto-select
+        # when n_workers is None, raise before dispatch when an explicit
+        # request would exhaust memory and swap-thrash.
+        n_workers = resolve_n_workers(
+            n_workers, len(atoms), len(replicated_atoms) // len(atoms),
+            use_scratch=scratch_dir is not None,
+            calculator=calculator if calculator is not None else getattr(replicated_atoms, 'calc', None),
+            replicated_atoms=replicated_atoms,
+            mode='third',
+            jat_flush_every=jat_flush_every,
+        )
     if use_symmetry and scratch_dir is not None:
         raise ValueError(
             "use_symmetry=True is not compatible with scratch_dir. "
