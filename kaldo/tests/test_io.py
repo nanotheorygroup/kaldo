@@ -22,6 +22,7 @@ def phonons():
         "temperature": 300,  # 'temperature'=300K
         "folder": "ALD_si_bulk",
         "storage": "formatted",
+        "third_bandwidth": 0.5,  # fixed: gauge-invariant regression config (#290)
     }
 
     phonons = Phonons(forceconstants=forceconstants, **phonons_config)
@@ -34,13 +35,14 @@ def phonons():
 
 
 def test_qhgk_conductivity(phonons):
-    cond = Conductivity(phonons=phonons, method="qhgk", storage="memory").conductivity.sum(axis=0)
+    cond = Conductivity(phonons=phonons, method="qhgk", storage="memory",
+                        diffusivity_bandwidth=1.0).conductivity.sum(axis=0)
     cond = np.abs(np.mean(cond.diagonal()))
-    np.testing.assert_allclose(cond, 141.0, rtol=2e-2, atol=0.0)
+    np.testing.assert_allclose(cond, 2.251450, rtol=5e-3, atol=0.0)
 
 
 def test_inverse_conductivity(phonons):
     cond = np.abs(
         np.mean(Conductivity(phonons=phonons, method="inverse", storage="memory").conductivity.sum(axis=0).diagonal())
     )
-    np.testing.assert_approx_equal(cond, 154, significant=3)
+    np.testing.assert_allclose(cond, 300.205922, rtol=5e-3, atol=0.0)

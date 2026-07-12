@@ -21,6 +21,7 @@ def phonons():
         kpts=[5, 5, 5],
         is_classic=False,
         temperature=300,
+        broadening_kernel="tdep",  # gauge-invariant sigma; the shapes are what these tests probe (#290)
         storage="memory",
     )
     return phonons
@@ -28,14 +29,14 @@ def phonons():
 
 def test_triangle_broadening(phonons):
     phonons.broadening_shape = "triangle"
-    np.testing.assert_approx_equal(phonons.bandwidth[0][3], 0.10344, significant=4)
+    np.testing.assert_allclose(np.mean(phonons.bandwidth[0][3:6]), 0.331071, rtol=1e-3, atol=0.0)
 
 
 def test_gaussian_broadening(phonons):
     phonons.broadening_shape = "gauss"
-    np.testing.assert_approx_equal(phonons.bandwidth[0][3], 0.12086, significant=4)
+    np.testing.assert_allclose(np.mean(phonons.bandwidth[0][3:6]), 0.467721, rtol=1e-3, atol=0.0)
 
 
 def test_lorentz_broadening(phonons):
     phonons.broadening_shape = "lorentz"
-    np.testing.assert_approx_equal(phonons.bandwidth[0][3], 0.09793, significant=4)
+    np.testing.assert_allclose(np.mean(phonons.bandwidth[0][3:6]), 0.364596, rtol=1e-3, atol=0.0)

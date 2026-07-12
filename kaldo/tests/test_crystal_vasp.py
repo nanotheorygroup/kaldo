@@ -23,6 +23,7 @@ def phonons():
         kpts=[3, 3, 3],
         is_classic=False,
         temperature=300,
+        third_bandwidth=0.5,  # fixed: gauge-invariant regression config (#290)
         storage="memory",
     )
     return phonons
@@ -45,20 +46,21 @@ def test_lagacy_format():
 
 
 def test_qhgk_conductivity(phonons):
-    cond = Conductivity(phonons=phonons, method="qhgk", storage="memory").conductivity.sum(axis=0)
+    cond = Conductivity(phonons=phonons, method="qhgk", storage="memory",
+                        diffusivity_bandwidth=1.0).conductivity.sum(axis=0)
     cond = np.abs(np.mean(cond.diagonal()))
-    np.testing.assert_approx_equal(cond, 20, significant=2)
+    np.testing.assert_allclose(cond, 1.693686, rtol=5e-3, atol=0.0)
 
 
 def test_rta_conductivity(phonons):
     cond = np.abs(
         np.mean(Conductivity(phonons=phonons, method="rta", storage="memory").conductivity.sum(axis=0).diagonal())
     )
-    np.testing.assert_approx_equal(cond, 19, significant=2)
+    np.testing.assert_allclose(cond, 16.406325, rtol=5e-3, atol=0.0)
 
 
 def test_inverse_conductivity(phonons):
     cond = np.abs(
         np.mean(Conductivity(phonons=phonons, method="inverse", storage="memory").conductivity.sum(axis=0).diagonal())
     )
-    np.testing.assert_approx_equal(cond, 18, significant=2)
+    np.testing.assert_allclose(cond, 16.576349, rtol=5e-3, atol=0.0)

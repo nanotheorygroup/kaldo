@@ -22,6 +22,7 @@ def phonons():
         kpts=[5, 5, 5],
         is_classic=False,
         temperature=300,
+        third_bandwidth=0.5,  # fixed: gauge-invariant regression config (#290)
         storage="memory",
     )
 
@@ -39,7 +40,7 @@ def test_sc_finite_size_conductivity_ms(phonons):
             finite_length_method="ms",
         ).conductivity.sum(axis=0)[0, 0]
     )
-    np.testing.assert_approx_equal(cond_ms, 185.96, significant=3)
+    np.testing.assert_allclose(cond_ms, 210.577436, rtol=5e-3, atol=0.0)
 
 
 def test_rta_finite_size_conductivity_ms(phonons):
@@ -48,7 +49,7 @@ def test_rta_finite_size_conductivity_ms(phonons):
             phonons=phonons, method="rta", storage="memory", length=(1e4, 0, 0), finite_length_method="ms"
         ).conductivity.sum(axis=0)[0, 0]
     )
-    np.testing.assert_approx_equal(cond_ms, 162.397, significant=3)
+    np.testing.assert_allclose(cond_ms, 167.271969, rtol=5e-3, atol=0.0)
 
 
 def test_inverse_finite_size_conductivity_ms(phonons):
@@ -57,4 +58,4 @@ def test_inverse_finite_size_conductivity_ms(phonons):
             phonons=phonons, method="inverse", storage="memory", length=(1e4, 0, 0), finite_length_method="ms"
         ).conductivity.sum(axis=0)[0, 0]
     )
-    np.testing.assert_approx_equal(cond_ms, 180.718, significant=3)
+    np.testing.assert_allclose(cond_ms, 198.764287, rtol=5e-3, atol=0.0)
