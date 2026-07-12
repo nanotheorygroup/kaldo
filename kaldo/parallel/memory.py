@@ -3,6 +3,9 @@
 Estimates per-worker memory cost before parallelizing and crashes if n_workers
 would otherwise exhaust memory through swap thrashing (Linux fork+overcommit
 hides the true cost from the OOM killer).
+
+Known limitation: the probe measures host RSS only; GPU memory used by
+TensorFlow/torch calculators is not captured by the estimate.
 """
 
 import gc
@@ -23,8 +26,8 @@ logging = get_logger()
 #   allocation noise; in-memory result lists are already covered by the
 #   per-worker accumulation_buffer on the worker side).
 # DEFAULT_HEADROOM_FRACTION: The amount of memory that should be reserved
-#   for other processes. We leave a buffer of 10% of the available
-#   (not total) RAM. Example: if there's 30 Gb available it leaves 3.0 Gb unused
+#   for other processes. We leave a buffer of 5% of the available
+#   (not total) RAM. Example: if there's 30 Gb available it leaves 1.5 Gb unused
 FORK_BASE_OVERHEAD_MB = 15
 PARENT_RESERVE_MB = 50
 DEFAULT_HEADROOM_FRACTION = 0.05
@@ -62,7 +65,10 @@ def probe_calculator_memory_mb(calculator, replicated_atoms):
     atoms_copy = replicated_atoms.copy()
     if calculator is not None:
         atoms_copy.calc = calculator() if callable(calculator) else calculator
-    # else: rely on whatever calc was already attached to replicated_atoms
+    else:
+        # Atoms.copy() drops the attached calculator; reattach it so the
+        # None path probes the same calculator the workers will use.
+        atoms_copy.calc = replicated_atoms.calc
     atoms_copy.get_forces()
 
     gc.collect()

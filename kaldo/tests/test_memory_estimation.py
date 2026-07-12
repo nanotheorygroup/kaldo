@@ -156,3 +156,40 @@ def test_resolve_auto_selects_when_none(caplog):
     auto_log = [rec.message for rec in caplog.records if 'Auto-selecting' in rec.message]
     assert auto_log, 'Expected an auto-selection INFO log'
     assert 'n_atoms=4' in auto_log[0]
+
+
+def test_second_order_estimate_smaller_than_third():
+    """mode='second' accumulates a rank-2 buffer instead of rank-3 slabs, so
+    its per-worker estimate must come in below mode='third' for the same
+    system."""
+    est3 = estimate_worker_memory_mb(4, 8, False, 10.0, 50, mode='third')
+    est2 = estimate_worker_memory_mb(4, 8, False, 10.0, 50, mode='second')
+    assert est2 < est3
+
+
+def test_resolve_headroom_env_reduces_safe_workers(monkeypatch):
+    """KALDO_MEMORY_HEADROOM reserves a larger fraction of available memory,
+    so raising it must strictly reduce the auto-selected worker count
+    (bounded below by 1)."""
+    atoms = bulk('Al', 'fcc', a=4.05, cubic=True).repeat((1, 1, 2))
+    kwargs = dict(requested_workers=None, n_atoms=4, n_replicas=2,
+                  use_scratch=True, jat_flush_every=50,
+                  calculator=EMT, replicated_atoms=atoms)
+    with mock.patch('kaldo.parallel.memory.psutil') as mock_psutil, \
+            mock.patch('kaldo.parallel.memory.os.cpu_count', return_value=64):
+        mock_psutil.virtual_memory.return_value = _mock_virtual_memory(100_000, 128_000)
+        mock_psutil.Process.return_value.memory_info.return_value.rss = 100 * 1024 * 1024
+        monkeypatch.delenv('KALDO_MEMORY_HEADROOM', raising=False)
+        baseline = resolve_n_workers(**kwargs)
+        monkeypatch.setenv('KALDO_MEMORY_HEADROOM', '0.999')
+        clamped = resolve_n_workers(**kwargs)
+    assert 1 <= clamped < baseline
+
+
+def test_probe_reattaches_calculator_when_none():
+    """Regression: Atoms.copy() drops the attached calculator, so the
+    calculator=None path must reattach the original one before get_forces()."""
+    atoms = bulk('Al', 'fcc', a=4.05, cubic=True).repeat((1, 1, 2))
+    atoms.calc = EMT()
+    delta = probe_calculator_memory_mb(None, atoms)
+    assert delta >= 0.0
