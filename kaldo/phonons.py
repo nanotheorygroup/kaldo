@@ -427,6 +427,14 @@ class Phonons(Storable):
         Enforce detailed balance when calculating anharmonic properties. Useful for
         simulations where it may be difficult to get a sufficiently dense k-point grid.
         Default: False
+    is_canonical_gauge : bool
+        Experimental (#290). Rotate every degenerate eigenvector cluster into
+        a deterministic canonical basis (see ``kaldo.gauge``), making
+        mode-resolved observables machine-independent across BLAS/LAPACK
+        backends. Changes per-mode values relative to the default arbitrary
+        gauge; gauge-invariant quantities are unaffected. Not implemented for
+        ``is_unfolding=True``.
+        Default: ``False``
     is_unfolding : bool
         If the second order force constants need to be unfolded like in P. B. Allen
         et al., Phys. Rev. B 87, 085322 (2013) set this to True.
@@ -516,6 +524,7 @@ class Phonons(Storable):
                  grid_type: str = "C",
                  is_balanced: bool = False,
                  is_unfolding: bool = False,
+                 is_canonical_gauge: bool = False,
                  g_factor: ArrayLike = None,
                  is_symmetrizing_frequency: bool = False, 
                  is_antisymmetrizing_velocity: bool = False,
@@ -539,6 +548,7 @@ class Phonons(Storable):
         self._grid_type = grid_type
         self._reciprocal_grid = Grid(self.kpts, order=self._grid_type)
         self.is_unfolding = is_unfolding
+        self.is_canonical_gauge = is_canonical_gauge
         if self.is_unfolding:
             logging.info('Using unfolding.')
         self.min_frequency = min_frequency
@@ -677,6 +687,7 @@ class Phonons(Storable):
                                    storage=self.storage,
                                    is_nw=self.is_nw,
                                    is_unfolding=self.is_unfolding,
+                                   is_canonical_gauge=self.is_canonical_gauge,
                                    is_amorphous=self._is_amorphous)
 
             physical_mode[ik] = phonon.physical_mode
@@ -708,6 +719,7 @@ class Phonons(Storable):
                                    storage=self.storage,
                                    is_nw=self.is_nw,
                                    is_unfolding=self.is_unfolding,
+                                   is_canonical_gauge=self.is_canonical_gauge,
                                    is_amorphous=self._is_amorphous)
             frequency[ik] = phonon.frequency
 
@@ -737,6 +749,7 @@ class Phonons(Storable):
                                    storage=self.storage,
                                    is_nw=self.is_nw,
                                    is_unfolding=self.is_unfolding,
+                                   is_canonical_gauge=self.is_canonical_gauge,
                                    is_amorphous=self._is_amorphous)
 
             participation_ratio[ik] = phonon.participation_ratio
@@ -767,6 +780,7 @@ class Phonons(Storable):
                                    storage=self.storage,
                                    is_nw=self.is_nw,
                                    is_unfolding=self.is_unfolding,
+                                   is_canonical_gauge=self.is_canonical_gauge,
                                    is_amorphous=self._is_amorphous)
             velocity[ik] = phonon.velocity
 
@@ -800,6 +814,7 @@ class Phonons(Storable):
                                    storage=self.storage,
                                    is_nw=self.is_nw,
                                    is_unfolding=self.is_unfolding,
+                                   is_canonical_gauge=self.is_canonical_gauge,
                                    is_amorphous=self._is_amorphous)
 
             eigensystem[ik] = phonon._eigensystem
@@ -834,6 +849,7 @@ class Phonons(Storable):
                                        is_classic=self.is_classic,
                                        is_nw=self.is_nw,
                                        is_unfolding=self.is_unfolding,
+                                       is_canonical_gauge=self.is_canonical_gauge,
                                        is_amorphous=self._is_amorphous)
             c_v[ik] = phonon.heat_capacity
         return c_v
@@ -865,6 +881,7 @@ class Phonons(Storable):
                                        is_classic=self.is_classic,
                                        is_nw=self.is_nw,
                                        is_unfolding=self.is_unfolding,
+                                       is_canonical_gauge=self.is_canonical_gauge,
                                        is_amorphous=self._is_amorphous)
 
             heat_capacity_2d[ik] = phonon.heat_capacity_2d
@@ -900,6 +917,7 @@ class Phonons(Storable):
                                        is_classic=self.is_classic,
                                        is_nw=self.is_nw,
                                        is_unfolding=self.is_unfolding,
+                                       is_canonical_gauge=self.is_canonical_gauge,
                                        is_amorphous=self._is_amorphous)
 
             population[ik] = phonon.population

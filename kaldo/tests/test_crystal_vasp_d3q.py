@@ -102,3 +102,42 @@ def test_qhgk_conductivity_default_kernel_smoke():
     cond = Conductivity(phonons=phonons, method="qhgk", storage="memory").conductivity.sum(axis=0)
     cond = np.abs(np.mean(cond.diagonal()))
     np.testing.assert_allclose(cond, 0.825, rtol=3e-2, atol=0.0)
+
+
+@pytest.fixture(scope="session")
+def canonical_phonons():
+    forceconstants = ForceConstants.from_folder(
+        folder="kaldo/tests/ge-crystal/vasp-d3q",
+        supercell=[5, 5, 5],
+        third_supercell=[3, 3, 3],
+        format="vasp-d3q")
+    return Phonons(
+        forceconstants=forceconstants,
+        kpts=[3, 3, 3],
+        is_classic=False,
+        temperature=300,
+        third_bandwidth=0.5,
+        is_canonical_gauge=True,
+        storage="memory",
+    )
+
+
+def test_rta_conductivity_canonical_gauge(canonical_phonons):
+    """The #290 benchmark: with the deterministic eigenvector gauge the
+    per-mode gauge covariance that kept a ~2% cross-backend residual on this
+    fixture is removed, so the pin holds at the tight tolerance the default
+    gauge could not."""
+    cond = np.abs(
+        np.mean(Conductivity(phonons=canonical_phonons, method="rta",
+                             storage="memory").conductivity.sum(axis=0).diagonal())
+    )
+    np.testing.assert_allclose(cond, 0.647088, rtol=5e-3, atol=0.0)
+
+
+def test_inverse_conductivity_canonical_gauge(canonical_phonons):
+    """See test_rta_conductivity_canonical_gauge."""
+    cond = np.abs(
+        np.mean(Conductivity(phonons=canonical_phonons, method="inverse",
+                             storage="memory").conductivity.sum(axis=0).diagonal())
+    )
+    np.testing.assert_allclose(cond, 0.714601, rtol=5e-3, atol=0.0)

@@ -65,9 +65,15 @@ class HarmonicWithQ(Observable, Storable):
                  is_nw=False,
                  is_unfolding=False,
                  is_amorphous=False,
+                 is_canonical_gauge=False,
                  *kargs,
                  **kwargs):
         super().__init__(*kargs, **kwargs)
+        if is_canonical_gauge and is_unfolding:
+            raise NotImplementedError(
+                'is_canonical_gauge is not wired into the unfolded eigensystem path yet (#290).'
+            )
+        self.is_canonical_gauge = is_canonical_gauge
         # Input arguments
         self.q_point = q_point
         self.atoms = second.atoms
@@ -118,6 +124,14 @@ class HarmonicWithQ(Observable, Storable):
         else:
             # Use default implementation for other properties
             super()._save_formatted_property(property_name, name, data)
+
+    def _get_folder_path_components(self, label):
+        components = []
+        # A canonical-gauge run must never share stored eigensystems (or
+        # anything derived from them) with a default-gauge run.
+        if self.is_canonical_gauge:
+            components.append('canonical_gauge')
+        return components
 
     @lazy_property(label='<q_point>')
     def frequency(self):
@@ -360,7 +374,14 @@ class HarmonicWithQ(Observable, Storable):
         else:
             log_size(self._dynmat_fourier.shape, type=complex, name='eigensystem')
             esystem = tf.linalg.eigh(dyn_s)
-            esystem = tf.concat(axis=0, values=(esystem[0][tf.newaxis, :], esystem[1]))
+            eigenvalues, eigenvectors = esystem[0], esystem[1]
+            if self.is_canonical_gauge:
+                from kaldo.gauge import canonicalize_eigenvectors
+                eigenvectors = tf.convert_to_tensor(
+                    canonicalize_eigenvectors(eigenvalues.numpy(), eigenvectors.numpy()),
+                    dtype=eigenvectors.dtype,
+                )
+            esystem = tf.concat(axis=0, values=(eigenvalues[tf.newaxis, :], eigenvectors))
         return esystem
 
     def calculate_participation_ratio(self):
