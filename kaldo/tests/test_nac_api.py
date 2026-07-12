@@ -225,3 +225,16 @@ def test_dipole_subtracted_constants_refuse_nac(mgo_second):
     )
     with pytest.raises(NotImplementedError, match="dipole-subtracted"):
         phonon.frequency
+
+
+def test_bvk_matrix_must_match_the_force_constant_grid(nac_second_order):
+    """The short-range pipeline pairs the interleaved force constants (fixed
+    enumeration on the FC supercell) with the mapping's translation ordering,
+    so any other BvK lattice must be refused loudly instead of failing as an
+    opaque broadcast error, or worse, silently mispairing blocks."""
+    non_diagonal = np.array([[-2, 2, 2], [2, -2, 2], [2, 2, -2]], dtype=int)
+    with pytest.raises(NotImplementedError, match="diag"):
+        nac_second_order.calculate_nac_short_range_force_constants(non_diagonal)
+    mismatched_diagonal = np.diag([4, 4, 4]).astype(int)
+    with pytest.raises(NotImplementedError, match="diag"):
+        nac_second_order.calculate_nac_short_range_force_constants(mismatched_diagonal)
