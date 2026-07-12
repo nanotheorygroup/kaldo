@@ -15,6 +15,12 @@ broken degeneracies and shifted branches.
 The out-of-plane point is incommensurate with the 2-replica c-axis, where
 the folded path's half-box handling deviates (~0.3 THz, the #279 item 3
 mechanism), so the phonopy comparison pins the Wigner-Seitz unfolded path.
+
+Measured agreement on this machine: 5e-4 THz (in-plane, all modes),
+4e-3 THz (out-of-plane, all modes), 7e-3 THz (Gamma opticals). The
+atol=1e-2 pins carry ~50% headroom for BLAS-backend variation. Gamma's
+three acoustic modes are excluded there only: kaldo leaves ~0.06-0.1 THz
+of numerical residue where phonopy returns exact zeros.
 """
 import numpy as np
 import pytest
@@ -44,7 +50,11 @@ def gan_second():
 def test_unfolded_frequencies_match_phonopy(gan_second, q_point):
     f = np.sort(np.array(HarmonicWithQ(np.array(q_point), gan_second, storage="memory",
                                        is_unfolding=True).frequency).flatten())
-    np.testing.assert_allclose(f[3:], PHONOPY_REFERENCE[q_point][3:], atol=2e-2)
+    reference = np.array(PHONOPY_REFERENCE[q_point])
+    if q_point == (0.0, 0.0, 0.0):
+        # only Gamma's exact-zero acoustics are excluded (see module docstring)
+        f, reference = f[3:], reference[3:]
+    np.testing.assert_allclose(f, reference, rtol=0.0, atol=1e-2)
 
 
 def test_folded_in_plane_frequencies_match_phonopy(gan_second):
@@ -52,4 +62,4 @@ def test_folded_in_plane_frequencies_match_phonopy(gan_second):
     out-of-plane point is left to the unfolded test above on purpose."""
     f = np.sort(np.array(HarmonicWithQ(np.array([0.25, 0.0, 0.0]), gan_second,
                                        storage="memory").frequency).flatten())
-    np.testing.assert_allclose(f, PHONOPY_REFERENCE[(0.25, 0.0, 0.0)], atol=2e-2)
+    np.testing.assert_allclose(f, PHONOPY_REFERENCE[(0.25, 0.0, 0.0)], rtol=0.0, atol=1e-2)
