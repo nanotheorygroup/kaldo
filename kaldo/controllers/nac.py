@@ -449,34 +449,6 @@ def _unique_supercell_translations(supercell_matrix, symprec=1e-8):
     return translations
 
 
-def _nacl_phonopy_debug_sort_key(supercell_scaled):
-    rounded = np.round(np.asarray(supercell_scaled, dtype=float) * 4).astype(int) % 4
-    quarter_axes = tuple(axis for axis, value in enumerate(rounded) if value % 2 == 1)
-    if len(quarter_axes) in (0, 2):
-        if len(quarter_axes) == 0:
-            group = 0
-        elif quarter_axes == (1, 2):
-            group = 1
-        elif quarter_axes == (0, 2):
-            group = 2
-        elif quarter_axes == (0, 1):
-            group = 3
-        else:
-            group = 4
-    else:
-        if len(quarter_axes) == 3:
-            group = 0
-        elif quarter_axes == (0,):
-            group = 1
-        elif quarter_axes == (1,):
-            group = 2
-        elif quarter_axes == (2,):
-            group = 3
-        else:
-            group = 4
-    return (group, rounded[2], rounded[1], rounded[0])
-
-
 def _phonopy_lattice_points():
     lattice_1d = (-1, 0, 1)
     lattice_4d = np.array(
@@ -740,7 +712,11 @@ def _build_supercell_matrix_mapping(atoms, supercell_matrix, symprec=1e-5):
         _factor = _n * _max_denom
         _sort_key = lambda pos: _diagonal_supercell_sort_key(pos, _factor)
     else:
-        _sort_key = _nacl_phonopy_debug_sort_key
+        raise NotImplementedError(
+            "Supercell atom ordering is only defined for diagonal supercell "
+            f"matrices; got\n{supercell_matrix}. See build_mapping for the "
+            "Born-von-Karman lattice contract."
+        )
     translations = _unique_supercell_translations(supercell_matrix, symprec=symprec)
     translations = sorted(translations, key=lambda item: _sort_key(item[1]))
     n_translation = len(translations)
@@ -899,9 +875,25 @@ def build_static_data(second, matrix=None):
 
 def build_mapping(second, matrix=None):
     matrix = normalize_bvk_supercell_matrix(matrix)
+    fc_diagonal = np.diag(np.asarray(second.supercell, dtype=int))
     if matrix is None:
         # The dedicated no-matrix builder ordered supercell atoms replica-major,
         # inconsistent with the atom-major layout _build_interleaved_fc produces.
         # A diagonal BvK matrix reproduces it through the tested code path.
-        matrix = np.diag(np.asarray(second.supercell, dtype=int))
+        matrix = fc_diagonal
+    elif not np.array_equal(matrix, fc_diagonal):
+        # The short-range pipeline pairs _build_interleaved_fc (whose replica
+        # enumeration is a fixed formula on the force-constant supercell)
+        # against this mapping's translation ordering, so the two grids must
+        # be the same object. Any other BvK matrix would need the force
+        # constants resampled onto its lattice, which is not implemented;
+        # without this check it fails as an opaque broadcast error deep in
+        # the einsum, or worse, silently mispairs blocks.
+        raise NotImplementedError(
+            "nac_bvk_supercell_matrix must equal diag(supercell) = "
+            f"diag{tuple(int(n) for n in second.supercell)} of the force "
+            f"constants; got\n{matrix}.\nReconstructing the short-range force "
+            "constants on a different Born-von-Karman lattice is not "
+            "implemented."
+        )
     return _build_supercell_matrix_mapping(second.atoms, matrix)
