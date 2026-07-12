@@ -81,3 +81,35 @@ def test_inverse_conductivity(phonons):
         np.mean(Conductivity(phonons=phonons, method="inverse", storage="memory").conductivity.sum(axis=0).diagonal())
     )
     np.testing.assert_allclose(cond, 253.544246, rtol=5e-3, atol=0.0)
+
+
+def test_third_falls_back_to_replicated_atoms(tmp_path):
+    """Without a replicated_atoms_third.xyz the loader must fall back to
+    replicated_atoms.xyz unchanged (single-supercell runs keep working)."""
+    import shutil
+    from pathlib import Path
+    from kaldo.observables.thirdorder import ThirdOrder
+
+    src = Path("kaldo/tests/si-crystal-mix-cell")
+    shutil.copy(src / "THIRD", tmp_path / "THIRD")
+    # same 3x3x3 geometry, but under the fallback filename
+    shutil.copy(src / "replicated_atoms_third.xyz", tmp_path / "replicated_atoms.xyz")
+
+    third_mixed = ThirdOrder.load(folder=str(src), supercell=(3, 3, 3), format='lammps')
+    third_fallback = ThirdOrder.load(folder=str(tmp_path), supercell=(3, 3, 3), format='lammps')
+
+    a = np.asarray(third_mixed.value.todense())
+    b = np.asarray(third_fallback.value.todense())
+    np.testing.assert_allclose(b, a, rtol=0.0, atol=0.0)
+
+
+def test_third_missing_both_files_raises(tmp_path):
+    """With neither supercell file present the loader raises a ValueError
+    naming both candidates instead of a raw file error deep in ase."""
+    import shutil
+    from pathlib import Path
+    from kaldo.observables.thirdorder import ThirdOrder
+
+    shutil.copy(Path("kaldo/tests/si-crystal-mix-cell") / "THIRD", tmp_path / "THIRD")
+    with pytest.raises(ValueError, match="replicated_atoms_third.xyz or replicated_atoms.xyz"):
+        ThirdOrder.load(folder=str(tmp_path), supercell=(3, 3, 3), format='lammps')
