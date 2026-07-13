@@ -956,38 +956,56 @@ def _flush_chunk_third(scratch_dir, iat, chunk_id, chunk_coords, chunk_values):
 
 
 def _assemble_from_scratch_third(scratch_dir, n_atoms, n_replicas, keep_scratch):
-    """Build the final COO tensor from per-jat-chunk scratch files using two passes.
+    """Build the final ``(n_atoms*3, N3, N3)`` COO tensor from the per-jat-chunk
+    scratch files, where ``N3 = n_replicas*n_atoms*3``.
 
-    Pass 1 reads only array metadata to count total non-zeros, allowing a single
-    pre-allocated set of arrays (peak memory ~1x final COO size + one chunk).
-    Pass 2 fills those arrays slice-by-slice and optionally deletes each file.
+    Each chunk already stores sparse coordinates (iat, ic, jat, jc, k) and
+    values, so the final COO is assembled directly from them in the output
+    3-D index space. The two output rows are computed as
+    ``iat*3 + ic`` and ``jat*3 + jc`` in int64; the k axis is copied as is.
+    We do not reshape a 5-D COO (its flat index ``(n_atoms*3)*N3*N3`` overflows
+    int32 and spawns several nnz-sized int64 temporaries) and we do not go
+    through a dense array (``COO.from_numpy`` runs ``np.nonzero`` on a
+    near-full tensor, allocating three more nnz-sized index arrays). Either of
+    those peaked at tens of GB and OOM-killed 216-atom, full-range assemblies;
+    this route holds one copy of the coordinates.
+
+    Scratch files are removed only AFTER the tensor is built: a crash during
+    assembly must not destroy the (expensive) computed forces.
     """
-    # Find and sort iat chunk files
     files = sorted(glob.glob(os.path.join(scratch_dir, 'iat_*_chunk_*.npz')))
     if not files:
         raise FileNotFoundError(f'No scratch chunk files found in {scratch_dir}')
 
-    # Pass 1: count total non-zeros from metadata only (lazy load — no data read)
+    N3 = n_replicas * n_atoms * 3
+
     total_nnz = 0
     for path in files:
         with np.load(path) as f:
             total_nnz += f['values'].shape[0]
 
-    coords = np.empty((5, total_nnz), dtype=np.int64)
+    row0 = np.empty(total_nnz, dtype=np.int64)   # iat*3 + ic       in [0, n_atoms*3)
+    row1 = np.empty(total_nnz, dtype=np.int64)   # jat*3 + jc       in [0, N3)
+    row2 = np.empty(total_nnz, dtype=np.int64)   # k                in [0, N3)
     values = np.empty(total_nnz, dtype=np.float64)
-
-    # Pass 2: fill pre-allocated arrays, consuming each file as we go
     offset = 0
     for path in files:
         with np.load(path) as f:
-            n = f['values'].shape[0]
-            coords[:, offset:offset + n] = f['coords']
-            values[offset:offset + n] = f['values']
+            c = f['coords']       # (5, n): iat, ic, jat, jc, k
+            v = f['values']
+        n = v.shape[0]
+        row0[offset:offset + n] = c[0].astype(np.int64) * 3 + c[1]
+        row1[offset:offset + n] = c[2].astype(np.int64) * 3 + c[3]
+        row2[offset:offset + n] = c[4]
+        values[offset:offset + n] = v
         offset += n
-        if not keep_scratch:
-            os.remove(path)
+
+    phifull = COO(np.stack([row0, row1, row2]), values,
+                  shape=(n_atoms * 3, N3, N3))
 
     if not keep_scratch:
+        for path in files:
+            os.remove(path)
         for sentinel in glob.glob(os.path.join(scratch_dir, 'iat_*.done')):
             os.remove(sentinel)
         try:
@@ -995,6 +1013,4 @@ def _assemble_from_scratch_third(scratch_dir, n_atoms, n_replicas, keep_scratch)
         except OSError:
             pass  # not empty — leave it
 
-    shape = (n_atoms, 3, n_replicas * n_atoms, 3, n_replicas * n_atoms * 3)
-    phifull = COO(coords, values, shape)
-    return phifull.reshape((n_atoms * 3, n_replicas * n_atoms * 3, n_replicas * n_atoms * 3))
+    return phifull
