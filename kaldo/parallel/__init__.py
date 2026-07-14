@@ -19,11 +19,12 @@ import warnings
 
 from kaldo.parallel.executor import get_executor, SerialExecutor
 from kaldo.parallel.dispatcher import dispatch_with_resume
+from kaldo.parallel.memory import resolve_n_workers
 
 __all__ = [
     'get_executor', 'SerialExecutor', 'is_parallel',
     'validate_parallel_calculator', 'maybe_warn_ml_delta_shift',
-    'dispatch_with_resume',
+    'dispatch_with_resume', 'resolve_n_workers',
 ]
 
 
