@@ -3,6 +3,14 @@
 Aggregates a scalar per-mode Phonons property (e.g. frequency) across N committee
 members into a mean and standard deviation. Model-agnostic: members are ordinary
 Phonons objects, however they were produced.
+
+This ensemble approach follows the committee-based phonon uncertainty work of
+Paolo Pegolo and Michele Ceriotti in uqphonon
+(https://github.com/ppegolo/uqphonon). The underlying uncertainty method is the
+shallow-ensemble construction of Kellner and Ceriotti (2024,
+https://doi.org/10.1088/2632-2153/ad594a) with committee members from the
+last-layer prediction rigidity framework (Bigi et al., 2024,
+https://arxiv.org/abs/2403.02251).
 """
 import numpy as np
 
