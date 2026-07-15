@@ -204,7 +204,8 @@ def read_third_order_matrix(third_file: str,
 
             # for x,y,z directions with 3 atoms
             # FC3 assigns each quartet's block directly into its slot (ShengBTE-format writers emit
-            # unique (atom, cell) slots here).
+            # unique (atom, cell) slots here; the FC4 parser below instead sums duplicate quartets via
+            # COO, since zero collisions were verified on the shipped fixtures for both formats).
             for _ in range(27):
                 values = np.array([float(x) for x in file.readline().split()])
                 alpha, beta, gamma = values[:3].round(0).astype(int) - 1
@@ -214,6 +215,82 @@ def read_third_order_matrix(third_file: str,
     third_order = third_order.reshape((n_unit_atoms * 3, n_replicas * n_unit_atoms * 3, n_replicas *
                                        n_unit_atoms * 3))
     return third_order
+
+
+def _readline_or_raise(file, what, source):
+    line = file.readline()
+    if line == '':
+        raise ValueError(f"unexpected end of file while reading {what} in {source}")
+    return line
+
+
+def read_fourth_order_matrix(fourth_file: str,
+                             atoms: Atoms,
+                             supercell: tuple[int, int, int],
+                             order: str = 'C'):
+    """Read fourth order force constants in ShengBTE/FourPhonon format.
+
+    The file holds a block count, then per quartet: a blank line, a block
+    counter, three Cartesian cell-offset lines in Angstrom (cells of atoms
+    2, 3, 4 relative to atom 1), one line with four 1-based unit-cell atom
+    indices, and 81 ``i j k l value`` component lines (eV/A^4).
+
+    Returns a sparse rank-11 COO tensor with shape
+    ``(n_uc, 3, n_rep, n_uc, 3, n_rep, n_uc, 3, n_rep, n_uc, 3)``. Blocks
+    are streamed into COO coordinates; the dense tensor is never built.
+    Duplicate quartet coordinates are summed by COO.
+    """
+    n_unit_atoms = atoms.positions.shape[0]
+    n_replicas = np.prod(supercell)
+    current_grid = Grid(supercell, order=order)
+    cell_inv = np.linalg.inv(np.array(atoms.cell))
+
+    d = np.arange(3)
+    da, db, dc, dd = (x.ravel() for x in np.meshgrid(d, d, d, d, indexing='ij'))
+
+    coord_cols = []
+    values = []
+    with open(fourth_file, 'r') as file:
+        n_fourth = int(_readline_or_raise(file, 'IFC4 header', fourth_file).strip())
+        for _ in range(n_fourth):
+            _readline_or_raise(file, 'IFC4 block separator', fourth_file)
+            _readline_or_raise(file, 'IFC4 block counter', fourth_file)
+            cell_ids = []
+            for _ in range(3):
+                cell_position = np.array([float(x) for x in
+                                          _readline_or_raise(file, 'IFC4 cell offset', fourth_file).split()])
+                cell_ids.append(_resolve_cell_id(cell_position, cell_inv, supercell, current_grid, fourth_file))
+            atom_i, atom_j, atom_k, atom_l = \
+                np.array([int(x) for x in _readline_or_raise(file, 'IFC4 atom indices', fourth_file).split()]) - 1
+            phi = np.zeros((3, 3, 3, 3))
+            for _ in range(81):
+                entries = _readline_or_raise(file, 'IFC4 tensor block', fourth_file).split()
+                alpha, beta, gamma, delta = [int(x) - 1 for x in entries[:4]]
+                phi[alpha, beta, gamma, delta] = float(entries[4])
+            block = np.empty((11, 81), dtype=np.int64)
+            block[0] = atom_i
+            block[1] = da
+            block[2] = cell_ids[0]
+            block[3] = atom_j
+            block[4] = db
+            block[5] = cell_ids[1]
+            block[6] = atom_k
+            block[7] = dc
+            block[8] = cell_ids[2]
+            block[9] = atom_l
+            block[10] = dd
+            coord_cols.append(block)
+            values.append(phi.ravel())
+
+    shape = (n_unit_atoms, 3, n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3, n_replicas,
+             n_unit_atoms, 3)
+    if coord_cols:
+        coords = np.concatenate(coord_cols, axis=1)
+        data = np.concatenate(values)
+    else:
+        coords = np.empty((11, 0), dtype=np.int64)
+        data = np.empty(0, dtype=float)
+    return COO(coords, data, shape=shape)
 
 
 def read_third_d3q(filename: str,

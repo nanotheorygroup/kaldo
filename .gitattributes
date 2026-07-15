@@ -8,6 +8,7 @@ kaldo/tests/si-amorphous/** -diff -merge
 kaldo/tests/si-tdep/** -diff -merge
 kaldo/tests/sigma2/** -diff -merge
 kaldo/tests/ge-crystal/** -diff -merge
+kaldo/tests/mgo/pheasy/** -diff -merge
 
 # binary file
 kaldo/tests/si-crystal/hiphive/model2.fcs binary

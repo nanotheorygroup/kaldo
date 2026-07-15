@@ -250,6 +250,16 @@ class ThirdOrder(ForceConstant):
                     folder=folder,
                 )
 
+            case 'pheasy':
+                from kaldo.interfaces import pheasy_io
+                atoms = pheasy_io.read_pheasy_structure(folder)
+                _third_order = pheasy_io.read_pheasy_third(folder, atoms, supercell)
+                third_order = ThirdOrder.from_supercell(atoms=atoms,
+                                                        grid_type='C',
+                                                        supercell=supercell,
+                                                        value=_third_order,
+                                                        folder=folder)
+
             case _:
                 logging.error('Third order format not recognized: ' + str(format))
                 raise ValueError

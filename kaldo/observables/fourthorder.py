@@ -8,9 +8,10 @@ with shape::
 
 mirroring :class:`kaldo.observables.thirdorder.ThirdOrder` one rank higher.
 
-Currently only the TDEP format is wired (``format="tdep"``), reading
-``infile.forceconstant_fourthorder`` via
-:func:`kaldo.interfaces.tdep_io.parse_tdep_fourth_forceconstant`. Other
+TDEP (``format="tdep"``) reads ``infile.forceconstant_fourthorder`` via
+:func:`kaldo.interfaces.tdep_io.parse_tdep_fourth_forceconstant`. pheasy
+(``format="pheasy"``) reads ``FORCE_CONSTANTS_4TH`` via
+:func:`kaldo.interfaces.shengbte_io.read_fourth_order_matrix`. Other
 formats will be added as needed.
 """
 from __future__ import annotations
@@ -42,12 +43,16 @@ class FourthOrder(ForceConstant):
             Primitive → supercell tiling. Used for diagonal supercells; a
             non-diagonal ``infile.ssposcar`` is detected automatically and
             routed through the SNF (NonDiagonalGrid) path.
-        format : {"tdep"}
-            File format. Only ``"tdep"`` is supported at this time.
+        format : {"tdep", "pheasy"}
+            File format. TDEP reads ``infile.forceconstant_fourthorder``; pheasy reads
+            ``FORCE_CONSTANTS_4TH``.
         supercell_matrix : np.ndarray, optional
             3x3 integer supercell expansion matrix. Accepted for API symmetry
             with ``ForceConstants.from_folder``; for TDEP the supercell is
             inferred from ``infile.ucposcar`` / ``infile.ssposcar`` instead.
+            For pheasy, ``supercell_matrix`` is not used here; when loading
+            through ``ForceConstants.from_folder`` its diagonal-only
+            validation happens in ``SecondOrder.load``.
         """
         match format:
             case "tdep":
@@ -76,6 +81,19 @@ class FourthOrder(ForceConstant):
                     atoms=uc,
                     replicated_positions=sc.positions,
                     supercell=supercell,
+                    value=fourth_ifcs,
+                    folder=folder,
+                )
+
+            case "pheasy":
+                from kaldo.interfaces import pheasy_io
+
+                atoms = pheasy_io.read_pheasy_structure(folder)
+                fourth_ifcs = pheasy_io.read_pheasy_fourth(folder, atoms, supercell)
+                return cls.from_supercell(
+                    atoms=atoms,
+                    supercell=tuple(int(x) for x in supercell),
+                    grid_type="C",
                     value=fourth_ifcs,
                     folder=folder,
                 )
