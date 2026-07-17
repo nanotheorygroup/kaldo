@@ -1,5 +1,6 @@
 # Test temporary folders
 examples_local
+.worktrees
 
 .DS_Store
 *.pyc
@@ -117,3 +118,6 @@ docs/docsource/API
 
 # Local scratch / superpowers workspace under docs (never tracked)
 docs/superpowers/
+
+# NAC short-range FC caches are derived data, never fixtures
+nac_short_range_force_constants*.npy

@@ -1,5 +1,6 @@
-from kaldo.observables.forceconstant import ForceConstant
+from kaldo.observables.forceconstant import ForceConstant, chi
 from ase import Atoms
+import math
 import os
 import tensorflow as tf
 import ase.io
@@ -12,8 +13,48 @@ from kaldo.controllers.displacement import calculate_second, try_symmetrize_ifc
 from kaldo.parallel import is_parallel, validate_parallel_calculator, maybe_warn_ml_delta_shift
 import ase.units as units
 from kaldo.helpers.logger import get_logger, log_size
+from kaldo.storable import Storable, lazy_property
+from kaldo.grid import Grid
+import kaldo.controllers.nac as nac
+from opt_einsum import contract
 
 logging = get_logger()
+
+# ---------------------------------------------------------------------------
+# BZ search space for fold_points_to_first_bz
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# Math helpers
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# Utility functions (public)
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# Workflow helpers (private module-level)
+# ---------------------------------------------------------------------------
+
+
+def _dynamical_matrix_from_second_order(second_order, q_red):
+    """Compute the dynamical matrix at q_red directly from second_order force constants."""
+    n_atom = len(second_order.atoms)
+    dynmat = second_order.dynmat
+    dyn_s = contract(
+        "ialjb,l->iajb",
+        dynmat.numpy()[0].astype(np.complex128),
+        chi(np.asarray(q_red, dtype=float), second_order.list_of_replicas, second_order.cell_inv).flatten(),
+        backend="numpy",
+    )
+    scaled_positions = second_order.atoms.get_scaled_positions(wrap=False)
+    for i_atom in range(n_atom):
+        for j_atom in range(n_atom):
+            phase = np.exp(
+                2j * np.pi * np.dot(q_red, scaled_positions[j_atom] - scaled_positions[i_atom])
+            )
+            dyn_s[i_atom, :, j_atom, :] *= phase
+    return dyn_s.reshape(n_atom * 3, n_atom * 3)
 
 
 def acoustic_sum_rule(dynmat):
@@ -27,7 +68,11 @@ def acoustic_sum_rule(dynmat):
     return dynmat
 
 
-class SecondOrder(ForceConstant):
+class SecondOrder(ForceConstant, Storable):
+    _store_formats = {
+        "nac_short_range_force_constants": "numpy",
+    }
+
     def __init__(self, value: ArrayLike | None, is_acoustic_sum: bool = False, *kargs, **kwargs):
         # apply acoustic sum rule before initialize in forceconstnat
         # (value is None for the empty object used to compute force constants
@@ -40,7 +85,131 @@ class SecondOrder(ForceConstant):
 
         self.n_modes = self.atoms.positions.shape[0] * 3
         self._list_of_replicas = None  # TODO: why overwrite _list_of_replicas here?
+        self._nac_precomputed_cache = {}
+        self._nac_short_range_force_constants_cache = {}
         self.storage = "numpy"
+
+    @lazy_property(label="", format="numpy")
+    def nac_short_range_force_constants(self):
+        return self.calculate_nac_short_range_force_constants()
+
+    def _refuse_dipole_subtracted_fc(self):
+        if self.atoms.info.get('dipole_subtracted_fc', False):
+            raise NotImplementedError(
+                "These force constants come from a QE .fc file with embedded Born "
+                "charges, which q2r writes in the dipole-subtracted convention. The "
+                "non-analytic correction expects total force constants and "
+                "would subtract the dipole part a second time. Re-run q2r.x without "
+                "epsil so the file contains total force constants, and provide the "
+                "dielectric tensor and Born charges separately (atoms.info and "
+                "atoms.arrays, or a ShengBTE CONTROL file)."
+            )
+
+    def get_nac_short_range_force_constants(self, nac_bvk_supercell_matrix=None):
+        self._refuse_dipole_subtracted_fc()
+        matrix = nac.normalize_bvk_supercell_matrix(nac_bvk_supercell_matrix)
+        if matrix is None:
+            return self.nac_short_range_force_constants
+
+        key = nac.bvk_supercell_matrix_key(matrix)
+        if key in self._nac_short_range_force_constants_cache:
+            return self._nac_short_range_force_constants_cache[key]
+
+        property_name = "nac_short_range_force_constants_" + key
+        folder = self.get_folder_from_label("")
+        try:
+            loaded = self._load_property(property_name, folder, format="numpy")
+            logging.info("Loading " + folder + "/" + property_name)
+            self._nac_short_range_force_constants_cache[key] = loaded
+            return loaded
+        except (FileNotFoundError, OSError, KeyError):
+            logging.info(
+                folder + "/" + property_name
+                + " not found in numpy format, calculating "
+                + property_name
+            )
+            force_constants = self.calculate_nac_short_range_force_constants(matrix)
+            self._save_property(property_name, folder, force_constants, format="numpy")
+            self._nac_short_range_force_constants_cache[key] = force_constants
+            return force_constants
+
+
+    def _build_nac_static_data(self, matrix=None):
+        return nac.build_static_data(self, matrix)
+
+    def _build_nac_mapping(self, matrix=None):
+        return nac.build_mapping(self, matrix)
+
+    def get_nac_precomputed(self, nac_bvk_supercell_matrix=None):
+        matrix = nac.normalize_bvk_supercell_matrix(nac_bvk_supercell_matrix)
+        key = nac.bvk_supercell_matrix_key(matrix) if matrix is not None else "default"
+        if key not in self._nac_precomputed_cache:
+            static_data = self._build_nac_static_data(matrix)
+            mapping = self._build_nac_mapping(matrix)
+            dd_real_q0_full = nac._real_dipole_dipole(
+                np.zeros(3, dtype=float),
+                mapping["svecs"],
+                mapping["multi"],
+                mapping["s2pp_map"],
+                static_data["dielectric"],
+                float(static_data["Lambda"]),
+                mapping.get("svecs_cell", static_data["supercell_cell"]),
+            )
+            dd_real_q0 = dd_real_q0_full.sum(axis=2)
+            # q -> 0 sum rule for the terms whose row sum does not vanish by
+            # construction: the limiting term (diagonal only) and the real-space
+            # Ewald part. The reciprocal part subtracts its own q0 row sum.
+            static_data["dd_drift"] = static_data["dd_limiting"] + dd_real_q0
+            static_data, mapping = nac.ensure_kernel_cache(static_data, mapping)
+            self._nac_precomputed_cache[key] = {
+                "static_data": static_data,
+                "mapping": mapping,
+            }
+        return self._nac_precomputed_cache[key]
+
+    def calculate_nac_short_range_force_constants(self, nac_bvk_supercell_matrix=None):
+        self._refuse_dipole_subtracted_fc()
+        if "dielectric" not in self.atoms.info or "charges" not in self.atoms.arrays:
+            raise ValueError(
+                "NAC short-range force constants require atoms.info['dielectric'] "
+                "and atoms.arrays['charges']."
+            )
+        matrix = nac.normalize_bvk_supercell_matrix(nac_bvk_supercell_matrix)
+        supercell = self.supercell if matrix is None else matrix
+        bundle = self.get_nac_precomputed(matrix)
+        static_data = bundle["static_data"]
+        mapping = bundle["mapping"]
+        qpoints = nac._commensurate_points(supercell, static_data["reciprocal_lattice"])
+        dynmats = np.zeros(
+            (len(qpoints), len(self.atoms) * 3, len(self.atoms) * 3),
+            dtype=np.complex128,
+        )
+        logging.info(
+            "Calculating NAC short-range force constants from "
+            + str(len(qpoints))
+            + " commensurate q-points."
+        )
+        fc_full = nac._build_interleaved_fc(self)
+        conversion = units.mol / (10 * units.J)
+        svecs = mapping.get("phase_svecs", mapping["svecs"])
+        fc_full_converted = fc_full * conversion
+        for i_q, q_point in enumerate(qpoints):
+            dynmat = nac._short_range_dynamical_matrix(
+                fc_full_converted,
+                q_point,
+                svecs,
+                mapping["multi"],
+                static_data["masses"],
+                mapping["s2p_map"],
+                mapping["p2s_map"],
+                phase_weights=mapping["phase_weights"],
+                target_mask=mapping["target_mask"],
+            )
+            dynmat -= nac._dipole_dipole_dynamical_matrix(q_point, static_data, mapping)
+            dynmats[i_q] = (dynmat + dynmat.conj().T) / 2
+        return nac._inverse_transform_dynmats_to_force_constants(
+            dynmats, qpoints, mapping, static_data["masses"]
+        )
 
     @classmethod
     def from_supercell(cls,
@@ -184,6 +353,10 @@ class SecondOrder(ForceConstant):
                         if (not charges is None):
                             atoms.info['dielectric'] = charges[0, :, :]
                             atoms.set_array('charges', charges[1:, :, :], shape=(3, 3))
+                            # q2r subtracts the dipole-dipole part before the back
+                            # transform when the file carries Born charges, so these
+                            # force constants are already short-range.
+                            atoms.info['dipole_subtracted_fc'] = True
                         _second_order = _second_order.reshape((n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
                         _second_order = _second_order.transpose(3, 4, 2, 0, 1)
                         # must match the C-order flattening of (t1, t2, t3) in the reshape above
@@ -206,6 +379,9 @@ class SecondOrder(ForceConstant):
                     grid_type=grid_type,
                     supercell=supercell,
                     value=_second_order[np.newaxis, ...],
+                    # main hardcodes the acoustic sum rule for the sheng/d3q formats;
+                    # honoring the caller parameter here silently changed the default
+                    # behavior of every existing QE workflow and breaks test_nac_qe.
                     is_acoustic_sum=True,
                     folder=folder,
                 )

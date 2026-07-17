@@ -524,6 +524,7 @@ class Phonons(Storable):
                  is_nw: bool = False,
                  n_workers: int = 1,
                  projection_output_dir: str | None = None,
+                 nac_bvk_supercell_matrix=None,
                  use_q_symmetry: bool = False,
                  **kwargs):
         self.forceconstants = forceconstants
@@ -557,6 +558,7 @@ class Phonons(Storable):
         self.is_symmetrizing_frequency = is_symmetrizing_frequency
         self.is_antisymmetrizing_velocity = is_antisymmetrizing_velocity
         self.is_balanced = is_balanced
+        self.nac_bvk_supercell_matrix = nac_bvk_supercell_matrix
         self.atoms = self.forceconstants.atoms
         self.supercell = np.array(self.forceconstants.supercell)
         self.n_k_points = int(np.prod(self.kpts))
@@ -677,7 +679,8 @@ class Phonons(Storable):
                                    storage=self.storage,
                                    is_nw=self.is_nw,
                                    is_unfolding=self.is_unfolding,
-                                   is_amorphous=self._is_amorphous)
+                                   is_amorphous=self._is_amorphous,
+                                   nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix)
 
             physical_mode[ik] = phonon.physical_mode
         if self.min_frequency is not None:
@@ -698,7 +701,6 @@ class Phonons(Storable):
         """
         q_points = self._reciprocal_grid.unitary_grid(is_wrapping=False)
         frequency = np.zeros((self.n_k_points, self.n_modes))
-
         for ik in range(len(q_points)):
             q_point = q_points[ik]
             phonon = HarmonicWithQ(q_point=q_point,
@@ -708,7 +710,9 @@ class Phonons(Storable):
                                    storage=self.storage,
                                    is_nw=self.is_nw,
                                    is_unfolding=self.is_unfolding,
-                                   is_amorphous=self._is_amorphous)
+                                   is_amorphous=self._is_amorphous,
+                                   nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix)
+
             frequency[ik] = phonon.frequency
 
         return frequency
@@ -737,7 +741,8 @@ class Phonons(Storable):
                                    storage=self.storage,
                                    is_nw=self.is_nw,
                                    is_unfolding=self.is_unfolding,
-                                   is_amorphous=self._is_amorphous)
+                                   is_amorphous=self._is_amorphous,
+                                   nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix)
 
             participation_ratio[ik] = phonon.participation_ratio
 
@@ -757,7 +762,6 @@ class Phonons(Storable):
 
         q_points = self._reciprocal_grid.unitary_grid(is_wrapping=False)
         velocity = np.zeros((self.n_k_points, self.n_modes, 3))
-
         for ik in range(len(q_points)):
             q_point = q_points[ik]
             phonon = HarmonicWithQ(q_point=q_point,
@@ -767,7 +771,9 @@ class Phonons(Storable):
                                    storage=self.storage,
                                    is_nw=self.is_nw,
                                    is_unfolding=self.is_unfolding,
-                                   is_amorphous=self._is_amorphous)
+                                   is_amorphous=self._is_amorphous,
+                                   nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix)
+
             velocity[ik] = phonon.velocity
 
         return velocity
@@ -800,7 +806,8 @@ class Phonons(Storable):
                                    storage=self.storage,
                                    is_nw=self.is_nw,
                                    is_unfolding=self.is_unfolding,
-                                   is_amorphous=self._is_amorphous)
+                                   is_amorphous=self._is_amorphous,
+                                   nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix)
 
             eigensystem[ik] = phonon._eigensystem
 

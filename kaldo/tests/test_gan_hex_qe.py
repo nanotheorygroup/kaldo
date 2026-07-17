@@ -62,3 +62,15 @@ def test_gamma_A_transverse_degeneracy(gan_second):
     # Along Gamma-A the two TA branches are symmetry-required to be degenerate.
     actual = _frequencies_cm(gan_second, (0.0, 0.0, 0.25))
     assert abs(actual[0] - actual[1]) < 0.1
+
+
+def test_missing_born_charges_warn(caplog):
+    import logging as _logging
+    from kaldo.interfaces import shengbte_io
+
+    with caplog.at_level(_logging.WARNING):
+        _, _, charges = shengbte_io.read_second_order_qe_matrix(
+            "kaldo/tests/gan/espresso.ifc2"
+        )
+    assert charges is None
+    assert any("non-analytic correction" in message for message in caplog.messages)
