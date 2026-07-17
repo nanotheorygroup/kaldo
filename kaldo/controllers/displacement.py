@@ -664,8 +664,9 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
         are accumulated in memory (original behaviour).
     keep_scratch : bool
         If True, scratch files are preserved after successful assembly. If False
-        (default), each file is deleted as it is consumed during assembly, and the
-        directory is removed if empty.
+        (default), scratch files and sentinels are removed only after the tensor
+        is fully built (a failure mid-assembly never destroys computed forces),
+        and the directory is removed if empty.
     jat_flush_every : int
         Number of jat iterations to buffer before flushing to disk. Only used
         when ``scratch_dir`` is set. Default 50.
