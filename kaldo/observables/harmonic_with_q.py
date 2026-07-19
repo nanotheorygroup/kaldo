@@ -16,6 +16,16 @@ logging = get_logger()
 
 MIN_N_MODES_TO_STORE = 1000
 
+
+def _ewald_reciprocal_scale(cell):
+    """Reciprocal length |inv(cell)[0, 0]| that sets the Ewald Gaussian width of
+    the non-analytic correction. Shared by ``nac_dynmat`` (which normalises its
+    reciprocal grid by it, with Lambda = 1) and ``nac_derivatives`` (which sets
+    its Ewald parameter Lambda from it) so that the NAC group-velocity operator
+    stays the exact q-gradient of the NAC dynamical matrix. See the note in
+    ``nac_derivatives``."""
+    return np.abs(np.round(np.linalg.inv(cell), 12)[0, 0])
+
 _warned_incommensurate = False
 
 
@@ -524,10 +534,20 @@ class HarmonicWithQ(Observable, Storable):
             Lambda = 1 # (2*np.pi*units.Bohr/np.linalg.norm(atoms.cell[0,:]))**2
         geg0 = 4 * Lambda * gmax
         omega_bohr = np.linalg.det(atoms.cell.array / units.Bohr) # Vol. in Bohr^3
-        positions_n = atoms.positions.copy() / atoms.cell[0, :].max()  # Normalized positions
+        a_max = atoms.cell[0, :].max()  # length used to normalize real-space distances
+        positions_n = atoms.positions.copy() / a_max  # Normalized positions
         distances_n = positions_n[:, None, :] - positions_n[None, :, :]  # distance in crystal coordinates
         reciprocal_n = np.round(np.linalg.inv(atoms.cell), 12)  # round to avoid accumulation of error
-        reciprocal_n /= np.abs(reciprocal_n[0, 0])  # Normalized reciprocal cell
+        c_recip = _ewald_reciprocal_scale(atoms.cell)  # length used to normalize reciprocal vectors (shared with nac_derivatives)
+        reciprocal_n /= c_recip  # Normalized reciprocal cell
+        # Prefactor for the physical G.r phase (see phase factor below). g_positions and
+        # distances_n are built in the normalized unit system only to set the Ewald grid and
+        # cutoff; the phase itself must be evaluated in physical units, i.e. exp(i G.r) with G
+        # in 2*pi/Bohr and r in Bohr, exactly as in nac_derivatives. In the normalized
+        # variables that physical phase is 2*pi * a_max * c_recip * (g_positions . distances_n).
+        # The historical prefactor of pi is only correct for an FCC primitive cell, where
+        # c_recip * a_max == 0.5; for any other Bravais lattice it applies half the phase.
+        phase_prefactor = 2 * np.pi * a_max * c_recip
         correction_matrix = tf.zeros([3, 3, natoms, natoms], dtype=tf.complex64)
         prefactor = 4 * np.pi * e2 / omega_bohr
 
@@ -577,7 +597,7 @@ class HarmonicWithQ(Observable, Storable):
         # TODO: This "if-else" block could likely be replaced with the just the "if" block since the imaginary term I
         # think should be zero at Gamma, but we'd need to check that for sure.
         if qpoint is not None:
-            phase = np.exp(1j * np.pi * contract('ia,nma->inm', g_positions, distances_n))
+            phase = np.exp(1j * phase_prefactor * contract('ia,nma->inm', g_positions, distances_n))
 
             # The long range forces are the outer product of the effective charges, scaled by the phase term. We impose
             # Hermicity on cartesian axes by taking the average of M and M^T
@@ -592,7 +612,7 @@ class HarmonicWithQ(Observable, Storable):
             correction_matrix += lr_correction
 
         else:  # only the real part of the phase is taken at Gamma
-            phase = np.cos(np.pi * contract('ia,nma->inm', g_positions, distances_n))
+            phase = np.cos(phase_prefactor * contract('ia,nma->inm', g_positions, distances_n))
 
             # Also, this part of the correction is only applied on "diagonal" choices of atoms. (e.g. 00, 11, 22 etc)
             # The long range forces are an outer product of the effective charges, scaled by the exponential term.
@@ -640,7 +660,15 @@ class HarmonicWithQ(Observable, Storable):
         if gmax==None:
             gmax = 14  # maximum reciprocal vector (same default value in ShengBTE/QE)
         if Lambda==None:
-            Lambda = (2*np.pi*units.Bohr/np.linalg.norm(cell[0,:]))**2  # Ewald parameter
+            # Ewald parameter. Must reproduce the SAME physical Gaussian width as
+            # nac_dynmat, which normalises its reciprocal grid by
+            # c_recip = |inv(cell)[0, 0]| and uses Lambda = 1. Otherwise
+            # nac_derivatives is not the q-gradient of nac_dynmat and the NAC
+            # group velocities are wrong for cells whose first lattice vector is
+            # not axis-aligned (e.g. FCC primitive: ~8%). The historical form
+            # (2*np.pi*units.Bohr/np.linalg.norm(cell[0,:]))**2 coincides with
+            # this only when |cell[0,:]| * |inv(cell)[0, 0]| == 1.
+            Lambda = (2*np.pi*_ewald_reciprocal_scale(cell)*units.Bohr)**2  # Ewald parameter
         geg0 = 4 * Lambda * gmax
         omega_bohr = np.linalg.det(atoms.cell.array / units.Bohr) # Vol. in Bohr^3
         positions_bohr = atoms.positions.copy() / units.Bohr
