@@ -16,6 +16,16 @@ logging = get_logger()
 
 MIN_N_MODES_TO_STORE = 1000
 
+
+def _ewald_reciprocal_scale(cell):
+    """Reciprocal length |inv(cell)[0, 0]| that sets the Ewald Gaussian width of
+    the non-analytic correction. Shared by ``nac_dynmat`` (which normalises its
+    reciprocal grid by it, with Lambda = 1) and ``nac_derivatives`` (which sets
+    its Ewald parameter Lambda from it) so that the NAC group-velocity operator
+    stays the exact q-gradient of the NAC dynamical matrix. See the note in
+    ``nac_derivatives``."""
+    return np.abs(np.round(np.linalg.inv(cell), 12)[0, 0])
+
 _warned_incommensurate = False
 
 
@@ -528,7 +538,7 @@ class HarmonicWithQ(Observable, Storable):
         positions_n = atoms.positions.copy() / a_max  # Normalized positions
         distances_n = positions_n[:, None, :] - positions_n[None, :, :]  # distance in crystal coordinates
         reciprocal_n = np.round(np.linalg.inv(atoms.cell), 12)  # round to avoid accumulation of error
-        c_recip = np.abs(reciprocal_n[0, 0])  # length used to normalize reciprocal vectors
+        c_recip = _ewald_reciprocal_scale(atoms.cell)  # length used to normalize reciprocal vectors (shared with nac_derivatives)
         reciprocal_n /= c_recip  # Normalized reciprocal cell
         # Prefactor for the physical G.r phase (see phase factor below). g_positions and
         # distances_n are built in the normalized unit system only to set the Ewald grid and
@@ -650,7 +660,15 @@ class HarmonicWithQ(Observable, Storable):
         if gmax==None:
             gmax = 14  # maximum reciprocal vector (same default value in ShengBTE/QE)
         if Lambda==None:
-            Lambda = (2*np.pi*units.Bohr/np.linalg.norm(cell[0,:]))**2  # Ewald parameter
+            # Ewald parameter. Must reproduce the SAME physical Gaussian width as
+            # nac_dynmat, which normalises its reciprocal grid by
+            # c_recip = |inv(cell)[0, 0]| and uses Lambda = 1. Otherwise
+            # nac_derivatives is not the q-gradient of nac_dynmat and the NAC
+            # group velocities are wrong for cells whose first lattice vector is
+            # not axis-aligned (e.g. FCC primitive: ~8%). The historical form
+            # (2*np.pi*units.Bohr/np.linalg.norm(cell[0,:]))**2 coincides with
+            # this only when |cell[0,:]| * |inv(cell)[0, 0]| == 1.
+            Lambda = (2*np.pi*_ewald_reciprocal_scale(cell)*units.Bohr)**2  # Ewald parameter
         geg0 = 4 * Lambda * gmax
         omega_bohr = np.linalg.det(atoms.cell.array / units.Bohr) # Vol. in Bohr^3
         positions_bohr = atoms.positions.copy() / units.Bohr
