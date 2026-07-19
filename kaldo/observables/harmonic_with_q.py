@@ -524,10 +524,20 @@ class HarmonicWithQ(Observable, Storable):
             Lambda = 1 # (2*np.pi*units.Bohr/np.linalg.norm(atoms.cell[0,:]))**2
         geg0 = 4 * Lambda * gmax
         omega_bohr = np.linalg.det(atoms.cell.array / units.Bohr) # Vol. in Bohr^3
-        positions_n = atoms.positions.copy() / atoms.cell[0, :].max()  # Normalized positions
+        a_max = atoms.cell[0, :].max()  # length used to normalize real-space distances
+        positions_n = atoms.positions.copy() / a_max  # Normalized positions
         distances_n = positions_n[:, None, :] - positions_n[None, :, :]  # distance in crystal coordinates
         reciprocal_n = np.round(np.linalg.inv(atoms.cell), 12)  # round to avoid accumulation of error
-        reciprocal_n /= np.abs(reciprocal_n[0, 0])  # Normalized reciprocal cell
+        c_recip = np.abs(reciprocal_n[0, 0])  # length used to normalize reciprocal vectors
+        reciprocal_n /= c_recip  # Normalized reciprocal cell
+        # Prefactor for the physical G.r phase (see phase factor below). g_positions and
+        # distances_n are built in the normalized unit system only to set the Ewald grid and
+        # cutoff; the phase itself must be evaluated in physical units, i.e. exp(i G.r) with G
+        # in 2*pi/Bohr and r in Bohr, exactly as in nac_derivatives. In the normalized
+        # variables that physical phase is 2*pi * a_max * c_recip * (g_positions . distances_n).
+        # The historical prefactor of pi is only correct for an FCC primitive cell, where
+        # c_recip * a_max == 0.5; for any other Bravais lattice it applies half the phase.
+        phase_prefactor = 2 * np.pi * a_max * c_recip
         correction_matrix = tf.zeros([3, 3, natoms, natoms], dtype=tf.complex64)
         prefactor = 4 * np.pi * e2 / omega_bohr
 
@@ -577,7 +587,7 @@ class HarmonicWithQ(Observable, Storable):
         # TODO: This "if-else" block could likely be replaced with the just the "if" block since the imaginary term I
         # think should be zero at Gamma, but we'd need to check that for sure.
         if qpoint is not None:
-            phase = np.exp(1j * np.pi * contract('ia,nma->inm', g_positions, distances_n))
+            phase = np.exp(1j * phase_prefactor * contract('ia,nma->inm', g_positions, distances_n))
 
             # The long range forces are the outer product of the effective charges, scaled by the phase term. We impose
             # Hermicity on cartesian axes by taking the average of M and M^T
@@ -592,7 +602,7 @@ class HarmonicWithQ(Observable, Storable):
             correction_matrix += lr_correction
 
         else:  # only the real part of the phase is taken at Gamma
-            phase = np.cos(np.pi * contract('ia,nma->inm', g_positions, distances_n))
+            phase = np.cos(phase_prefactor * contract('ia,nma->inm', g_positions, distances_n))
 
             # Also, this part of the correction is only applied on "diagonal" choices of atoms. (e.g. 00, 11, 22 etc)
             # The long range forces are an outer product of the effective charges, scaled by the exponential term.
