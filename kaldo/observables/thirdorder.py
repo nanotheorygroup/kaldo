@@ -221,6 +221,10 @@ class ThirdOrder(ForceConstant):
                 fc_filename = os.path.join(folder, 'infile.forceconstant_thirdorder')
 
                 if diagonal_supercell is None:
+                    # Deliberately the det(M) class table, not the per-pair
+                    # table SecondOrder uses since issue #297: nothing pins
+                    # third-order interpolation and the two paths are
+                    # independent.
                     kw = build_nondiag_observable_kwargs(uc, sc)
                     mapping = kw.pop("_mapping")
                     third_ifcs = parse_tdep_third_forceconstant(fc_filename=fc_filename, primitive=uc,

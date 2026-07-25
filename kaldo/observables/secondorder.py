@@ -250,6 +250,7 @@ class SecondOrder(ForceConstant):
                     build_nondiag_observable_kwargs,
                     attach_snf_metadata,
                     resolve_tdep_supercell,
+                    scan_tdep_lattice_vectors,
                 )
                 from kaldo.grid import Grid
 
@@ -257,7 +258,12 @@ class SecondOrder(ForceConstant):
                 fc_file = os.path.join(folder, "infile.forceconstant")
 
                 if diagonal_supercell is None:
-                    kw = build_nondiag_observable_kwargs(uc, sc)
+                    # Per-pair lattice vectors from the file, not the det(M)
+                    # congruence classes: exact at commensurate q either way,
+                    # but only the per-pair table matches TDEP/phonopy/ALAMODE
+                    # between commensurate points (issue #297).
+                    kw = build_nondiag_observable_kwargs(
+                        uc, sc, replica_table=scan_tdep_lattice_vectors(fc_file))
                     mapping = kw.pop("_mapping")
                     d2 = parse_tdep_forceconstant(fc_file=fc_file, primitive=uc, grid=kw["grid"])
                     second_order = SecondOrder(value=d2, is_acoustic_sum=is_acoustic_sum, folder=folder, **kw)
