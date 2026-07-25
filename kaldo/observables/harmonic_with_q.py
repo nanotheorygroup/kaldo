@@ -1,4 +1,4 @@
-from kaldo.grid import wrap_coordinates, Grid
+from kaldo.grid import wrap_coordinates, Grid, NonDiagonalGrid
 from kaldo.observables.forceconstant import chi
 from kaldo.observables.observable import Observable
 import numpy as np
@@ -79,6 +79,12 @@ class HarmonicWithQ(Observable, Storable):
         # Arguments for specific physical assumptions
         self.is_amorphous = is_amorphous
         self.is_unfolding = is_unfolding
+        if is_unfolding and isinstance(getattr(second, '_direct_grid', None), NonDiagonalGrid):
+            raise NotImplementedError(
+                "is_unfolding assumes a diagonal (nx, ny, nz) supercell and is not "
+                "supported on the non-diagonal (SNF) path; the SNF tdep loader already "
+                "applies per-pair phases, so unfolding is not needed there."
+            )
         if not is_unfolding and getattr(second, '_snf_mapping', None) is None:
             # The commensurability heuristic reads self.supercell as an
             # (nx, ny, nz) grid; SNF observables linearize it to (n_rep, 1, 1),
