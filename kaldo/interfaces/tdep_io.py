@@ -209,7 +209,8 @@ def scan_tdep_lattice_vectors(fc_file):
     TDEP writes each neighbour entry with its own per-pair minimum-image
     lattice vector; the set of those vectors is the natural replica table
     for a Fourier interpolation that matches TDEP/phonopy/ALAMODE at
-    incommensurate q. Deterministic row-sorted order.
+    incommensurate q. Deterministic order: the home cell [0, 0, 0] comes
+    first (acoustic_sum_rule targets replica 0), remainder row-sorted.
     """
     vecs = []
     with open(fc_file) as f:

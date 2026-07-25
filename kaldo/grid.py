@@ -117,9 +117,10 @@ class NonDiagonalGrid(Grid):
     same class). Mimics the :class:`Grid` public interface so downstream
     code (ForceConstant, HarmonicWithQ) can use it interchangeably.
 
-    The ``is_wrapping`` flag on ``grid()`` and ``grid_index_to_id()`` is
-    accepted for API compatibility with :class:`Grid` but is **always
-    treated as True**: the stored table is returned as-is.
+    ``grid()`` ignores ``is_wrapping`` and always returns the stored table
+    as-is. ``grid_index_to_id()`` always tries an exact row match first;
+    only the congruence-wrapping fallback used on a miss respects the
+    flag, returning an empty result when ``is_wrapping=False``.
     """
 
     def __init__(self, replica_table, M):
