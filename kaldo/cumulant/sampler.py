@@ -113,6 +113,31 @@ class SCSampler:
         self.amp = np.sqrt(self.var_per_mode)
         self.rng = np.random.default_rng(seed)
 
+        # Precompute mode weights w(T) and explicit ∂w/∂T factor for V2_tilde.
+        # Classical: w ≡ 1, ∂w/∂T ≡ 0.
+        # Quantum: w = 4n(n+1)/(2n+1)² = sech²(ħω/2kT),
+        #          (1/w) ∂w/∂T = (x/T) tanh(x/2) with x = ħω/kT
+        #          (LDT ``_mode_weight`` / ``_mode_weight_dT``).
+        self._mode_weight = np.zeros_like(self.omega)
+        self._mode_weight_dT_over_w = np.zeros_like(self.omega)
+        if self.is_classic:
+            self._mode_weight[self.ok] = 1.0
+        else:
+            n = self.n_pop
+            denom = (2.0 * n + 1.0) ** 2
+            self._mode_weight[self.ok] = (
+                4.0 * n[self.ok] * (n[self.ok] + 1.0) / denom[self.ok]
+            )
+            x = np.zeros_like(self.omega)
+            x[self.ok] = self.omega[self.ok] / (KB_HARTREE * self.T)
+            # Cap extreme x (same spirit as LDT: avoid overflow, weight → 0)
+            large = x > 100.0
+            self._mode_weight_dT_over_w[self.ok] = (x[self.ok] / self.T) * np.tanh(
+                0.5 * x[self.ok]
+            )
+            self._mode_weight_dT_over_w[large] = 0.0
+            self._mode_weight[large] = 0.0
+
     def draw_with_z(self):
         """Return ``(u_Ang, z)`` with ``u`` shape (n_sc, 3) in Angstroms."""
         nb = 3 * self.n_sc
@@ -149,14 +174,23 @@ class SCSampler:
         reweights each mode for the control-variate reference used by the
         entropy / heat-capacity estimator.
         """
+        v2t, _ = self.V2_tilde_and_dT_from_z(z)
+        return v2t
+
+    def V2_tilde_and_dT_from_z(self, z):
+        """Return ``(V2_tilde, dV2_tilde_dT)`` in eV and eV/K.
+
+        ``dV2_tilde_dT`` is the *explicit* Bose-weight derivative only
+        (LDT ``dcoeffs = _mode_weight_dT * c``), needed for the quantum Cv
+        estimator. Classical: identically zero.
+        """
         ok = self.ok
-
-        if self.is_classic:
-            w = np.where(ok, 1.0, 0.0)
-        else:
-            denom = (2 * self.n_pop + 1) ** 2
-            w = np.zeros_like(self.omega)
-            w[ok] = 4.0 * self.n_pop[ok] * (self.n_pop[ok] + 1.0) / denom[ok]
-
-        coeffs = np.where(ok, 0.5 * self.omega ** 2 * self.var_per_mode, 0.0)
-        return (w * coeffs * (z ** 2)).sum() * HARTREE_TO_EV
+        z = np.asarray(z)
+        base = np.where(ok, 0.5 * self.omega ** 2 * self.var_per_mode, 0.0)
+        coeffs = self._mode_weight * base
+        # dcoeffs = [(1/w) ∂w/∂T] * c = (∂w/∂T) * base
+        dcoeffs = self._mode_weight_dT_over_w * coeffs
+        z2 = z ** 2
+        v2t = float((coeffs * z2).sum() * HARTREE_TO_EV)
+        dv2t = float((dcoeffs * z2).sum() * HARTREE_TO_EV)
+        return v2t, dv2t

@@ -133,7 +133,7 @@ def build_psi4_realspace_v(QD, q1_cart, q2_cart):
 
 
 def F1_vectorized(neighbors_pair, quartets, masses_kg, uc_positions, uc_cell,
-                  kmesh, T_K, use_q_symmetry=False, atoms=None):
+                  kmesh, T_K, use_q_symmetry=False, atoms=None, is_classic=False):
     """
     F1 / S1 / Cv1 / U1 quartic cumulant evaluator on a regular MP q-mesh.
 
@@ -157,6 +157,8 @@ def F1_vectorized(neighbors_pair, quartets, masses_kg, uc_positions, uc_cell,
     T_K : temperature in Kelvin.
     use_q_symmetry : opt-in IBZ reduction of the outer q1 loop.
     atoms : ASE Atoms (needed only when use_q_symmetry=True).
+    is_classic : if True, use classical occupations ``2n+1 = 2 kT / (ħ ω)``
+        (LDT ``quantum=false`` branch); else Bose–Einstein.
 
     Returns
     -------
@@ -197,20 +199,8 @@ def F1_vectorized(neighbors_pair, quartets, masses_kg, uc_positions, uc_cell,
         )
     logging.info(f"eigs {nq} qs in {time.time()-t0:.1f}s")
 
-    # Planck distribution and derivatives.
-    x = HBAR * omegas / (KB * T_K)
-    ok = omegas > 2 * np.pi * FREQ_TOL_THZ * 1e12
-    n_tab = np.zeros_like(omegas)
-    dn_tab = np.zeros_like(omegas)
-    ddn_tab = np.zeros_like(omegas)
-    if np.any(ok):
-        ex = np.exp(x[ok])
-        em = ex - 1.0
-        n_tab[ok] = 1.0 / em
-        dn_tab[ok] = (x[ok] / T_K) * ex / (em ** 2)
-        y = x[ok] / T_K
-        coef = -2.0 - x[ok] + 2.0 * x[ok] * ex / em
-        ddn_tab[ok] = (y * ex / (T_K * em ** 2)) * coef
+    # Occupations: Bose–Einstein or classical (2n+1 = 2 kT / ħω).
+    n_tab, dn_tab, ddn_tab, ok = planck_and_derivs(omegas, T_K, is_classic=is_classic)
     two_np1 = 2 * n_tab + 1
     inv_w = np.zeros_like(omegas)
     inv_w[ok] = 1.0 / omegas[ok]
@@ -328,14 +318,30 @@ def build_psi3_realspace(TD, q2_cart, q3_cart):
     return A
 
 
-def planck_and_derivs(omega, T_K):
-    """Planck factor n(omega, T) and first / second temperature derivatives."""
-    x = HBAR * omega / (KB * T_K)
+def planck_and_derivs(omega, T_K, is_classic=False):
+    """Occupation factor n(ω, T) and first / second temperature derivatives.
+
+    Quantum (default): Bose–Einstein ``n = 1/(e^{ħω/kT} - 1)``.
+
+    Classical (``is_classic=True``): high-T limit with
+    ``2n + 1 = 2 kT / (ħ ω)``, i.e. ``n = kT/(ħω) - 1/2``, so
+    ``∂n/∂T = k/(ħω)`` and ``∂²n/∂T² = 0``. This matches the LDT
+    ``quantum=false`` branch for F1 (and the classical occupation
+    limit used there).
+    """
     ok = omega > 2 * np.pi * FREQ_TOL_THZ * 1e12
     n = np.zeros_like(omega)
     dn = np.zeros_like(omega)
     ddn = np.zeros_like(omega)
-    if np.any(ok):
+    if not np.any(ok):
+        return n, dn, ddn, ok
+    if is_classic:
+        # n = kT/(ħω) - 1/2  ⇒  2n+1 = 2 kT/(ħω)
+        n[ok] = KB * T_K / (HBAR * omega[ok]) - 0.5
+        dn[ok] = KB / (HBAR * omega[ok])
+        # ddn stays zero
+    else:
+        x = HBAR * omega / (KB * T_K)
         ex = np.exp(x[ok])
         em = ex - 1.0
         n[ok] = 1.0 / em
@@ -459,13 +465,15 @@ def compute_default_smearing(omegas, FREQ_TOL=0.0):
 
 def adaptive_sigma(radius_inv_ang, group_vel_alpha_nb, default_sigma_nb, scale=1.0):
     """
-    TDEP-style adaptive σ (per-q, per-band).
+    TDEP-style adaptive σ (per-q, per-band) via ``adaptive_sigma``.
 
     Shim on :func:`kaldo.controllers.anharmonic.calculate_adaptive_sigma_tdep`.
     Cumulant's historical signature is per-q with ``velocity`` as ``(3, n_b)``
     (α, band); kaldo expects ``(n_k, n_b, 3)``. We reshape to a single-q call
-    and drop the leading axis. Formula and clamping are identical on both
-    sides, so the output matches bit-for-bit in the overlapping unit regime.
+    and drop the leading axis.
+
+    Note: anharmonic free energy (F2) uses :func:`smearingparameter` instead —
+    that is what TDEP's ``anharmonic_free_energy`` actually calls.
     """
     from kaldo.controllers.anharmonic import calculate_adaptive_sigma_tdep
     v = np.asarray(group_vel_alpha_nb).T[np.newaxis, ...]  # (1, n_b, 3)
@@ -476,17 +484,38 @@ def adaptive_sigma(radius_inv_ang, group_vel_alpha_nb, default_sigma_nb, scale=1
     return sig[0]  # strip leading q-axis
 
 
+def smearingparameter(scaled_rec_basis, group_vel_alpha_nb, default_sigma_nb, scale=1.0):
+    """
+    TDEP ``qp%smearingparameter`` used by anharmonic free energy.
+
+    Shim on :func:`kaldo.controllers.anharmonic.calculate_smearingparameter_tdep`
+    with the cumulant per-q ``(3, n_b)`` velocity layout.
+    """
+    from kaldo.controllers.anharmonic import calculate_smearingparameter_tdep
+    v = np.asarray(group_vel_alpha_nb).T[np.newaxis, ...]  # (1, n_b, 3)
+    sig = calculate_smearingparameter_tdep(
+        scaled_rec_basis=scaled_rec_basis, velocity=v,
+        default_sigma=default_sigma_nb, scale=scale,
+    )
+    return sig[0]
+
 def F2_vectorized(neighbors_pair, triplets, masses_kg, uc_positions, uc_cell,
-                  kmesh, T_K, sigma_THz=None, use_q_symmetry=False, atoms=None):
+                  kmesh, T_K, sigma_THz=None, use_q_symmetry=False, atoms=None,
+                  is_classic=False):
     """
     F2 / S2 / Cv2 / U2 cubic cumulant evaluator on a regular MP q-mesh.
 
-    If ``sigma_THz`` is None (default), uses adaptive per-mode σ matching
-    Julia LDT's convention. If a float, uses a fixed isotropic σ.
+    If ``sigma_THz`` is None (default), uses TDEP ``smearingparameter``
+    (the adaptive σ that ``anharmonic_free_energy`` actually calls — not
+    ``adaptive_sigma``). If a float, uses a fixed isotropic σ.
 
     ``use_q_symmetry=True`` reduces the outer q1 loop to spglib IBZ reps
     weighted by orbit size. See ``F1_vectorized`` for the invariance
     argument (same structure; q3 = -q1-q2 is symmetry-consistent).
+
+    ``is_classic=True`` uses the LDT classical closed form
+    ``(kT)^2 / (ω1 ω2 ω3) / 12`` (no resonant principal-value denominators);
+    quantum uses Bose occupations with adaptive/fixed σ smearing.
 
     Returns a dict with keys ``F2``, ``S2``, ``Cv2``, ``U2``.
     """
@@ -523,31 +552,56 @@ def F2_vectorized(neighbors_pair, triplets, masses_kg, uc_positions, uc_cell,
         )
     logging.info(f"eigs {nq} qs in {time.time()-t0:.1f}s")
 
-    if sigma_THz is None:
-        t_sig = time.time()
-        prim_vol_A3 = abs(np.linalg.det(uc_cell))
-        radius = (3.0 / (prim_vol_A3 * nq * 4.0 * np.pi)) ** (1.0 / 3.0)
-        default_sigma_bands = compute_default_smearing(omegas)
-        sigma_table = np.empty((nq, nb))
-        for iq, q in enumerate(cart):
-            v = compute_group_velocity_analytic(
-                neighbors_pair, uc_positions, masses_kg, q, omegas[iq], egvs[iq],
-            )
-            sigma_table[iq] = adaptive_sigma(radius, v, default_sigma_bands)
-        logging.info(f"adaptive sigma: {time.time()-t_sig:.1f}s, "
-              f"range {sigma_table.min():.2e}..{sigma_table.max():.2e} rad/s "
-              f"(~{sigma_table.min()/(2*np.pi*1e12):.3f}..{sigma_table.max()/(2*np.pi*1e12):.3f} THz)")
+    # Adaptive σ only needed for the quantum (resonant) branch.
+    # Match TDEP anharmonic_free_energy (thirdorder.f90): default_smearing from
+    # *IBZ* frequencies, σ from qp%smearingparameter (NOT qp%adaptive_sigma),
+    # evaluated on IBZ velocities and broadcast via ir_mapping.
+    if not is_classic:
+        if sigma_THz is None:
+            t_sig = time.time()
+            if atoms is None:
+                raise ValueError(
+                    "adaptive sigma (sigma_THz=None) requires atoms= ASE Atoms "
+                    "so default_smearing / σ can be built on the IBZ, matching TDEP"
+                )
+            from kaldo.phonons import _get_ir_kgrid_data
+            ir_mapping, _, ibz_indices, _ = _get_ir_kgrid_data(
+                atoms, kpts=list(kmesh), grid_type='C')
+            ibz_indices = np.asarray(ibz_indices, dtype=int)
+            # scaledrecbasis[:, i] = b_i / N_i  (b_i includes 2π)
+            scaled_rec_basis = recip / np.asarray(kmesh, dtype=float)[None, :]
+            default_sigma_bands = compute_default_smearing(omegas[ibz_indices])
+            sigma_ibz = np.empty((len(ibz_indices), nb))
+            for ii, iq in enumerate(ibz_indices):
+                v = compute_group_velocity_analytic(
+                    neighbors_pair, uc_positions, masses_kg,
+                    cart[iq], omegas[iq], egvs[iq],
+                )
+                sigma_ibz[ii] = smearingparameter(
+                    scaled_rec_basis, v, default_sigma_bands,
+                )
+            # Broadcast IBZ σ to every full-grid q via its irreducible parent
+            # (ir_mapping[iq] is the full-grid index of the IBZ rep, matching
+            # TDEP's ap(q)%irreducible_index semantics).
+            sigma_by_full = np.empty((nq, nb))
+            for ii, iq in enumerate(ibz_indices):
+                sigma_by_full[iq] = sigma_ibz[ii]
+            sigma_table = sigma_by_full[np.asarray(ir_mapping, dtype=int)]
+            logging.info(f"smearingparameter (IBZ, AFE): {time.time()-t_sig:.1f}s, "
+                  f"range {sigma_table.min():.2e}..{sigma_table.max():.2e} rad/s "
+                  f"(~{sigma_table.min()/(2*np.pi*1e12):.3f}..{sigma_table.max()/(2*np.pi*1e12):.3f} THz)")
+        else:
+            sigma_rad_s = 2 * np.pi * sigma_THz * 1e12
+            sigma_table = np.full((nq, nb), sigma_rad_s)
     else:
-        sigma_rad_s = 2 * np.pi * sigma_THz * 1e12
-        sigma_table = np.full((nq, nb), sigma_rad_s)
+        sigma_table = None
 
-    # Planck table
-    n_tab = np.empty((nq, nb))
-    dn_tab = np.empty_like(n_tab)
-    ddn_tab = np.empty_like(n_tab)
-    ok_tab = np.empty((nq, nb), dtype=bool)
-    for iq in range(nq):
-        n_tab[iq], dn_tab[iq], ddn_tab[iq], ok_tab[iq] = planck_and_derivs(omegas[iq], T_K)
+    # Occupation table (quantum only; classical uses closed-form weights below).
+    ok_tab = omegas > 2 * np.pi * FREQ_TOL_THZ * 1e12
+    if is_classic:
+        n_tab = dn_tab = ddn_tab = None
+    else:
+        n_tab, dn_tab, ddn_tab, ok_tab = planck_and_derivs(omegas, T_K, is_classic=False)
 
     # q3 lookup table from q1+q2+q3 = 0 mod G
     frac_rounded = np.round(frac * np.array([nx, ny, nz])[None, :]).astype(int) \
@@ -567,17 +621,16 @@ def F2_vectorized(neighbors_pair, triplets, masses_kg, uc_positions, uc_cell,
     S2 = 0.0
     Cv2 = 0.0
 
-    inv_w = np.zeros_like(omegas)
-    inv_w[ok_tab] = 1.0 / omegas[ok_tab]
+    # Classical LDT weights: f0 = (kT)^2/(ω1 ω2 ω3)/12 replaces
+    # (f1 Re1 + 3 f2 Re2)/48, with ω in rad/s matching inv_w_prod; the
+    # outer ħ² prefactor converts to energy (same convention as classical F1).
+    # df0 = 2 f0 / T, ddf0 = df0 (Cv2 = S2).
+    kT = KB * T_K
 
     for _i, iq1 in enumerate(q1_indices):
-        q1c = cart[iq1]
         i1, j1, k1 = frac_rounded[iq1]
         e1 = egvs[iq1]
         w1 = omegas[iq1]
-        n1 = n_tab[iq1]
-        dn1 = dn_tab[iq1]
-        ddn1 = ddn_tab[iq1]
         ok1 = ok_tab[iq1]
         w_q1 = q1_weights[iq1]
         for iq2 in range(nq):
@@ -595,8 +648,6 @@ def F2_vectorized(neighbors_pair, triplets, masses_kg, uc_positions, uc_cell,
             e3 = egvs[iq3]
             w2 = omegas[iq2]
             w3 = omegas[iq3]
-            n2 = n_tab[iq2]
-            n3 = n_tab[iq3]
             ok2 = ok_tab[iq2]
             ok3 = ok_tab[iq3]
 
@@ -613,45 +664,59 @@ def F2_vectorized(neighbors_pair, triplets, masses_kg, uc_positions, uc_cell,
             w2_ = w2[None, :, None]
             w3_ = w3[None, None, :]
             mask = ok1[:, None, None] & ok2[None, :, None] & ok3[None, None, :]
-            s1 = sigma_table[iq1][:, None, None]
-            s2 = sigma_table[iq2][None, :, None]
-            s3 = sigma_table[iq3][None, None, :]
-            sigma_combo = np.sqrt(s1 ** 2 + s2 ** 2 + s3 ** 2)
-            denom1 = w1_ + w2_ + w3_
-            Re1 = denom1 / (denom1 ** 2 + sigma_combo ** 2)
-            denom2 = w1_ + w2_ - w3_
-            Re2 = denom2 / (denom2 ** 2 + sigma_combo ** 2)
-
-            n1_ = n1[:, None, None]
-            n2_ = n2[None, :, None]
-            n3_ = n3[None, None, :]
-            dn1_ = dn_tab[iq1][:, None, None]
-            dn2_ = dn_tab[iq2][None, :, None]
-            dn3_ = dn_tab[iq3][None, None, :]
-            ddn1_ = ddn_tab[iq1][:, None, None]
-            ddn2_ = ddn_tab[iq2][None, :, None]
-            ddn3_ = ddn_tab[iq3][None, None, :]
-
-            f1 = (n1_ + 1.0) * (n2_ + n3_ + 1.0) + n2_ * n3_
-            f2 = n3_ * (n1_ + n2_ + 1.0) - n1_ * n2_
-
-            df1 = (dn1_ * (n2_ + n3_ + 1.0) + (n1_ + 1.0) * (dn2_ + dn3_)
-                   + dn2_ * n3_ + n2_ * dn3_)
-            df2 = (dn3_ * (n1_ + n2_ + 1.0) + dn1_ * (n3_ - n2_) + dn2_ * (n3_ - n1_))
-
-            ddf1 = (ddn1_ * (n2_ + n3_ + 1.0) + 2.0 * dn1_ * (dn2_ + dn3_)
-                    + (n1_ + 1.0) * (ddn2_ + ddn3_) + ddn2_ * n3_ + n2_ * ddn3_
-                    + 2.0 * dn2_ * dn3_)
-            ddf2 = (ddn3_ * (n1_ + n2_ + 1.0) + dn3_ * (dn1_ + dn2_)
-                    + ddn1_ * (n3_ - n2_) + dn1_ * (dn3_ - dn2_)
-                    + ddn2_ * (n3_ - n1_) + dn2_ * (dn3_ - dn1_))
 
             inv_w_prod = np.zeros_like(psisq)
             inv_w_prod[mask] = 1.0 / (w1_ * w2_ * w3_)[mask]
 
-            common_F = (f1 * Re1 + 3.0 * f2 * Re2)
-            common_S = (df1 * Re1 + 3.0 * df2 * Re2)
-            common_Cv = (ddf1 * Re1 + 3.0 * ddf2 * Re2) * T_K
+            if is_classic:
+                # LDT classical: f0 = (kT)^2/(ω1 ω2 ω3)/12 replaces
+                # (f1 Re1 + 3 f2 Re2)/48.  Frequency unit matches inv_w_prod
+                # (rad/s); the outer ħ² prefactor supplies the energy conversion
+                # (same convention as classical F1 with 2n+1 = 2kT/(ħω)).
+                # common_F/48 = (kT)^2 / (ħ² ω1 ω2 ω3) / 12
+                w_prod = w1_ * w2_ * w3_
+                common_F = np.zeros_like(psisq)
+                common_S = np.zeros_like(psisq)
+                common_F[mask] = 4.0 * (kT ** 2) / ((HBAR ** 2) * w_prod[mask])
+                common_S[mask] = 8.0 * (KB ** 2) * T_K / ((HBAR ** 2) * w_prod[mask])
+                common_Cv = common_S
+            else:
+                s1 = sigma_table[iq1][:, None, None]
+                s2 = sigma_table[iq2][None, :, None]
+                s3 = sigma_table[iq3][None, None, :]
+                sigma_combo = np.sqrt(s1 ** 2 + s2 ** 2 + s3 ** 2)
+                denom1 = w1_ + w2_ + w3_
+                Re1 = denom1 / (denom1 ** 2 + sigma_combo ** 2)
+                denom2 = w1_ + w2_ - w3_
+                Re2 = denom2 / (denom2 ** 2 + sigma_combo ** 2)
+
+                n1_ = n_tab[iq1][:, None, None]
+                n2_ = n_tab[iq2][None, :, None]
+                n3_ = n_tab[iq3][None, None, :]
+                dn1_ = dn_tab[iq1][:, None, None]
+                dn2_ = dn_tab[iq2][None, :, None]
+                dn3_ = dn_tab[iq3][None, None, :]
+                ddn1_ = ddn_tab[iq1][:, None, None]
+                ddn2_ = ddn_tab[iq2][None, :, None]
+                ddn3_ = ddn_tab[iq3][None, None, :]
+
+                f1 = (n1_ + 1.0) * (n2_ + n3_ + 1.0) + n2_ * n3_
+                f2 = n3_ * (n1_ + n2_ + 1.0) - n1_ * n2_
+
+                df1 = (dn1_ * (n2_ + n3_ + 1.0) + (n1_ + 1.0) * (dn2_ + dn3_)
+                       + dn2_ * n3_ + n2_ * dn3_)
+                df2 = (dn3_ * (n1_ + n2_ + 1.0) + dn1_ * (n3_ - n2_) + dn2_ * (n3_ - n1_))
+
+                ddf1 = (ddn1_ * (n2_ + n3_ + 1.0) + 2.0 * dn1_ * (dn2_ + dn3_)
+                        + (n1_ + 1.0) * (ddn2_ + ddn3_) + ddn2_ * n3_ + n2_ * ddn3_
+                        + 2.0 * dn2_ * dn3_)
+                ddf2 = (ddn3_ * (n1_ + n2_ + 1.0) + dn3_ * (dn1_ + dn2_)
+                        + ddn1_ * (n3_ - n2_) + dn1_ * (dn3_ - dn2_)
+                        + ddn2_ * (n3_ - n1_) + dn2_ * (dn3_ - dn1_))
+
+                common_F = (f1 * Re1 + 3.0 * f2 * Re2)
+                common_S = (df1 * Re1 + 3.0 * df2 * Re2)
+                common_Cv = (ddf1 * Re1 + 3.0 * ddf2 * Re2) * T_K
 
             integrand_F = psisq * inv_w_prod * common_F / 48.0
             integrand_S = psisq * inv_w_prod * common_S / 48.0
@@ -695,13 +760,24 @@ def _minimum_image_lv(lv_frac, supercell):
 def _replica_lv_frac_table(fc):
     """Return the (n_rep, 3) fractional lattice-vector table per replica.
 
-    Non-diagonal fc (``_replica_table`` attached): use it directly — already
-    minimum-image-wrapped into the supercell Wigner-Seitz cell.
+    The table must index ``fc.second.value``'s replica axis. After the
+    non-diagonal IFC2 per-pair load (issue #297 / PR #301), that is the
+    ``NonDiagonalGrid`` table (unique per-pair vectors from the TDEP
+    file), *not* ``second._replica_table`` metadata — which still holds
+    the det(M) congruence-class table stamped by ``attach_snf_metadata``.
+    Using the class table against a per-pair-indexed tensor phases every
+    off-Gamma dynamical matrix with the wrong R and produces hundreds of
+    spurious imaginary modes.
+
     Diagonal fc: compute from ``replicated_positions`` with
     :func:`_minimum_image_lv` so the wrap is correct on F2 meshes smaller
     than the supercell.
     """
     second = fc.second
+    grid = getattr(second, "_direct_grid", None)
+    grid_table = getattr(grid, "_replica_table", None) if grid is not None else None
+    if grid_table is not None:
+        return np.asarray(grid_table, dtype=float)
     if getattr(second, "_replica_table", None) is not None:
         return np.asarray(second._replica_table, dtype=float)
     # Diagonal path
@@ -727,10 +803,11 @@ def _neighbors_from_fc(fc):
         [(j, rj_cart, lv_frac, phi_3x3), ...]
 
     kaldo's IFC2 tensor has shape ``(1, n_uc, 3, n_rep, n_uc, 3)``. On a
-    non-diagonal fc (SNF) the supercell has a non-diagonal M matrix and
-    ``_replica_table`` is attached to ``fc.second``; we use it directly.
-    On diagonal fc we compute the minimum-image fractional lattice
-    vectors from ``replicated_positions`` via :func:`_minimum_image_lv`.
+    non-diagonal fc (SNF) the replica index runs over the per-pair
+    lattice-vector table that indexes ``fc.second.value`` (see
+    :func:`_replica_lv_frac_table`). On diagonal fc we compute the
+    minimum-image fractional lattice vectors from ``replicated_positions``
+    via :func:`_minimum_image_lv`.
 
     ASR is NOT re-imposed here: ``SecondOrder.load`` already applies it if
     requested. The TDEP file is already ASR-exact to float precision.
@@ -866,7 +943,7 @@ def _quartets_from_fc(fc):
 
 
 def F2_from_fc(fc, masses_amu, kmesh, T_K, sigma_THz=None,
-               use_q_symmetry=False):
+               use_q_symmetry=False, is_classic=False):
     """F2 cubic cumulant on a ``ForceConstants`` object (kaldo-native entry).
 
     Uses ``fc.atoms``, ``fc.second``, ``fc.third`` as the input data source
@@ -881,7 +958,8 @@ def F2_from_fc(fc, masses_amu, kmesh, T_K, sigma_THz=None,
         ``ForceConstants.from_folder(..., format='tdep')``).
     masses_amu : (n_uc,) array
         Atomic masses in amu.
-    kmesh, T_K, sigma_THz, use_q_symmetry : see :func:`F2_vectorized`.
+    kmesh, T_K, sigma_THz, use_q_symmetry, is_classic :
+        see :func:`F2_vectorized`.
 
     Returns
     -------
@@ -897,11 +975,12 @@ def F2_from_fc(fc, masses_amu, kmesh, T_K, sigma_THz=None,
         neighbors, triplets, masses_kg, uc_pos, uc_cell,
         tuple(kmesh), T_K, sigma_THz=sigma_THz,
         use_q_symmetry=use_q_symmetry,
-        atoms=fc.atoms if use_q_symmetry else None,
+        atoms=fc.atoms,
+        is_classic=is_classic,
     )
 
 
-def F1_from_fc(fc, masses_amu, kmesh, T_K, use_q_symmetry=False):
+def F1_from_fc(fc, masses_amu, kmesh, T_K, use_q_symmetry=False, is_classic=False):
     """F1 quartic cumulant on a ``ForceConstants`` object (kaldo-native entry).
 
     Requires ``fc.fourth`` loaded (``include_fourth=True`` in ``from_folder``).
@@ -920,4 +999,5 @@ def F1_from_fc(fc, masses_amu, kmesh, T_K, use_q_symmetry=False):
         tuple(kmesh), T_K,
         use_q_symmetry=use_q_symmetry,
         atoms=fc.atoms if use_q_symmetry else None,
+        is_classic=is_classic,
     )

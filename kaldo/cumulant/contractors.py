@@ -13,7 +13,10 @@ Both produce arrays in kaldo's row-major convention:
     a{n}_{2,3,4} : (n_quartets,) supercell-atom indices
     phi{2,3,4}   : (n_quartets, 3, 3, ...)  cartesian rank-n block
 
-The contractions are then independent of how the tables were built:
+The contractions are then independent of how the tables were built. V2/V3/V4
+use successive batched ``np.matmul`` over the cartesian axes rather than a
+single giant ``np.einsum`` (much faster on large IFC4 tables; OpenBLAS may
+thread the gems, though the batch dimension is the bottleneck)::
 
     V_2 = (1/2)  sum_p  phi2[p]_{ab}  u[a1_2[p], a]  u[a2_2[p], b]
     V_3 = (1/6)  sum_p  phi3[p]_{abc} u[a1_3[p], a]  u[a2_3[p], b]  u[a3_3[p], c]
@@ -23,6 +26,8 @@ with u in Angstroms and phi^{(n)} in eV/A^n; returns V in eV.
 """
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
+import os
 from pathlib import Path
 from typing import Iterable
 
@@ -30,42 +35,61 @@ import h5py
 import numpy as np
 
 
+def _prepare_phi_views(arrs: dict) -> dict:
+    """Attach contiguous phi arrays + matmul-friendly reshapes for V3/V4."""
+    if "phi2" in arrs:
+        arrs["phi2"] = np.ascontiguousarray(arrs["phi2"], dtype=np.float64)
+    if "phi3" in arrs:
+        phi3 = np.ascontiguousarray(arrs["phi3"], dtype=np.float64)
+        arrs["phi3"] = phi3
+        # (n, 3, 3, 3) -> (n, 9, 3) for successive u3, u2 contractions
+        arrs["_phi3_9_3"] = phi3.reshape(phi3.shape[0], 9, 3)
+    if "phi4" in arrs:
+        phi4 = np.ascontiguousarray(arrs["phi4"], dtype=np.float64)
+        arrs["phi4"] = phi4
+        # (n, 3, 3, 3, 3) -> (n, 27, 3) for successive u4, u3, u2 contractions
+        arrs["_phi4_27_3"] = phi4.reshape(phi4.shape[0], 27, 3)
+    return arrs
+
+
 class SCContractors:
-    """Fast (numpy-einsum) supercell V_2/V_3/V_4 evaluators."""
+    """Fast supercell V_2/V_3/V_4 evaluators (BLAS-backed batched matmul)."""
 
     def __init__(self, h5_path: Path | None = None, *, _from_arrays=None):
         if _from_arrays is not None:
-            self.__dict__.update(_from_arrays)
+            self.__dict__.update(_prepare_phi_views(dict(_from_arrays)))
             return
         with h5py.File(h5_path, "r") as f:
-            self.n_atoms_sc = int(f["n_atoms_sc"][()])
+            arrs = {"n_atoms_sc": int(f["n_atoms_sc"][()])}
 
             # IFC2
-            self.a1_2 = f["ifc2/a1"][:].astype(np.int64)
-            self.a2_2 = f["ifc2/a2"][:].astype(np.int64)
+            arrs["a1_2"] = f["ifc2/a1"][:].astype(np.int64)
+            arrs["a2_2"] = f["ifc2/a2"][:].astype(np.int64)
             phi2 = f["ifc2/phi_eV_per_A2"][:]
             if phi2.shape[-2:] != (3, 3):
                 phi2 = np.moveaxis(phi2, -1, 0)
-            self.phi2 = phi2.astype(np.float64)
+            arrs["phi2"] = phi2.astype(np.float64)
 
             # IFC3 - Julia col-major -> reverse last 3 axes
-            self.a1_3 = f["ifc3/a1"][:].astype(np.int64)
-            self.a2_3 = f["ifc3/a2"][:].astype(np.int64)
-            self.a3_3 = f["ifc3/a3"][:].astype(np.int64)
+            arrs["a1_3"] = f["ifc3/a1"][:].astype(np.int64)
+            arrs["a2_3"] = f["ifc3/a2"][:].astype(np.int64)
+            arrs["a3_3"] = f["ifc3/a3"][:].astype(np.int64)
             phi3 = f["ifc3/phi_eV_per_A3"][:]
             if phi3.shape[-3:] != (3, 3, 3):
                 phi3 = np.moveaxis(phi3, -1, 0)
-            self.phi3 = np.transpose(phi3, (0, 3, 2, 1)).astype(np.float64)
+            arrs["phi3"] = np.transpose(phi3, (0, 3, 2, 1)).astype(np.float64)
 
             # IFC4 - Julia col-major -> reverse last 4 axes
-            self.a1_4 = f["ifc4/a1"][:].astype(np.int64)
-            self.a2_4 = f["ifc4/a2"][:].astype(np.int64)
-            self.a3_4 = f["ifc4/a3"][:].astype(np.int64)
-            self.a4_4 = f["ifc4/a4"][:].astype(np.int64)
+            arrs["a1_4"] = f["ifc4/a1"][:].astype(np.int64)
+            arrs["a2_4"] = f["ifc4/a2"][:].astype(np.int64)
+            arrs["a3_4"] = f["ifc4/a3"][:].astype(np.int64)
+            arrs["a4_4"] = f["ifc4/a4"][:].astype(np.int64)
             phi4 = f["ifc4/phi_eV_per_A4"][:]
             if phi4.shape[-4:] != (3, 3, 3, 3):
                 phi4 = np.moveaxis(phi4, -1, 0)
-            self.phi4 = np.transpose(phi4, (0, 4, 3, 2, 1)).astype(np.float64)
+            arrs["phi4"] = np.transpose(phi4, (0, 4, 3, 2, 1)).astype(np.float64)
+
+            self.__dict__.update(_prepare_phi_views(arrs))
 
     @classmethod
     def from_tdep_folder(cls, folder, *, include_fourth: bool = True) -> "SCContractors":
@@ -126,22 +150,91 @@ class SCContractors:
         """V_2 in eV for ``u_flat`` of shape (n_sc, 3) in Angstrom."""
         u1 = u_flat[self.a1_2]
         u2 = u_flat[self.a2_2]
-        return 0.5 * np.einsum("pa,pab,pb->", u1, self.phi2, u2)
+        # (n,3,3) @ (n,3,1) -> (n,3); then dot with u1. BLAS-friendly.
+        t = np.matmul(self.phi2, u2[:, :, None])[..., 0]
+        return 0.5 * float((t * u1).sum())
 
     def V3(self, u_flat):
         """V_3 in eV."""
-        u1 = u_flat[self.a1_3]
-        u2 = u_flat[self.a2_3]
-        u3 = u_flat[self.a3_3]
-        return np.einsum("pa,pb,pc,pabc->", u1, u2, u3, self.phi3) / 6.0
+        return _vn_threaded(
+            self._phi3_9_3,
+            u_flat[self.a1_3], u_flat[self.a2_3], u_flat[self.a3_3], None,
+            order=3,
+        )
 
     def V4(self, u_flat):
-        """V_4 in eV."""
-        u1 = u_flat[self.a1_4]
-        u2 = u_flat[self.a2_4]
-        u3 = u_flat[self.a3_4]
-        u4 = u_flat[self.a4_4]
-        return np.einsum("pa,pb,pc,pd,pabcd->", u1, u2, u3, u4, self.phi4) / 24.0
+        """V_4 in eV.
+
+        Chunks the flat quartet table across threads (stdlib
+        ``ThreadPoolExecutor``), same idea as LDT's ``@tasks for a1`` over
+        IFC interactions. This is *shared-memory* parallelism over the
+        tensor — not ``kaldo.parallel`` process pools (those pickle whole
+        work items; shipping ``phi4`` every call would dominate).
+        """
+        return _vn_threaded(
+            self._phi4_27_3,
+            u_flat[self.a1_4], u_flat[self.a2_4], u_flat[self.a3_4], u_flat[self.a4_4],
+            order=4,
+        )
+
+
+def _n_contract_workers(n_terms):
+    """Worker count for IFC-table threading (Julia-style naive split)."""
+    # Prefer user/OpenMP hint when set, else all CPUs — same spirit as
+    # ``kaldo.parallel.get_executor(n_workers=None)``.
+    omp = os.environ.get("OMP_NUM_THREADS") or os.environ.get("KALDO_CONTRACT_THREADS")
+    if omp is not None:
+        try:
+            n_cpu = max(1, int(omp))
+        except ValueError:
+            n_cpu = os.cpu_count() or 1
+    else:
+        n_cpu = os.cpu_count() or 1
+    # Need enough terms per worker that thread overhead doesn't dominate.
+    return max(1, min(n_cpu, n_terms // 4096))
+
+
+def _v3_slice(phi_9_3, u1, u2, u3, i0, i1):
+    m = i1 - i0
+    if m <= 0:
+        return 0.0
+    t = np.matmul(phi_9_3[i0:i1], u3[i0:i1, :, None])[..., 0]
+    t = np.matmul(t.reshape(m, 3, 3), u2[i0:i1, :, None])[..., 0]
+    return float((t * u1[i0:i1]).sum()) / 6.0
+
+
+def _v4_slice(phi_27_3, u1, u2, u3, u4, i0, i1):
+    """Batched matmul contraction for quartets ``[i0:i1)``; returns sum/24."""
+    m = i1 - i0
+    if m <= 0:
+        return 0.0
+    t = np.matmul(phi_27_3[i0:i1], u4[i0:i1, :, None])[..., 0]
+    t = np.matmul(t.reshape(m, 9, 3), u3[i0:i1, :, None])[..., 0]
+    t = np.matmul(t.reshape(m, 3, 3), u2[i0:i1, :, None])[..., 0]
+    return float((t * u1[i0:i1]).sum()) / 24.0
+
+
+def _vn_threaded(phi_view, u1, u2, u3, u4, order):
+    """Split flat IFC table across threads and sum slice contractions."""
+    n = u1.shape[0]
+    if n == 0:
+        return 0.0
+    n_workers = _n_contract_workers(n)
+    if order == 3:
+        slice_fn = lambda i0, i1: _v3_slice(phi_view, u1, u2, u3, i0, i1)
+    else:
+        slice_fn = lambda i0, i1: _v4_slice(phi_view, u1, u2, u3, u4, i0, i1)
+
+    if n_workers == 1:
+        return slice_fn(0, n)
+
+    bounds = np.linspace(0, n, n_workers + 1, dtype=np.int64)
+    with ThreadPoolExecutor(max_workers=n_workers) as pool:
+        futs = [
+            pool.submit(slice_fn, int(bounds[i]), int(bounds[i + 1]))
+            for i in range(n_workers)
+        ]
+        return float(sum(f.result() for f in futs))
 
 
 # ---------------------------------------------------------------------------

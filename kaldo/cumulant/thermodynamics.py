@@ -23,8 +23,7 @@ from typing import Sequence
 import numpy as np
 
 from kaldo.helpers.logger import get_logger
-from .constants import AMU
-from .harmonic import compute_all_frequencies_THz, harmonic_thermo_quantum
+from .harmonic import harmonic_thermo
 from .sampler import SCSampler
 from .contractors import SCContractors
 from .bootstrap import bootstrap_corrections
@@ -74,14 +73,28 @@ class CumulantResult:
     V2_tilde: np.ndarray
 
 
-def _harmonic_thermo(neighbors_pair, uc_positions, uc_cell, masses_amu, kmesh, T_K):
-    masses_kg = masses_amu * AMU
-    freqs = compute_all_frequencies_THz(
-        neighbors_pair, uc_positions, masses_kg, uc_cell, kmesh
+def _harmonic_thermo(forceconstants, kmesh, T_K, is_classic=False):
+    """Phase-1 F_H/U_H/S_H/Cv_H from ``Phonons`` frequencies.
+
+    Uses kaldo's ``HarmonicWithQ`` dynamical matrix (including the
+    per-pair Fourier phases on non-diagonal TDEP supercells from PR #301),
+    then the cumulant classical/quantum closed-form sums.
+    """
+    from kaldo.phonons import Phonons
+
+    ph = Phonons(
+        forceconstants=forceconstants,
+        kpts=list(kmesh),
+        temperature=T_K,
+        is_classic=is_classic,
+        storage="memory",
     )
-    n_q = freqs.shape[0]
-    n_uc = len(uc_positions)
-    F, U, S, Cv = harmonic_thermo_quantum(freqs, T_K, n_q * n_uc)
+    freqs = np.asarray(ph.frequency)  # (n_q, n_modes) THz
+    n_q, n_modes = freqs.shape
+    n_uc = n_modes // 3
+    F, U, S, Cv = harmonic_thermo(
+        freqs, T_K, n_q * n_uc, is_classic=is_classic,
+    )
     return dict(F_H=F, U_H=U, S_H=S, Cv_H=Cv)
 
 
@@ -116,10 +129,15 @@ def cumulant_thermo(
         Temperature in Kelvin.
     is_classic : bool
         True for classical statistics, False for quantum. Required.
+        Controls Phase-1 harmonic free energy (classical
+        ``kT ln(hbar omega / kT)`` vs quantum Bose), analytic F1/F2
+        occupations (classical high-T / LDT closed form vs Bose), and
+        the Phase-5 sampler ensemble.
     lammps_cmds : str or sequence of str, optional
         ASE ``LAMMPSlib`` commands (pair_style, pair_coeff, ...) defining
         the potential; the sampler hits this calculator in a tight loop and
-        reuses one live LAMMPS instance with ``run 0 pre no post no``.
+        reuses one live LAMMPS instance with Julia-style
+        ``run 1 pre no`` (neighbor list built once; large skin).
         For example:
         ["pair_style lj/cut 6.955", "pair_coeff * * 0.0032135 2.782", "pair_modify shift yes"]
         Exactly one of ``lammps_cmds`` and ``calculator`` must be given.
@@ -128,7 +146,8 @@ def cumulant_thermo(
     nboot : int
         Number of bootstrap samples to estimate error of 0th order correction. Default is 5_000.
     harmonic_mesh : tuple[int, int, int]
-        q-mesh for harmonic thermo. Default is (30, 30, 30).
+        q-mesh for harmonic thermo. Frequencies come from ``kaldo.Phonons``
+        (SNF-correct dynmat). Default is (30, 30, 30).
     free_energy_mesh : tuple[int, int, int]
         q-mesh for analytic F1/F2. For optimal runtime/accuracy trade-off you should
         run a convergence study. Default is (25, 25, 25), but smaller meshes often work well.
@@ -205,13 +224,10 @@ def cumulant_thermo(
 
     # ---- Phase 1: harmonic (closed form) ----
     if verbose:
-        logging.info(f"Phase 1: harmonic {harmonic_mesh} ...")
+        logging.info(f"Phase 1: harmonic {harmonic_mesh} (Phonons dynmat) ...")
     t0 = time.time()
-    from .free_energy import _neighbors_from_fc
-    harm_neighbors = _neighbors_from_fc(forceconstants)
     harm = _harmonic_thermo(
-        harm_neighbors, uc_positions, uc_cell, masses_amu_uc,
-        tuple(harmonic_mesh), temperature,
+        forceconstants, tuple(harmonic_mesh), temperature, is_classic=is_classic,
     )
     if verbose:
         logging.info(f"  F_H={harm['F_H']:+.4e}  U_H={harm['U_H']:+.4e}  "
@@ -226,7 +242,7 @@ def cumulant_thermo(
     res1 = F1_from_fc(
         forceconstants, masses_amu=masses_amu_uc,
         kmesh=tuple(free_energy_mesh), T_K=temperature,
-        use_q_symmetry=use_q_symmetry,
+        use_q_symmetry=use_q_symmetry, is_classic=is_classic,
     )
     if verbose:
         logging.info(f"  F1={res1['F1']:+.4e}  U1={res1['U1']:+.4e}  "
@@ -241,7 +257,7 @@ def cumulant_thermo(
     res2 = F2_from_fc(
         forceconstants, masses_amu=masses_amu_uc,
         kmesh=tuple(free_energy_mesh), T_K=temperature, sigma_THz=None,
-        use_q_symmetry=use_q_symmetry,
+        use_q_symmetry=use_q_symmetry, is_classic=is_classic,
     )
     if verbose:
         logging.info(f"  F2={res2['F2']:+.4e}  U2={res2['U2']:+.4e}  "
@@ -331,9 +347,9 @@ def cumulant_thermo(
         )
     # Every sampled configuration shares topology (same atoms, same box; only
     # positions move), so keep one LAMMPS instance alive and, per config,
-    # only scatter the new coordinates + `run 0 pre no post no` (reuse the
-    # neighbor lists, skip setup). The first energy() call does the full ASE
-    # setup; the rest take the fast path. See _energy_evaluator.BatchEnergyEvaluator.
+    # scatter coordinates + `run 1 pre no` (LDT pattern: recompute pe without
+    # rebuilding neighbors; large skin keeps the list valid). The first
+    # energy() call does the full ASE setup. See BatchEnergyEvaluator.
     from ._energy_evaluator import BatchEnergyEvaluator
     energy_eval = BatchEnergyEvaluator(at, sc_pos_eq_A)
 
@@ -342,6 +358,7 @@ def cumulant_thermo(
     V3 = np.zeros(nconf)
     V4 = np.zeros(nconf)
     V2_tilde = np.zeros(nconf)
+    dV2_tilde_dT = np.zeros(nconf)
     t0 = time.time()
     for n in range(nconf):
         u, z = sampler.draw_with_z()
@@ -349,14 +366,22 @@ def cumulant_thermo(
         V2[n] = contractors.V2(u)
         V3[n] = contractors.V3(u)
         V4[n] = contractors.V4(u)
-        V2_tilde[n] = sampler.V2_tilde_from_z(z)
+        V2_tilde[n], dV2_tilde_dT[n] = sampler.V2_tilde_and_dT_from_z(z)
         if verbose and (n + 1) % max(1, nconf // 10) == 0:
             logging.info(f"  n={n+1}/{nconf}  ({time.time()-t0:.1f}s)")
 
-    V_ref = V2 if is_classic else V2_tilde
+    # Classical: V_ref = V2, dV_ref_dT ≡ 0.
+    # Quantum: V_ref = V2_tilde (Bose-reweighted), with explicit ∂Ṽ₂/∂T.
+    if is_classic:
+        V_ref = V2
+        dV_ref_dT = None
+    else:
+        V_ref = V2_tilde
+        dV_ref_dT = dV2_tilde_dT
     point, se = bootstrap_corrections(
         V, V2, V3, V4, V_ref, temperature, n_sc,
         n_boot=nboot, seed=seed + 1, verbose=False,
+        dV_ref_dT=dV_ref_dT,
     )
     if verbose:
         logging.info(f"F0={point['F0']:+.4e} +- {se['F0']:.2e}  "

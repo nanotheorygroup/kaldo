@@ -50,12 +50,74 @@ def test_cumulant_thermo_requires_exactly_one_potential_source(tmp_path):
                         lammps_cmds=["pair_style lj/cut 8.5"], calculator=object())
 
 
-SW_FIX = Path(__file__).parent / "cumulant_fixtures" / "SW"
-LJ_FIX = Path(__file__).parent / "cumulant_fixtures" / "LJ"
+SW_IFC = Path(__file__).parent / "cumulant_fixtures" / "SW" / "1600K_3UC"
+AR_IFC = Path(__file__).parent / "cumulant_fixtures" / "LJ" / "Argon_80K_4UC"
 
 
-@pytest.mark.skipif(not (LJ_FIX / "infile.ucposcar").exists(), reason="LJ cumulant fixture missing")
-def test_cumulant_thermo_end_to_end_with_ase_calculator(tmp_path):
+@pytest.mark.skipif(
+    not (SW_IFC / "infile.forceconstant").exists(),
+    reason="SW cumulant fixture missing",
+)
+def test_phase1_harmonic_uses_phonons_dynmat_on_snf_si():
+    """Phase-1 F_H must use Phonons (PR #301) dynmat on non-diagonal SW Si."""
+    import numpy as np
+    from kaldo.forceconstants import ForceConstants
+    from kaldo.cumulant.thermodynamics import _harmonic_thermo
+
+    fc = ForceConstants.from_folder(
+        folder=str(SW_IFC), supercell=(3, 3, 3), format="tdep", only_second=True,
+    )
+    # Reference F_H is at 30^3; use a modest mesh here for a cheap smoke pin
+    # that F_H is finite, classical Cv~3, and not the broken ~half-value regime.
+    harm = _harmonic_thermo(fc, (5, 5, 5), T_K=1600.0, is_classic=True)
+    assert np.isfinite(harm["F_H"])
+    np.testing.assert_allclose(harm["Cv_H"], 2.988, rtol=1e-3)
+    # Classical F_H at 1600 K is largely -TS; must be strongly negative.
+    assert harm["F_H"] < -0.1
+
+
+@pytest.mark.skipif(
+    not (SW_IFC / "infile.forceconstant").exists(),
+    reason="SW cumulant fixture missing",
+)
+def test_cumulant_freqs_match_phonons_on_snf_si():
+    """F1/F2 dynmat must agree with Phonons on non-diagonal SW Si.
+
+    Regression for the post-#301 mismatch: ``_replica_lv_frac_table`` must
+    read the per-pair grid that indexes IFC2, not the det(M) class-table
+    metadata. Otherwise off-Gamma frequencies go imaginary and F1/F2 diverge
+    from Julia LDT / Phonons.
+    """
+    import numpy as np
+    from kaldo.forceconstants import ForceConstants
+    from kaldo.phonons import Phonons
+    from kaldo.cumulant.free_energy import _neighbors_from_fc
+    from kaldo.cumulant.harmonic import compute_all_frequencies_THz
+    from kaldo.cumulant.constants import AMU
+
+    fc = ForceConstants.from_folder(
+        folder=str(SW_IFC), supercell=(3, 3, 3), format="tdep", only_second=True,
+    )
+    neighbors = _neighbors_from_fc(fc)
+    uc_pos = np.asarray(fc.atoms.positions)
+    uc_cell = np.asarray(fc.atoms.cell)
+    masses = np.asarray(fc.atoms.get_masses()) * AMU
+    f_cum = compute_all_frequencies_THz(
+        neighbors, uc_pos, masses, uc_cell, (5, 5, 5),
+    )
+    ph = Phonons(
+        forceconstants=fc, kpts=[5, 5, 5], temperature=1600.0, storage="memory",
+    )
+    f_ph = np.asarray(ph.frequency)
+    np.testing.assert_allclose(f_cum, f_ph, atol=1e-6)
+    assert int(np.sum(f_cum < -1e-3)) == 0
+
+
+@pytest.mark.skipif(
+    not (AR_IFC / "infile.forceconstant").exists(),
+    reason="LJ Ar cumulant fixture missing",
+)
+def test_cumulant_thermo_end_to_end_with_ase_calculator():
     """Full pipeline (harmonic + F1 + F2 + Phase-5 sampling + bootstrap) on
     the vendored LJ Ar fixture, with ase's LennardJones standing in for
     LAMMPS via the calculator= path. First CI-runnable end-to-end drive of
@@ -65,26 +127,16 @@ def test_cumulant_thermo_end_to_end_with_ase_calculator(tmp_path):
     F_0 (which measures potential-vs-Taylor anharmonicity) is asserted
     finite and small rather than pinned.
     """
-    import shutil
-
     import numpy as np
     from ase.calculators.lj import LennardJones
 
     from kaldo.cumulant import cumulant_thermo
 
-    folder = tmp_path / "lj_ar"
-    folder.mkdir()
-    for fn in ("infile.ucposcar", "infile.ssposcar"):
-        shutil.copy(str(LJ_FIX / fn), str(folder / fn))
-    for fn in ("infile.forceconstant", "infile.forceconstant_thirdorder",
-               "infile.forceconstant_fourthorder"):
-        shutil.copy(str(LJ_FIX / "80K_4UC" / fn), str(folder / fn))
-
     r = cumulant_thermo(
-        str(folder), (4, 4, 4), temperature=80.0, is_classic=True,
+        str(AR_IFC), (4, 4, 4), temperature=80.0, is_classic=True,
         calculator=LennardJones(epsilon=0.0104, sigma=3.4, rc=8.5),
         nconf=10, nboot=20,
-        harmonic_mesh=(4, 4, 4), free_energy_mesh=(2, 2, 2),
+        harmonic_mesh=(30, 30, 30), free_energy_mesh=(5, 5, 5),
         use_q_symmetry=True, verbose=False,
     )
 

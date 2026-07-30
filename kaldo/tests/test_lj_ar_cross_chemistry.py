@@ -1,146 +1,92 @@
 """
-Cross-chemistry validation on Lennard-Jones Argon at 80 K.
+Cross-chemistry validation on Lennard-Jones Argon at 80 K (classical).
 
-Uses the LJ Ar 80K_4UC TDEP fixture vendored under
-``kaldo/tests/cumulant_fixtures/LJ/`` (originally from
-LatticeDynamicsToolkit.jl). It is:
+Uses ``kaldo/tests/cumulant_fixtures/LJ/Argon_80K_4UC`` with pinned values
+from ``Argon_80K_4UC_Classical_Reference``.
 
-  * a DIFFERENT atom (Ar, mass 39.948 amu) than our Ne LJ reference (20.18 amu)
-  * at DIFFERENT temperature (80 K vs 24 K for Ne)
-  * with a non-diagonal 4x4x4 conventional supercell (det M = 256)
-  * n_uc=1 (single-atom FCC primitive), so centrosymmetric — contrasts with
-    the n_uc=2 Si tests
-
-This pins mesh-convergence values for F1/F2 to catch numerical drift in
-future changes and confirms the non-diagonal SNF path scales to
-det M = 256 (our largest supercell mapping).
-
-Tests are entirely self-contained (no external paths, no Julia runtime
-required).
+Meshes:
+  * harmonic props: 30^3
+  * analytic F1 / F2: 5^3
 """
 from __future__ import annotations
 
 from pathlib import Path
-import shutil
 
 import numpy as np
 import pytest
 
+from kaldo.forceconstants import ForceConstants
+from kaldo.cumulant import F1_from_fc, F2_from_fc
+from kaldo.cumulant.thermodynamics import _harmonic_thermo
 
-# LJ Ar TDEP fixture vendored from LatticeDynamicsToolkit.jl test data.
-# Self-contained — no external paths or Julia runtime required.
-LDT_LJ_BASE = Path(__file__).parent / "cumulant_fixtures" / "LJ"
-LDT_LJ_IFC = LDT_LJ_BASE / "80K_4UC"
+AR_IFC = Path(__file__).parent / "cumulant_fixtures" / "LJ" / "Argon_80K_4UC"
+
+REF_T_K = 80.0
+REF_F_H = -0.002161720125
+REF_U_H = 0.020681592720
+REF_S_H = 3.313571612390
+REF_CV_H = 3.000000000000
+REF_F1 = 0.000052542238
+REF_U1 = -0.000052542238
+REF_S1 = -0.015243188956
+REF_CV1 = -0.015243188956
+REF_F2 = -0.000757328812
+REF_U2 = 0.000757328812
+REF_S2 = 0.219710973722
+REF_CV2 = 0.219710973722
+
+HARMONIC_MESH = (30, 30, 30)
+THERMO_MESH = (5, 5, 5)
+SUPERCELL = (4, 4, 4)
 
 
-def _have_lj_fixture():
-    return (LDT_LJ_BASE / "infile.ucposcar").exists() and \
-           (LDT_LJ_IFC / "infile.forceconstant").exists()
-
-
-AR_MASS_AMU = 39.948
-# LJ Ar: same rhombo fcc primitive as Ne, 4x4x4 cubic conventional supercell
-LJ_M = np.array([[4, -4, 4], [4, 4, -4], [-4, 4, 4]], dtype=int)
+def _have_ar_fixture():
+    return (AR_IFC / "infile.forceconstant").exists() and \
+           (AR_IFC / "infile.ucposcar").exists()
 
 
 @pytest.fixture(scope="module")
-def lj_ar_folder(tmp_path_factory):
-    """Stage a TDEP-style folder for LJ Ar 80 K."""
-    if not _have_lj_fixture():
-        pytest.skip("LDT LJ fixture unavailable")
-    d = tmp_path_factory.mktemp("lj_ar_80K")
-    for fn in ("infile.ucposcar", "infile.ssposcar"):
-        shutil.copy(str(LDT_LJ_BASE / fn), str(d / fn))
-    for fn in (
-        "infile.forceconstant",
-        "infile.forceconstant_thirdorder",
-        "infile.forceconstant_fourthorder",
-    ):
-        shutil.copy(str(LDT_LJ_IFC / fn), str(d / fn))
-    return d
-
-
-@pytest.mark.skipif(not _have_lj_fixture(), reason="LDT LJ fixture unavailable")
-# The 2^3 pin moved from 8.1201e-4 when the SNF replica table gained the
-# Cartesian-norm-minimal re-wrap (exp(iq.R) phases on q-meshes smaller than
-# the supercell are convention-dependent; converged meshes are unaffected,
-# as the 3^3 / 5^3 pins show).
-@pytest.mark.parametrize("mesh,expected_F1", [
-    (2, 8.1441e-4),
-    (3, 9.4335e-4),
-    (5, 9.9491e-4),
-])
-def test_lj_ar_80K_F1_converges(lj_ar_folder, mesh, expected_F1):
-    """LJ Ar 80 K F1 converges to ~+1.0e-3 eV/atom."""
-    from kaldo.forceconstants import ForceConstants
-    from kaldo.cumulant import F1_from_fc
-
-    fc = ForceConstants.from_folder(
-        folder=str(lj_ar_folder), supercell_matrix=LJ_M, format="tdep",
-        include_fourth=True,
+def ar_fc():
+    if not _have_ar_fixture():
+        pytest.skip("LJ Ar 80K_4UC fixture unavailable")
+    return ForceConstants.from_folder(
+        folder=str(AR_IFC), supercell=SUPERCELL, format="tdep", include_fourth=True,
     )
+
+
+@pytest.mark.skipif(not _have_ar_fixture(), reason="LJ Ar 80K_4UC fixture unavailable")
+def test_lj_ar_80K_harmonic_matches_reference(ar_fc):
+    """Classical F_H/U_H/S_H/Cv_H at 30^3 vs Argon_80K_4UC_Classical_Reference."""
+    harm = _harmonic_thermo(ar_fc, HARMONIC_MESH, REF_T_K, is_classic=True)
+    np.testing.assert_allclose(harm["F_H"], REF_F_H, rtol=5e-5)
+    np.testing.assert_allclose(harm["U_H"], REF_U_H, rtol=5e-5)
+    np.testing.assert_allclose(harm["S_H"], REF_S_H, rtol=5e-5)
+    np.testing.assert_allclose(harm["Cv_H"], REF_CV_H, rtol=5e-5)
+
+
+@pytest.mark.skipif(not _have_ar_fixture(), reason="LJ Ar 80K_4UC fixture unavailable")
+def test_lj_ar_80K_F1_matches_reference(ar_fc):
+    """Classical F1 at 5^3 vs Argon_80K_4UC_Classical_Reference."""
+    masses = np.asarray(ar_fc.atoms.get_masses())
     r = F1_from_fc(
-        fc, masses_amu=np.full(1, AR_MASS_AMU),
-        kmesh=(mesh, mesh, mesh), T_K=80.0, use_q_symmetry=True,
+        ar_fc, masses_amu=masses, kmesh=THERMO_MESH, T_K=REF_T_K,
+        use_q_symmetry=True, is_classic=True,
     )
-    # 3-digit pin (same rationale as SW Si test); Python-path residual <1e-6.
-    np.testing.assert_allclose(
-        r["F1"], expected_F1, rtol=1e-3,
-        err_msg=f"LJ Ar {mesh}^3 F1 drifted",
-    )
+    np.testing.assert_allclose(r["F1"], REF_F1, rtol=1e-4)
+    np.testing.assert_allclose(r["U1"], REF_U1, rtol=1e-4)
+    np.testing.assert_allclose(r["S1"], REF_S1, rtol=1e-4)
+    np.testing.assert_allclose(r["Cv1"], REF_CV1, rtol=1e-4)
 
 
-@pytest.mark.skipif(not _have_lj_fixture(), reason="LDT LJ fixture unavailable")
-@pytest.mark.parametrize("mesh,expected_F2", [
-    # mesh 2^3 has trivially small F2 ( sign+mag fluctuation) -- skip.
-    (3, -3.3494e-4),
-    (5, -4.4134e-4),
-])
-def test_lj_ar_80K_F2_converges(lj_ar_folder, mesh, expected_F2):
-    """LJ Ar 80 K F2 converges to ~-4.8e-4 eV/atom."""
-    from kaldo.forceconstants import ForceConstants
-    from kaldo.cumulant import F2_from_fc
-
-    fc = ForceConstants.from_folder(
-        folder=str(lj_ar_folder), supercell_matrix=LJ_M, format="tdep",
-    )
+@pytest.mark.skipif(not _have_ar_fixture(), reason="LJ Ar 80K_4UC fixture unavailable")
+def test_lj_ar_80K_F2_matches_reference(ar_fc):
+    """Classical F2 at 5^3 vs Argon_80K_4UC_Classical_Reference."""
+    masses = np.asarray(ar_fc.atoms.get_masses())
     r = F2_from_fc(
-        fc, masses_amu=np.full(1, AR_MASS_AMU),
-        kmesh=(mesh, mesh, mesh), T_K=80.0, sigma_THz=None,
-        use_q_symmetry=True,
+        ar_fc, masses_amu=masses, kmesh=THERMO_MESH, T_K=REF_T_K,
+        sigma_THz=None, use_q_symmetry=True, is_classic=True,
     )
-    # 3-digit pin. F2 on LJ at low T is amplitude-sensitive; 1e-3 rtol is
-    # generous but catches systematic regressions.
-    np.testing.assert_allclose(
-        r["F2"], expected_F2, rtol=1e-3,
-        err_msg=f"LJ Ar {mesh}^3 F2 drifted",
-    )
-
-
-@pytest.mark.skipif(not _have_lj_fixture(), reason="LDT LJ fixture unavailable")
-def test_lj_ar_80K_differs_from_tdep_ne_24K(lj_ar_folder):
-    """LJ Ar and TDEP Ne are both n_uc=1 LJ-like systems but at different T
-    and with different masses. F1 must differ meaningfully in magnitude.
-
-    Ne thermo_out_full at 24 K: F1 ~ +1.17e-4
-    LJ Ar 80 K (3^3):           F1 ~ +9.4e-4  (8x larger)
-
-    The ~8x scaling is consistent with higher T + heavier Ar + different
-    potential well — not a bug, a physical signal.
-    """
-    from kaldo.forceconstants import ForceConstants
-    from kaldo.cumulant import F1_from_fc
-
-    fc = ForceConstants.from_folder(
-        folder=str(lj_ar_folder), supercell_matrix=LJ_M, format="tdep",
-        include_fourth=True,
-    )
-    r = F1_from_fc(
-        fc, masses_amu=np.full(1, AR_MASS_AMU),
-        kmesh=(3, 3, 3), T_K=80.0, use_q_symmetry=True,
-    )
-    # LJ Ar F1 is positive and O(1e-3), distinct from Ne's O(1e-4)
-    assert r["F1"] > 0
-    assert r["F1"] > 5 * 1.17e-4, (
-        f"LJ Ar F1 = {r['F1']:.3e} should be >>5x Ne's F1 of 1.17e-4"
-    )
+    np.testing.assert_allclose(r["F2"], REF_F2, rtol=1e-4)
+    np.testing.assert_allclose(r["U2"], REF_U2, rtol=1e-4)
+    np.testing.assert_allclose(r["S2"], REF_S2, rtol=1e-4)
+    np.testing.assert_allclose(r["Cv2"], REF_CV2, rtol=1e-4)

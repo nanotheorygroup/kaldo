@@ -19,33 +19,16 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-LJ_TDEP = Path(__file__).parent / "cumulant_fixtures" / "LJ" / "80K_4UC"
-SW_TDEP = Path(__file__).parent / "cumulant_fixtures" / "SW" / "100K_3UC"
+LJ_TDEP = Path(__file__).parent / "cumulant_fixtures" / "LJ" / "Argon_80K_4UC"
+SW_TDEP = Path(__file__).parent / "cumulant_fixtures" / "SW" / "1600K_3UC"
 
 
-def _stage_tdep_folder(tmp_path, ifc_dir: Path, struct_dir: Path) -> Path:
-    """Lay out IFCs + ucposcar/ssposcar in a single folder, TDEP-style."""
-    import shutil
-    out = tmp_path / "tdep_stage"
-    out.mkdir()
-    for fn in ("infile.ucposcar", "infile.ssposcar"):
-        shutil.copy(str(struct_dir / fn), str(out / fn))
-    for fn in (
-        "infile.forceconstant",
-        "infile.forceconstant_thirdorder",
-        "infile.forceconstant_fourthorder",
-    ):
-        shutil.copy(str(ifc_dir / fn), str(out / fn))
-    return out
-
-
-@pytest.mark.skipif(not LJ_TDEP.exists(), reason="LJ fixture missing")
-def test_v4_from_tdep_lj_diagonal(tmp_path):
-    """LJ Ar 4^3: diagonal supercell, n_uc=1, det M=64."""
+@pytest.mark.skipif(not (LJ_TDEP / "infile.forceconstant").exists(), reason="LJ Ar fixture missing")
+def test_v4_from_tdep_lj_argon():
+    """LJ Ar 80K_4UC: non-diagonal FCC supercell, n_uc=1, det M=256."""
     from kaldo.cumulant.contractors import SCContractors
 
-    folder = _stage_tdep_folder(tmp_path, LJ_TDEP, LJ_TDEP.parent)
-    sc = SCContractors.from_tdep_folder(folder, include_fourth=True)
+    sc = SCContractors.from_tdep_folder(LJ_TDEP, include_fourth=True)
 
     # 256 sc atoms, flat tables
     assert sc.n_atoms_sc == 256
@@ -68,13 +51,12 @@ def test_v4_from_tdep_lj_diagonal(tmp_path):
     np.testing.assert_allclose(v4_double, 16.0 * v4, rtol=1e-10)
 
 
-@pytest.mark.skipif(not SW_TDEP.exists(), reason="SW Si fixture missing")
-def test_v4_from_tdep_sw_si_nondiagonal(tmp_path):
-    """SW Si 100K_3UC: non-diagonal rhombo->cubic supercell, n_uc=2, det M=108."""
+@pytest.mark.skipif(not (SW_TDEP / "infile.forceconstant").exists(), reason="SW Si fixture missing")
+def test_v4_from_tdep_sw_si_nondiagonal():
+    """SW Si 1600K_3UC: non-diagonal rhombo->cubic supercell, n_uc=2, det M=108."""
     from kaldo.cumulant.contractors import SCContractors
 
-    folder = _stage_tdep_folder(tmp_path, SW_TDEP, SW_TDEP.parent)
-    sc = SCContractors.from_tdep_folder(folder, include_fourth=True)
+    sc = SCContractors.from_tdep_folder(SW_TDEP, include_fourth=True)
 
     assert sc.n_atoms_sc == 216
     assert sc.phi4.shape[1:] == (3, 3, 3, 3)

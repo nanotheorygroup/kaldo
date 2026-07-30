@@ -24,7 +24,7 @@ logging = get_logger()
 
 
 def bootstrap_corrections(V, V2, V3, V4, V_ref, T_K, Nat, n_boot=5000, seed=None,
-                           verbose=False):
+                           verbose=False, dV_ref_dT=None):
     """
     Parameters
     ----------
@@ -34,6 +34,8 @@ def bootstrap_corrections(V, V2, V3, V4, V_ref, T_K, Nat, n_boot=5000, seed=None
     n_boot : bootstrap resample count.
     seed : RNG seed.
     verbose : print progress every 10%.
+    dV_ref_dT : optional (N_conf,) explicit ∂V_ref/∂T in eV/K (quantum
+        Bose-weight term; omit or pass zeros for classical).
 
     Returns
     -------
@@ -42,8 +44,11 @@ def bootstrap_corrections(V, V2, V3, V4, V_ref, T_K, Nat, n_boot=5000, seed=None
     """
     rng = np.random.default_rng(seed)
     N = len(V)
+    dV_ref_dT = None if dV_ref_dT is None else np.asarray(dV_ref_dT)
 
-    F_c, S_c, U_c, Cv_c = calculate_cumulants(V, V2, V3, V4, V_ref, T_K)
+    F_c, S_c, U_c, Cv_c = calculate_cumulants(
+        V, V2, V3, V4, V_ref, T_K, dV_ref_dT=dV_ref_dT,
+    )
     point = dict(
         F0=F_c / Nat,
         U0=U_c / Nat,
@@ -58,8 +63,10 @@ def bootstrap_corrections(V, V2, V3, V4, V_ref, T_K, Nat, n_boot=5000, seed=None
     t0 = time.time()
     for i in range(n_boot):
         idx = rng.integers(0, N, size=N)
+        dV_boot = None if dV_ref_dT is None else dV_ref_dT[idx]
         f, s, u, cv = calculate_cumulants(
-            V[idx], V2[idx], V3[idx], V4[idx], V_ref[idx], T_K
+            V[idx], V2[idx], V3[idx], V4[idx], V_ref[idx], T_K,
+            dV_ref_dT=dV_boot,
         )
         F_b[i] = f
         S_b[i] = s

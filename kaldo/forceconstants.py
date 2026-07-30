@@ -4,7 +4,7 @@ Anharmonic Lattice Dynamics
 """
 import numpy as np
 from sparse import COO
-from kaldo.grid import wrap_coordinates, Grid, NonDiagonalGrid
+from kaldo.grid import wrap_coordinates, Grid, NonDiagonalGrid, wrap_lattice_vector_to_replica
 from kaldo.observables.secondorder import SecondOrder
 from kaldo.observables.thirdorder import ThirdOrder
 from kaldo.observables.fourthorder import FourthOrder
@@ -307,6 +307,35 @@ class ForceConstants:
             ).reshape(grid.grid_size, grid.grid_size)
 
 
+    @staticmethod
+    def _project_second_onto_snf_class_table(raw_pair, ifc_obj, mapping):
+        """Reindex per-pair IFC2 onto the det(M) congruence-class table.
+
+        After PR #301, ``SecondOrder`` on a non-diagonal TDEP supercell stores
+        IFC2 on the unique per-pair lattice vectors from the file (correct for
+        Fourier phases) while ``_snf_mapping['replica_table']`` keeps the full
+        ``det(M)`` class table (closed under supercell PBC). Translational
+        expansion via :meth:`irred_to_full` needs that closed table.
+
+        Returns
+        -------
+        raw_class : ndarray, shape (n_uc, 3, n_class, n_uc, 3)
+        class_grid : NonDiagonalGrid
+        """
+        class_table = np.asarray(mapping["replica_table"], dtype=int)
+        M = np.rint(mapping["M"]).astype(int)
+        pair_table = np.asarray(ifc_obj._direct_grid._replica_table, dtype=int)
+        n_uc = raw_pair.shape[0]
+        n_class = len(class_table)
+        raw_class = np.zeros((n_uc, 3, n_class, n_uc, 3), dtype=np.float64)
+        for r, R in enumerate(pair_table):
+            class_id = int(wrap_lattice_vector_to_replica(R, class_table, M))
+            # Distinct per-pair R's should land in distinct classes; if two
+            # collide, periodicity requires equal Phi — keep the last write.
+            raw_class[:, :, class_id, :, :] = raw_pair[:, :, r, :, :]
+        class_grid = NonDiagonalGrid(replica_table=class_table, M=M)
+        return raw_class, class_grid
+
     def irred_to_full(self, order: int, grid: Grid | None = None) -> np.ndarray:
         """Reconstruct the full IFC tensor from the irreducible part stored in this object.
 
@@ -360,6 +389,20 @@ class ForceConstants:
 
         if grid is None:
             grid = ifc_obj._direct_grid
+
+        # Per-pair IFC2 on SNF is not closed under replica addition; project
+        # onto the det(M) class table before building shifted_rep.
+        if (
+            order == 2
+            and isinstance(grid, NonDiagonalGrid)
+            and getattr(ifc_obj, "_snf_mapping", None) is not None
+        ):
+            mapping = ifc_obj._snf_mapping
+            class_table = np.asarray(mapping["replica_table"], dtype=int)
+            if len(grid._replica_table) != len(class_table):
+                raw, grid = self._project_second_onto_snf_class_table(
+                    raw, ifc_obj, mapping,
+                )
 
         n_rep = grid.grid_size
         # Relative-replica axes in the irreducible tensor: 2, 5, ... (one per non-first atom)

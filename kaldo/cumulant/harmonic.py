@@ -55,6 +55,44 @@ def harmonic_thermo_quantum(freqs_THz_all, temperature_k, n_atoms_total):
     return F, U, S, Cv
 
 
+def harmonic_thermo_classical(freqs_THz_all, temperature_k, n_atoms_total):
+    """
+    Classical harmonic F, U, S, Cv per atom from a full mesh of frequencies.
+
+    Per mode::
+
+        F = kT ln(hbar omega / kT)
+        U = kT
+        S = kB (1 - ln(hbar omega / kT))
+        Cv = kB
+
+    Modes below ``FREQ_TOL_THZ`` are excluded (same mask as the quantum path).
+    """
+    omega = 2 * np.pi * np.asarray(freqs_THz_all).ravel() * 1e12  # rad/s
+    mask = omega > (2 * np.pi * FREQ_TOL_THZ * 1e12)
+    w = omega[mask]
+    n_modes = w.size
+    kBT = KB * temperature_k
+    ln_term = np.log(HBAR * w / kBT)
+    F_J = kBT * ln_term
+    U_J = np.full(n_modes, kBT)
+    S_JK = KB * (1.0 - ln_term)
+    Cv_JK = np.full(n_modes, KB)
+
+    F = F_J.sum() / n_atoms_total / EV
+    U = U_J.sum() / n_atoms_total / EV
+    S = S_JK.sum() / n_atoms_total / KB
+    Cv = Cv_JK.sum() / n_atoms_total / KB
+    return F, U, S, Cv
+
+
+def harmonic_thermo(freqs_THz_all, temperature_k, n_atoms_total, is_classic=False):
+    """Dispatch to classical or quantum harmonic thermo."""
+    if is_classic:
+        return harmonic_thermo_classical(freqs_THz_all, temperature_k, n_atoms_total)
+    return harmonic_thermo_quantum(freqs_THz_all, temperature_k, n_atoms_total)
+
+
 def monkhorst_pack_qcart(kmesh, uc_cell):
     """Gamma-centered MP q-grid in Cartesian reciprocal space (rad/Å)."""
     nx, ny, nz = kmesh
@@ -77,7 +115,7 @@ def compute_all_frequencies_THz(neighbors_pair, uc_positions, masses_kg, uc_cell
 
 
 def harmonic_thermo_from_ifc2(neighbors_pair, uc_positions, masses_kg, uc_cell,
-                               kmesh, temperature_k):
+                               kmesh, temperature_k, is_classic=False):
     """Convenience: build frequencies on the mesh, then compute F_H/U_H/S_H/Cv_H."""
     freqs = compute_all_frequencies_THz(
         neighbors_pair, uc_positions, masses_kg, uc_cell, kmesh
@@ -86,7 +124,9 @@ def harmonic_thermo_from_ifc2(neighbors_pair, uc_positions, masses_kg, uc_cell,
     # = n_q * n_uc; freqs has shape (n_q, 3 * n_uc)
     n_q = freqs.shape[0]
     n_uc = len(uc_positions)
-    return harmonic_thermo_quantum(freqs, temperature_k, n_q * n_uc)
+    return harmonic_thermo(
+        freqs, temperature_k, n_q * n_uc, is_classic=is_classic,
+    )
 
 
 def dynmat_and_eigs(neighbors_pair, uc_positions, masses_kg, q_cart):

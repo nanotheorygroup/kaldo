@@ -26,7 +26,7 @@ import pytest
 
 import ase.io
 
-FIX = Path(__file__).parent / "cumulant_fixtures" / "SW" / "100K_3UC"
+FIX = Path(__file__).parent / "cumulant_fixtures" / "SW" / "1600K_3UC"
 
 
 @pytest.mark.skipif(not (FIX / "infile.ssposcar").exists(), reason="SW cumulant fixture missing")

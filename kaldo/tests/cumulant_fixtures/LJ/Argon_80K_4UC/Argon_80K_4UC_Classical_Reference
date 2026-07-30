@@ -1,0 +1,10 @@
+# Temperature:          0.800000000000E+02
+ # Harmonic contribution
+    # Free energy [eV/at]  Internal energy [eV/at]             Entropy [kB]       Heat capacity [kB]
+          -0.002161720125           0.020681592720           3.313571612390           3.000000000000
+ # First Cumulant Contribution
+    # Free energy [eV/at]  Internal energy [eV/at]             Entropy [kB]       Heat capacity [kB]
+           0.000052542238          -0.000052542238          -0.015243188956          -0.015243188956
+ # Second Cumulant Contribution
+    # Free energy [eV/at]  Internal energy [eV/at]             Entropy [kB]       Heat capacity [kB]
+          -0.000757328812           0.000757328812           0.219710973722           0.219710973722

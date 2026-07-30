@@ -53,6 +53,8 @@ from .tdep_reader import (
 
 from .harmonic import (
     harmonic_thermo_quantum,
+    harmonic_thermo_classical,
+    harmonic_thermo,
     monkhorst_pack_qcart,
     compute_all_frequencies_THz,
     harmonic_thermo_from_ifc2,
