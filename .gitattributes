@@ -10,6 +10,7 @@ kaldo/tests/sigma2/** -diff -merge
 kaldo/tests/ge-crystal/** -diff -merge
 
 # binary file
+*.npz binary
 kaldo/tests/si-crystal/hiphive/model2.fcs binary
 kaldo/tests/si-crystal/hiphive/model3.fcs binary
 kaldo/_version.py export-subst
