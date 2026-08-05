@@ -7,7 +7,7 @@ import pytest
 from ase import units as ase_units
 
 from kaldo.forceconstants import ForceConstants
-from kaldo.interfaces import shengbte_io
+from kaldo.interfaces import qe_io
 def nacl_phonopy_debug_supercell_matrix_att3():
     return np.diag([8, 8, 8]).astype(int)
 from kaldo.observables.harmonic_with_q import HarmonicWithQ
@@ -16,7 +16,7 @@ _NAC_BVK_MATRIX = nacl_phonopy_debug_supercell_matrix_att3()
 
 
 def attach_reference_nac(second_order, nac_file="kaldo/tests/nacl_phonopy/espresso.ifc2"):
-    _, _, charges = shengbte_io.read_second_order_qe_matrix(nac_file)
+    _, _, charges = qe_io.read_second_order_qe_matrix(nac_file)
     if charges is None:
         static_dir = Path(nac_file).parent / "debug" / "static"
         dielectric = np.load(static_dir / "dielectric.npy")

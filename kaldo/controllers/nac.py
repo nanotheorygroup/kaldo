@@ -14,15 +14,21 @@ whenever both are present with nonzero charges.
 
 import itertools
 import math
+from typing import Literal, Sequence
 
 import numpy as np
 import ase.units as units
+from numpy.typing import NDArray
 from opt_einsum import contract
 
 from kaldo.grid import Grid
 from kaldo.helpers.logger import get_logger
+from kaldo.interfaces.qe_io import Q2RHeader
 
 logging = get_logger()
+
+_FLOAT = NDArray[np.float64]
+_COMPLEX = NDArray[np.complex128]
 
 NAC_VELOCITY_Q_LENGTH = 1e-5
 
@@ -33,7 +39,329 @@ NAC_VELOCITY_DEGENERACY_TOLERANCE = 1e-4
 NAC_VELOCITY_CUTOFF_FREQUENCY = 1e-4
 
 
-_PHONOPY_TO_KALDO_DM = (units.Ry / units.Bohr ** 2) * (units.mol / (10 * units.J))
+PI = 3.14159265358979323846
+TWO_PI, FOUR_PI, E2_RY = 2.0 * PI, 4.0 * PI, 2.0
+BOHR_ANGSTROM = 0.529177210903
+RY_TO_EV = (4.3597447222071e-18 / 2.0) / 1.602176634e-19
+EV_TO_10J_PER_MOL = 6.02214076e23 / (10.0 * (1.0 / 1.602176634e-19))
+QCoordinates = Literal["crystal", "qe_cartesian"]
+
+
+class QENACError(ValueError):
+    """QE q2r metadata or a requested rigid-ion correction is invalid."""
+
+
+def qe_default_alpha(alat_bohr: float) -> float:
+    """Return the default Ewald alpha used by QE ``rigid.f90``."""
+    alat_bohr = float(alat_bohr)
+    if not np.isfinite(alat_bohr) or alat_bohr <= 0:
+        raise QENACError("alat_bohr must be finite and positive")
+    return (alat_bohr / TWO_PI) ** 2
+
+
+def _vector(value: Sequence[float] | _FLOAT, name: str) -> _FLOAT:
+    """Validate a three-component QE vector without changing its convention."""
+    result = np.asarray(value, dtype=float)
+    if result.shape != (3,) or not np.isfinite(result).all():
+        raise QENACError(f"{name} must contain three finite values")
+    return result
+
+
+QE_GMAX = 14.0
+QE_GAMMA_TOLERANCE = 1.0e-6
+
+
+def _prepare_qe_static_data(header: Q2RHeader, *, loto_2d: bool = False) -> dict:
+    """Validate q2r data and add it to the controller's static-data layout.
+
+    QE stores lattice vectors by column and positions in units of ``alat``.
+    These fields intentionally retain that native convention so the formulas
+    below remain a direct, reviewable transcription of QE's ``rigd_blk``.
+    """
+    if not header.has_zstar:
+        raise QENACError("q2r header does not contain dielectric/Born data")
+
+    at = np.asarray(header.at_columns, dtype=float)
+    tau = np.asarray(header.tau, dtype=float)
+    born = np.asarray(header.born, dtype=float)
+    dielectric = np.asarray(header.dielectric, dtype=float)
+    q_grid = np.asarray(header.q_grid, dtype=int)
+    masses = np.asarray(header.atom_masses_amu, dtype=float)
+
+    if at.shape != (3, 3) or abs(np.linalg.det(at)) < 1e-14:
+        raise QENACError("q2r lattice must be a nonsingular 3x3 matrix")
+    if tau.ndim != 2 or tau.shape[1] != 3:
+        raise QENACError("q2r positions must have shape (natom, 3)")
+    atom_count = len(tau)
+    if born.shape != (atom_count, 3, 3) or dielectric.shape != (3, 3):
+        raise QENACError("q2r Born and dielectric shapes disagree with atoms")
+    if q_grid.shape != (3,) or np.any(q_grid <= 0):
+        raise QENACError("q2r grid must contain three positive integers")
+    if masses.shape != (atom_count,) or np.any(masses <= 0):
+        raise QENACError("q2r masses must be positive for every atom")
+    if not all(np.isfinite(value).all() for value in (at, tau, born, dielectric)):
+        raise QENACError("q2r NAC data contain non-finite values")
+
+    alpha = float(header.alpha)
+    alat = float(header.alat_bohr)
+    volume = float(header.volume_bohr3)
+    inferred_volume = float(abs(np.linalg.det(at)) * alat**3)
+    if alpha <= 0 or alat <= 0 or volume <= 0:
+        raise QENACError("q2r alpha, alat, and volume must be positive")
+    if not np.isclose(volume, inferred_volume, rtol=2e-10, atol=1e-10):
+        raise QENACError("q2r volume is inconsistent with its lattice")
+
+    bg = np.linalg.inv(at).T
+    if loto_2d and bg[2, 2] <= 0:
+        raise QENACError("loto_2d requires QE's nonperiodic z axis")
+
+    static_data = {
+        "qe_at_columns": at,
+        "qe_bg_columns": bg,
+        "qe_tau": tau,
+        "qe_born": born,
+        "qe_dielectric": dielectric,
+        "qe_q_grid": q_grid,
+        "qe_alpha": alpha,
+        "qe_alat_bohr": alat,
+        "qe_volume_bohr3": volume,
+        "qe_loto_2d": bool(loto_2d),
+        "masses": masses,
+    }
+    static_data["qe_g_vectors"] = _qe_g_vectors(static_data)
+    static_data["qe_onsite"] = _qe_onsite_tensor(static_data)
+    return static_data
+
+
+def _qe_g_vectors(static_data: dict) -> _FLOAT:
+    """Build the finite reciprocal box selected by QE's Ewald cutoff."""
+    radius = np.sqrt(4 * QE_GMAX * static_data["qe_alpha"])
+    bounds = []
+    for axis, count in enumerate(static_data["qe_q_grid"]):
+        if count == 1:
+            bounds.append(0)
+            continue
+        norm = float(np.linalg.norm(static_data["qe_bg_columns"][:, axis]))
+        if norm <= 0:
+            raise QENACError("reciprocal lattice has a zero basis vector")
+        bounds.append(int(radius / norm) + 1)
+
+    a, b, c = bounds
+    bg = static_data["qe_bg_columns"]
+    return np.asarray(
+        [
+            i * bg[:, 0] + j * bg[:, 1] + k * bg[:, 2]
+            for i in range(-a, a + 1)
+            for j in range(-b, b + 1)
+            for k in range(-c, c + 1)
+        ],
+        dtype=float,
+    )
+
+
+def _qe_screening(static_data: dict, vector: _FLOAT, sign: float) -> float | None:
+    """Return QE's screened Ewald prefactor for one ``G + q`` vector."""
+    alpha = static_data["qe_alpha"]
+    if static_data["qe_loto_2d"]:
+        geg = float(vector @ vector)
+        if geg <= 0 or geg / (4 * alpha) >= QE_GMAX:
+            return None
+
+        bg = static_data["qe_bg_columns"]
+        screening = np.array(static_data["qe_dielectric"][:2, :2], copy=True)
+        screening -= np.eye(2)
+        screening *= 0.5 * TWO_PI / bg[2, 2]
+        xy2 = float(vector[0] ** 2 + vector[1] ** 2)
+        grg = 0.0
+        if xy2 > 1e-8:
+            grg = float(vector[:2] @ screening @ vector[:2] / xy2)
+
+        denominator = np.sqrt(geg) * (1 + grg * np.sqrt(geg))
+        if denominator == 0:
+            raise QENACError("QE loto_2d screening denominator is zero")
+        prefactor = sign * E2_RY * TWO_PI
+        prefactor /= (
+            static_data["qe_volume_bohr3"] * bg[2, 2] / static_data["qe_alat_bohr"]
+        )
+        return float(
+            prefactor
+            * (TWO_PI / static_data["qe_alat_bohr"])
+            * np.exp(-geg / (4 * alpha))
+            / denominator
+        )
+
+    geg = float(vector @ static_data["qe_dielectric"] @ vector)
+    if geg <= 0 or geg / (4 * alpha) >= QE_GMAX:
+        return None
+    return float(
+        sign
+        * E2_RY
+        * FOUR_PI
+        / static_data["qe_volume_bohr3"]
+        * np.exp(-geg / (4 * alpha))
+        / geg
+    )
+
+
+def _qe_charge_projection(static_data: dict, vector: _FLOAT) -> _FLOAT:
+    """Contract a QE-cartesian vector with every Born effective-charge tensor.
+
+    Parameters
+    ----------
+    static_data
+        NAC controller data containing ``qe_born`` with shape
+        ``(n_atoms, 3, 3)``.
+    vector
+        A reciprocal vector in QE cartesian coordinates, i.e. in units of
+        ``2*pi/alat``.
+
+    Returns
+    -------
+    np.ndarray
+        Projected charges with shape ``(n_atoms, 3)``.
+    """
+    return np.einsum("i,nij->nj", vector, static_data["qe_born"], optimize=True)
+
+
+def _qe_pair_phase(static_data: dict, vector: _FLOAT) -> _FLOAT:
+    """Return ``2*pi*(tau_i-tau_j).vector`` for all primitive atom pairs.
+
+    Both ``tau`` and ``vector`` retain QE's dimensionless ``alat`` and
+    ``2*pi/alat`` conventions. Their product is therefore dimensionless and
+    can be passed directly to ``cos`` or ``exp`` in ``rgd_blk``.
+    """
+    tau = static_data["qe_tau"]
+    return TWO_PI * np.einsum(
+        "abi,i->ab",
+        tau[:, None, :] - tau[None, :, :],
+        vector,
+        optimize=True,
+    )
+
+
+def _qe_onsite_tensor(static_data: dict) -> _COMPLEX:
+    """Compute the q-independent onsite part of QE's ``rgd_blk`` tensor."""
+    atom_count = len(static_data["qe_tau"])
+    tensor = np.zeros((atom_count, 3, atom_count, 3), dtype=np.complex128)
+    for vector in static_data["qe_g_vectors"]:
+        prefactor = _qe_screening(static_data, vector, sign=1.0)
+        if prefactor is None:
+            continue
+        projected_charge = _qe_charge_projection(static_data, vector)
+        fnat = np.cos(_qe_pair_phase(static_data, vector)) @ projected_charge
+        for atom in range(atom_count):
+            block = np.outer(projected_charge[atom], fnat[atom])
+            tensor[atom, :, atom, :] -= prefactor * 0.5 * (block + block.T)
+    return tensor
+
+
+def _qe_to_cartesian(
+    static_data: dict,
+    qpoint: Sequence[float],
+    coordinates: QCoordinates,
+) -> _FLOAT:
+    """Convert a q vector to QE cartesian reciprocal coordinates.
+
+    ``coordinates='crystal'`` interprets ``qpoint`` as reduced reciprocal
+    coordinates and multiplies it by QE's reciprocal basis. A vector already
+    expressed in QE cartesian coordinates is copied unchanged.
+    """
+    qpoint = _vector(qpoint, "qpoint")
+    if coordinates == "qe_cartesian":
+        return np.array(qpoint, copy=True)
+    if coordinates == "crystal":
+        return np.asarray(qpoint @ static_data["qe_bg_columns"].T, dtype=float)
+    raise QENACError(f"unsupported q coordinate convention {coordinates!r}")
+
+
+def _qe_is_gamma(
+    static_data: dict,
+    qpoint: Sequence[float],
+    coordinates: QCoordinates,
+) -> bool:
+    """Test whether q is Gamma modulo a reciprocal-lattice vector.
+
+    The comparison is performed in reduced coordinates so it remains valid
+    for skewed cells and for Gamma points represented outside the first zone.
+    """
+    q_cartesian = _qe_to_cartesian(static_data, qpoint, coordinates)
+    q_reduced = q_cartesian @ static_data["qe_at_columns"]
+    return bool(np.all(np.abs(q_reduced - np.rint(q_reduced)) <= QE_GAMMA_TOLERANCE))
+
+
+def _qe_rigid_ion_tensor(static_data: dict, qpoint: Sequence[float]) -> _COMPLEX:
+    """Evaluate QE's finite-q ``rgd_blk`` restoration in Ry/bohr²."""
+    q_cartesian = _qe_to_cartesian(static_data, qpoint, "crystal")
+    tensor = np.array(static_data["qe_onsite"], copy=True)
+    for vector in static_data["qe_g_vectors"]:
+        shifted = vector + q_cartesian
+        prefactor = _qe_screening(static_data, shifted, sign=1.0)
+        if prefactor is None:
+            continue
+        projected_charge = _qe_charge_projection(static_data, shifted)
+        phase = np.exp(1j * _qe_pair_phase(static_data, shifted))
+        tensor += prefactor * np.einsum(
+            "ai,bj,ab->aibj",
+            projected_charge,
+            projected_charge,
+            phase,
+            optimize=True,
+        )
+    return tensor
+
+
+def _qe_nonanalytic_tensor(
+    static_data: dict,
+    direction_cartesian: Sequence[float],
+) -> _COMPLEX:
+    """Evaluate QE's separate 3D directional term at exact Gamma."""
+    atom_count = len(static_data["qe_tau"])
+    q = _qe_to_cartesian(static_data, direction_cartesian, "qe_cartesian")
+    norm = float(np.linalg.norm(q))
+    if norm == 0:
+        return np.zeros((atom_count, 3, atom_count, 3), dtype=np.complex128)
+    q /= norm
+    qeq = float(q @ static_data["qe_dielectric"] @ q)
+    if qeq < 1e-8:
+        return np.zeros((atom_count, 3, atom_count, 3), dtype=np.complex128)
+    projected_charge = _qe_charge_projection(static_data, q)
+    return (
+        FOUR_PI
+        * E2_RY
+        / (qeq * static_data["qe_volume_bohr3"])
+        * np.einsum("ai,bj->aibj", projected_charge, projected_charge, optimize=True)
+    )
+
+
+def _qe_correction(
+    static_data: dict,
+    qpoint: Sequence[float],
+    gamma_direction_cartesian: Sequence[float] | None = None,
+) -> _COMPLEX:
+    """Return the mass-weighted QE correction in kALDo matrix units."""
+    tensor = _qe_rigid_ion_tensor(static_data, qpoint)
+    if (
+        gamma_direction_cartesian is not None
+        and not static_data["qe_loto_2d"]
+        and _qe_is_gamma(static_data, qpoint, "crystal")
+    ):
+        tensor += _qe_nonanalytic_tensor(static_data, gamma_direction_cartesian)
+
+    atom_count = len(static_data["masses"])
+    matrix = tensor.reshape(3 * atom_count, 3 * atom_count)
+    roots = np.repeat(np.sqrt(static_data["masses"]), 3)
+    matrix *= RY_TO_EV / BOHR_ANGSTROM**2
+    matrix /= roots[:, None] * roots[None, :]
+    matrix *= EV_TO_10J_PER_MOL
+
+    # Finite reciprocal sums can leave tiny anti-Hermitian roundoff terms.
+    matrix = 0.5 * (matrix + matrix.T.conj())
+    diagonal = np.diag_indices_from(matrix)
+    matrix[diagonal] = matrix[diagonal].real
+    return np.asarray(matrix, dtype=np.complex128)
+
+
+_PHONOPY_TO_KALDO_DM = (units.Ry / units.Bohr**2) * (units.mol / (10 * units.J))
 
 
 NAC_VELOCITY_DIRECTIONS_CART = np.array(
@@ -419,7 +747,7 @@ def bvk_supercell_matrix_key(nac_bvk_supercell_matrix):
 
 
 def _diagonal_supercell_sort_key(supercell_scaled, n):
-    """Sort key for diagonal supercell matrices: a-axis fastest, c-axis slowest (phonopy convention)."""
+    """Sort a diagonal supercell with a fastest and c slowest, as in phonopy."""
     rounded = np.round(np.asarray(supercell_scaled, dtype=float) * n).astype(int) % n
     return (rounded[2], rounded[1], rounded[0])
 
@@ -512,7 +840,9 @@ def _dipole_dipole_dynamical_matrix(q_red, static_data, mapping, q_direction_red
         else:
             q_direction_cart = q_cart
     else:
-        q_direction_cart = static_data["reciprocal_lattice"] @ np.array(q_direction_red, dtype=float)
+        q_direction_cart = static_data["reciprocal_lattice"] @ np.array(
+            q_direction_red, dtype=float
+        )
 
     recip_dd_q0 = np.zeros_like(static_data["dd_q0"])
     dd_recip = _recip_dipole_dipole(
@@ -555,6 +885,26 @@ def dynamical_matrices(q_reds, static_data, mapping, q_direction_carts, fc=None)
                 "explicitly or populate static_data['fc_short_converted'] first "
                 "(HarmonicWithQ does this through its runtime cache)."
             ) from None
+
+    if static_data.get("convention") == "qe_q2r":
+        # q2r's body is already the short-range IFC on kALDo's native replica
+        # grid. Preserve the original, format-independent Fourier transform;
+        # the Phonopy/Gonze Wigner-Seitz reconstruction above is specifically
+        # the total-IFC subtraction strategy and is not an interchangeable
+        # representation of this q2r body.
+        from kaldo.observables.secondorder import _dynamical_matrix_from_second_order
+        dm_short = np.asarray([
+            _dynamical_matrix_from_second_order(
+                static_data["qe_second_order"], q_red, include_pair_phase=False
+            )
+            for q_red in q_reds
+        ])
+        corrections = np.asarray([
+            _qe_correction(static_data, q_red, q_direction_cart)
+            for q_red, q_direction_cart in zip(q_reds, q_direction_carts)
+        ])
+        result = dm_short + corrections
+        return 0.5 * (result + np.swapaxes(result.conj(), 1, 2))
 
     q_carts = np.einsum(
         "ab,qb->qa",
@@ -776,6 +1126,25 @@ def _build_supercell_matrix_mapping(atoms, supercell_matrix, symprec=1e-5):
 
 
 def ensure_kernel_cache(static_data, mapping):
+    if static_data.get("convention") == "qe_q2r":
+        if "sqrt_mass_matrix" not in static_data:
+            static_data["sqrt_mass_matrix"] = np.sqrt(
+                np.outer(static_data["masses"], static_data["masses"])
+            )
+        if "nac_conversion" not in static_data:
+            static_data["nac_conversion"] = units.mol / (10 * units.J)
+        if "phase_weights" not in mapping:
+            phase_svecs = mapping.get("phase_svecs", mapping["svecs"])
+            mapping["phase_weights"] = _build_segment_phase_weights(
+                mapping["multi"], len(phase_svecs)
+            )
+        if "target_mask" not in mapping:
+            mapping["target_mask"] = (
+                mapping["s2p_map"][:, np.newaxis]
+                == mapping["p2s_map"][np.newaxis, :]
+            ).astype(np.complex128)
+        return static_data, mapping
+
     if "pair_phase" not in static_data:
         position_deltas = (
             static_data["primitive_positions"][:, np.newaxis, :]
@@ -828,6 +1197,35 @@ def ensure_kernel_cache(static_data, mapping):
 
 def build_static_data(second, matrix=None):
     atoms = second.atoms
+    qe_header = getattr(second, "_qe_q2r_header", None)
+    if qe_header is not None:
+        # Unlike the Gonze path below, a polar q2r body already contains
+        # short-range IFCs. Prepare only the QE rigid-ion restoration data;
+        # do not construct or subtract the Gonze dipole-dipole terms.
+        qe_static_data = _prepare_qe_static_data(qe_header)
+        if len(atoms) != len(qe_static_data["masses"]):
+            raise QENACError("q2r atom count does not match the SecondOrder primitive cell")
+        qe_cell = (
+            qe_static_data["qe_at_columns"].T
+            * qe_static_data["qe_alat_bohr"]
+            * BOHR_ANGSTROM
+        )
+        if not np.allclose(
+            np.asarray(atoms.cell), qe_cell, rtol=2e-7, atol=2e-7
+        ):
+            raise QENACError("q2r lattice does not match the SecondOrder primitive cell")
+        qe_static_data.update({
+            "convention": "qe_q2r",
+            "qe_second_order": second,
+            "primitive_cell": np.array(atoms.cell.array, dtype=float, copy=True),
+            "reciprocal_lattice": np.array(atoms.cell.reciprocal(), dtype=float, copy=True),
+            "supercell_cell": np.array(second.replicated_atoms.cell.array, dtype=float, copy=True),
+            "q_direction_tolerance": np.array(QE_GAMMA_TOLERANCE),
+            "sqrt_mass_matrix": np.sqrt(np.outer(atoms.get_masses(), atoms.get_masses())),
+            "nac_conversion": units.mol / (10 * units.J),
+        })
+        return qe_static_data
+
     born = np.array(atoms.get_array("charges"), dtype=float, copy=True)
     dielectric = np.array(atoms.info["dielectric"], dtype=float, copy=True)
     primitive_cell = np.array(atoms.cell.array, dtype=float, copy=True)
@@ -854,6 +1252,7 @@ def build_static_data(second, matrix=None):
     )
     dd_limiting = _limiting_dipole_dipole(dielectric, lambda_)
     return {
+        "convention": "gonze_total",
         "born": born,
         "dielectric": dielectric,
         "primitive_cell": primitive_cell,

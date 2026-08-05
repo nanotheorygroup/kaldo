@@ -8,6 +8,8 @@ import numpy as np
 from numpy.typing import ArrayLike
 from kaldo.interfaces.eskm_io import import_from_files
 import kaldo.interfaces.shengbte_io as shengbte_io
+import kaldo.interfaces.vasp_io as vasp_io
+import kaldo.interfaces.qe_io as qe_io
 from kaldo.interfaces.tdep_io import parse_tdep_forceconstant
 from kaldo.controllers.displacement import calculate_second, try_symmetrize_ifc
 from kaldo.parallel import is_parallel, validate_parallel_calculator, maybe_warn_ml_delta_shift
@@ -37,8 +39,14 @@ logging = get_logger()
 # ---------------------------------------------------------------------------
 
 
-def _dynamical_matrix_from_second_order(second_order, q_red):
-    """Compute the dynamical matrix at q_red directly from second_order force constants."""
+def _dynamical_matrix_from_second_order(second_order, q_red, include_pair_phase=True):
+    """Fourier-transform native replica IFCs at one reduced q point.
+
+    ``include_pair_phase`` selects the phonopy pair gauge used by the Gonze
+    reconstruction. QE's ``rgd_blk`` tensor is written in kALDo's original
+    replica gauge, so its already-short-range q2r IFCs deliberately set this
+    to ``False`` before the two matrices are added.
+    """
     n_atom = len(second_order.atoms)
     dynmat = second_order.dynmat
     dyn_s = contract(
@@ -47,13 +55,14 @@ def _dynamical_matrix_from_second_order(second_order, q_red):
         chi(np.asarray(q_red, dtype=float), second_order.list_of_replicas, second_order.cell_inv).flatten(),
         backend="numpy",
     )
-    scaled_positions = second_order.atoms.get_scaled_positions(wrap=False)
-    for i_atom in range(n_atom):
-        for j_atom in range(n_atom):
-            phase = np.exp(
-                2j * np.pi * np.dot(q_red, scaled_positions[j_atom] - scaled_positions[i_atom])
-            )
-            dyn_s[i_atom, :, j_atom, :] *= phase
+    if include_pair_phase:
+        scaled_positions = second_order.atoms.get_scaled_positions(wrap=False)
+        for i_atom in range(n_atom):
+            for j_atom in range(n_atom):
+                phase = np.exp(
+                    2j * np.pi * np.dot(q_red, scaled_positions[j_atom] - scaled_positions[i_atom])
+                )
+                dyn_s[i_atom, :, j_atom, :] *= phase
     return dyn_s.reshape(n_atom * 3, n_atom * 3)
 
 
@@ -94,7 +103,8 @@ class SecondOrder(ForceConstant, Storable):
         return self.calculate_nac_short_range_force_constants()
 
     def _refuse_dipole_subtracted_fc(self):
-        if self.atoms.info.get('dipole_subtracted_fc', False):
+        if (self.atoms.info.get('dipole_subtracted_fc', False)
+                and getattr(self, "_qe_q2r_header", None) is None):
             raise NotImplementedError(
                 "These force constants come from a QE .fc file with embedded Born "
                 "charges, which q2r writes in the dipole-subtracted convention. The "
@@ -108,6 +118,10 @@ class SecondOrder(ForceConstant, Storable):
     def get_nac_short_range_force_constants(self, nac_bvk_supercell_matrix=None):
         self._refuse_dipole_subtracted_fc()
         matrix = nac.normalize_bvk_supercell_matrix(nac_bvk_supercell_matrix)
+        if getattr(self, "_qe_q2r_header", None) is not None:
+            # A q2r file written with epsil=.true. already contains QE's
+            # short-range IFCs. Do not run Gonze subtraction or share its cache.
+            return nac._build_interleaved_fc(self)
         if matrix is None:
             return self.nac_short_range_force_constants
 
@@ -146,20 +160,16 @@ class SecondOrder(ForceConstant, Storable):
         if key not in self._nac_precomputed_cache:
             static_data = self._build_nac_static_data(matrix)
             mapping = self._build_nac_mapping(matrix)
-            dd_real_q0_full = nac._real_dipole_dipole(
-                np.zeros(3, dtype=float),
-                mapping["svecs"],
-                mapping["multi"],
-                mapping["s2pp_map"],
-                static_data["dielectric"],
-                float(static_data["Lambda"]),
-                mapping.get("svecs_cell", static_data["supercell_cell"]),
-            )
-            dd_real_q0 = dd_real_q0_full.sum(axis=2)
-            # q -> 0 sum rule for the terms whose row sum does not vanish by
-            # construction: the limiting term (diagonal only) and the real-space
-            # Ewald part. The reciprocal part subtracts its own q0 row sum.
-            static_data["dd_drift"] = static_data["dd_limiting"] + dd_real_q0
+            if static_data.get("convention") != "qe_q2r":
+                dd_real_q0_full = nac._real_dipole_dipole(
+                    np.zeros(3, dtype=float), mapping["svecs"], mapping["multi"],
+                    mapping["s2pp_map"], static_data["dielectric"],
+                    float(static_data["Lambda"]),
+                    mapping.get("svecs_cell", static_data["supercell_cell"]),
+                )
+                dd_real_q0 = dd_real_q0_full.sum(axis=2)
+                # q -> 0 sum rule for the limiting and real-space Ewald terms.
+                static_data["dd_drift"] = static_data["dd_limiting"] + dd_real_q0
             static_data, mapping = nac.ensure_kernel_cache(static_data, mapping)
             self._nac_precomputed_cache[key] = {
                 "static_data": static_data,
@@ -169,6 +179,8 @@ class SecondOrder(ForceConstant, Storable):
 
     def calculate_nac_short_range_force_constants(self, nac_bvk_supercell_matrix=None):
         self._refuse_dipole_subtracted_fc()
+        if getattr(self, "_qe_q2r_header", None) is not None:
+            return nac._build_interleaved_fc(self)
         if "dielectric" not in self.atoms.info or "charges" not in self.atoms.arrays:
             raise ValueError(
                 "NAC short-range force constants require atoms.info['dielectric'] "
@@ -343,13 +355,16 @@ class SecondOrder(ForceConstant, Storable):
                 # TODO: we need to read the grid type here
                 n_replicas = np.prod(supercell)
                 n_unit_atoms = atoms.positions.shape[0]
+                qe_header = None
                 match format:
                     case ("qe-sheng" | "shengbte-qe") | ("qe-d3q" | "shengbte-d3q"):
                         # load QE second order force constant
                         filename = os.path.join(folder, "espresso.ifc2")
                         if not os.path.isfile(filename):
                             raise FileNotFoundError(f"File {filename} not found.")
-                        _second_order, supercell, charges = shengbte_io.read_second_order_qe_matrix(filename)
+                        qe_header = qe_io.read_q2r_header(filename)
+                        _second_order, supercell, charges = qe_io.read_second_order_qe_matrix(filename)
+                        n_replicas = np.prod(supercell)
                         if (not charges is None):
                             atoms.info['dielectric'] = charges[0, :, :]
                             atoms.set_array('charges', charges[1:, :, :], shape=(3, 3))
@@ -368,7 +383,7 @@ class SecondOrder(ForceConstant, Storable):
                             filename = os.path.join(folder, "FORCE_CONSTANTS")
                         if not os.path.isfile(filename):
                             raise FileNotFoundError(f"File {filename} not found.")
-                        _second_order = shengbte_io.read_second_order_matrix(filename, supercell)
+                        _second_order = vasp_io.read_second_order_matrix(filename, supercell)
                         _second_order = _second_order.reshape((n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
                         # the reader's replica axis is C-ordered, like the QE
                         # case above; declared together with the vasp-* case in
@@ -379,12 +394,14 @@ class SecondOrder(ForceConstant, Storable):
                     grid_type=grid_type,
                     supercell=supercell,
                     value=_second_order[np.newaxis, ...],
-                    # main hardcodes the acoustic sum rule for the sheng/d3q formats;
-                    # honoring the caller parameter here silently changed the default
-                    # behavior of every existing QE workflow and breaks test_nac_qe.
+                    # Preserve the established ShengBTE/d3q loader behavior.
+                    # Changing this default repins every existing QE workflow;
+                    # q2r provenance affects NAC restoration, not this API contract.
                     is_acoustic_sum=True,
                     folder=folder,
                 )
+                if qe_header is not None and qe_header.has_zstar:
+                    second_order._qe_q2r_header = qe_header
 
             case "hiphive":
                 filename = "atom_prim.xyz"

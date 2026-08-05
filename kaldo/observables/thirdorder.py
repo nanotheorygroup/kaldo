@@ -8,6 +8,7 @@ from sparse import COO
 from kaldo.interfaces.eskm_io import import_from_files
 from kaldo.interfaces.tdep_io import parse_tdep_third_forceconstant
 import kaldo.interfaces.shengbte_io as shengbte_io
+import kaldo.interfaces.qe_io as qe_io
 import ase.units as units
 from kaldo.controllers.displacement import calculate_third, try_symmetrize_ifc
 from kaldo.parallel import is_parallel, validate_parallel_calculator, maybe_warn_ml_delta_shift
@@ -163,7 +164,7 @@ class ThirdOrder(ForceConstant):
                     case _:
                         # load d3q third order force constant
                         third_file = os.path.join(folder, 'FORCE_CONSTANTS_3RD_D3Q')
-                        third_order = shengbte_io.read_third_d3q(third_file, atoms, supercell, order='C')
+                        third_order = qe_io.read_third_d3q(third_file, atoms, supercell, order='C')
                 third_order = ThirdOrder.from_supercell(atoms=atoms,
                                                         grid_type=grid_type,
                                                         supercell=supercell,

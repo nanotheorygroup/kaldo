@@ -29,6 +29,7 @@ def nac_second_order(tmp_path_factory):
     # The machinery tests attach charges to the file constants and exercise the
     # non-analytic correction pipeline as if they were total force constants.
     forceconstants.second.atoms.info.pop("dipole_subtracted_fc", None)
+    forceconstants.second._qe_q2r_header = None
     return forceconstants.second
 
 
@@ -183,18 +184,10 @@ def test_dielectric_without_charges_raises():
         HarmonicWithQ(q_point=np.zeros(3), second=second, storage="memory")
 
 
-# ---- QE dipole-subtracted convention (see module note below) ----
-# Contract tests for QE force-constant files that embed Born charges.
-# 
-# q2r.x writes dipole-subtracted force constants when it is given a dielectric
-# tensor (the flag line is T). kALDo used to pair these with a reciprocal-space
-# Ewald term (the legacy NAC); after its removal the non-analytic correction, which expects
-# total force constants, must refuse this convention loudly instead of
-# subtracting the dipole part twice. MgO frequencies for the legacy pairing were
-# validated against matdyn.x (asr=simple, q=(0.3, 0, 0.3) crystal:
-# 239.764x2, 367.69, 422.93x2, 582.65 cm^-1); restoring physics for this
-# convention means bridging it to total force constants at load, tracked as
-# follow-up work.
+# ---- QE q2r short-range convention ----
+# q2r.x writes dipole-subtracted IFCs when the file embeds dielectric and Born
+# data. The loader preserves that provenance and the harmonic NAC path adds the
+# matching QE rigid-ion correction without applying Gonze subtraction again.
 
 
 @pytest.fixture(scope="module")
@@ -216,15 +209,23 @@ def test_embedded_charges_mark_the_convention(mgo_second):
     assert "charges" in mgo_second.atoms.arrays
 
 
-def test_dipole_subtracted_constants_refuse_nac(mgo_second):
+def test_dipole_subtracted_constants_use_qe_rigid_ion_nac(mgo_second):
     phonon = HarmonicWithQ(
         q_point=np.array([0.3, 0.0, 0.3]),
         second=mgo_second,
         storage="memory",
         is_unfolding=True,
     )
-    with pytest.raises(NotImplementedError, match="dipole-subtracted"):
-        phonon.frequency
+    frequency = phonon.frequency
+    assert frequency.shape == (1, 6)
+    assert np.isfinite(frequency).all()
+    np.testing.assert_allclose(
+        frequency[0],
+        [7.12165876, 7.20271069, 10.98283990,
+         12.70586773, 12.73608931, 17.50462043],
+        rtol=2e-7,
+        atol=2e-7,
+    )
 
 
 def test_bvk_matrix_must_match_the_force_constant_grid(nac_second_order):

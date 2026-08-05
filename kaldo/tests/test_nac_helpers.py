@@ -8,7 +8,7 @@ import ase.io
 from ase import units as ase_units
 
 from kaldo.forceconstants import ForceConstants
-from kaldo.interfaces import shengbte_io
+from kaldo.interfaces import qe_io
 from kaldo.observables import harmonic_with_q as hwq
 from kaldo.observables.harmonic_with_q import HarmonicWithQ
 import kaldo.controllers.nac as so
@@ -83,7 +83,7 @@ def load_att3_v2_second_order_with_reference_nac(storage_folder) -> object:
         is_acoustic_sum=True,
         format="shengbte-qe",
     )
-    _, _, charges = shengbte_io.read_second_order_qe_matrix(
+    _, _, charges = qe_io.read_second_order_qe_matrix(
         "kaldo/tests/nacl_phonopy/espresso.ifc2"
     )
     forceconstants.second.atoms.info["dielectric"] = charges[0, :, :]
@@ -100,7 +100,7 @@ def load_att4_v2_second_order_with_reference_nac(storage_folder) -> object:
         is_acoustic_sum=True,
         format="shengbte-qe",
     )
-    _, _, charges = shengbte_io.read_second_order_qe_matrix(
+    _, _, charges = qe_io.read_second_order_qe_matrix(
         "kaldo/tests/nacl_phonopy/espresso.ifc2"
     )
     forceconstants.second.atoms.info["dielectric"] = charges[0, :, :]
