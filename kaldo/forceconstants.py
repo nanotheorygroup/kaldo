@@ -330,9 +330,12 @@ class ForceConstants:
         raw_class = np.zeros((n_uc, 3, n_class, n_uc, 3), dtype=np.float64)
         for r, R in enumerate(pair_table):
             class_id = int(wrap_lattice_vector_to_replica(R, class_table, M))
-            # Distinct per-pair R's should land in distinct classes; if two
-            # collide, periodicity requires equal Phi — keep the last write.
-            raw_class[:, :, class_id, :, :] = raw_pair[:, :, r, :, :]
+            # Two per-pair R's in the same class are periodic images
+            # (they differ by a supercell lattice vector); the supercell
+            # force constant is the sum over images. With TDEP cutoffs
+            # below half the box each class has a single image, so this
+            # reduces to a plain assignment.
+            raw_class[:, :, class_id, :, :] += raw_pair[:, :, r, :, :]
         class_grid = NonDiagonalGrid(replica_table=class_table, M=M)
         return raw_class, class_grid
 
