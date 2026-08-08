@@ -356,7 +356,7 @@ class Phonons(Storable):
     min_frequency : float
         Ignores all phonons with frequency below ``min_frequency``
         Units: Thz
-        Default: None
+        Default: 0.
     max_frequency : float
         Ignores all phonons with frequency above ``max_frequency``
         Units: THz
@@ -439,11 +439,21 @@ class Phonons(Storable):
     is_nw: bool, optional
         Defines if you would like to assume the system is a nanowire.
         Default: False
+    n_workers : int, optional
+        Number of worker processes used for per-q projection calculations.
+        Set to 1 for serial execution.
+        Default: 1
+    projection_output_dir : str, optional
+        Directory used for restartable per-q projection checkpoints. If it is
+        omitted, completed per-q results are retained in memory instead.
+        Default: None
     nac_bvk_supercell_matrix : array-like (3, 3), optional
         Born--von Karman grid used by the harmonic long-range correction.
         It must describe the defining force-constant supercell because NAC
         remeshing is not implemented. The same value is propagated to
-        frequencies, eigenvectors, thermodynamics, and transport.
+        frequencies, eigenvectors, thermodynamics, and transport. NAC is active
+        when the loaded atoms contain both a dielectric tensor and nonzero Born
+        effective charges; this argument does not enable it.
         Default: None
     use_q_symmetry : bool, optional
         Reduce the per-k-point projection cost by computing only the

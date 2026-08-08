@@ -96,6 +96,12 @@ class HarmonicWithQ(Observable, Storable):
     ):
         """Initialize a q-point calculation and its optional polar correction.
 
+        NAC is active when ``second.atoms`` contains a dielectric tensor and
+        nonzero Born effective charges. Input provenance
+        selects either the generic total-IFC Gonze convention or the native QE
+        q2r convention; there is no user-selectable NAC method. ``is_unfolding``
+        controls ordinary IFC interpolation and is not an NAC activation flag.
+
         ``nac_q_direction`` is a reduced reciprocal direction used only for
         the directional Gamma limit. ``nac_bvk_supercell_matrix`` identifies
         the force-constant BvK grid; it is not a request to remesh IFCs.

@@ -332,7 +332,25 @@ Input Files and Formats
 .. [#f1] The shengbte and shengbte-qe format will look for the "CONTROL" file first, however, if it is not found it will
          look for a "POSCAR" file (ASE format "vasp"). If neither are found, it will raise an error.
 .. [#f2] ASE does not support the shengbte format (CONTROL file). You can create the atoms object manually or
-         use the ``kaldo.interfaces.shegbte_io.import_control_file`` method.
+         use the ``kaldo.interfaces.shengbte_io.import_control_file`` method.
+
+Polar harmonic inputs
+=====================
+
+NAC is activated from the data loaded by ``ForceConstants.from_folder``; it
+is not enabled by an ``is_nac`` argument. Both a dielectric tensor and Born
+effective charges are required.
+
+For ``qe-sheng`` and ``qe-d3q``, a polar ``espresso.ifc2`` retains the q2r
+macroscopic header. The loader records that its IFC body is already
+dipole-subtracted and selects QE's matching rigid-ion restoration. Do not
+strip that header or manually reinterpret the file as total force constants.
+
+For VASP/ShengBTE-style total IFCs, the dielectric and Born tensors may be
+read from ``CONTROL``. When only ``POSCAR`` is available, attach
+``atoms.info['dielectric']`` and ``atoms.arrays['charges']`` to the loaded
+``SecondOrder.atoms`` before constructing harmonic observables. These total
+IFCs select the generic Gonze subtraction and restoration path.
 
 ``gpumd``
     A single ``gpumd_fc.npz`` archive produced by the GPUMD
