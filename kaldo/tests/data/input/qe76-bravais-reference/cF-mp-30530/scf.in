@@ -1,0 +1,26 @@
+        &CONTROL
+          calculation='scf', prefix='cF-mp-30530', outdir='./out', pseudo_dir='./pseudo', disk_io='low'
+        /
+        &SYSTEM
+          ibrav=0, nat=6, ntyp=3, ecutwfc=120, ecutrho=960, occupations='fixed'
+        /
+        &ELECTRONS
+          conv_thr=1.0d-10, mixing_beta=0.3
+        /
+        ATOMIC_SPECIES
+        O 15.99940000 O.pbe-n-kjpaw_psl.0.1.UPF
+Cl 35.45300000 cl_pbe_v1.4.uspp.F.UPF
+Tl 204.38330000 Tl_pbe_v1.2.uspp.F.UPF
+        CELL_PARAMETERS angstrom
+        0.000000000000 3.772496995000 3.772496995000
+3.772496995000 0.000000000000 3.772496995000
+3.772496995000 3.772496995000 0.000000000000
+        ATOMIC_POSITIONS crystal
+        O 0.888310960000 0.888310960000 0.335067120000
+O 0.888310960000 0.888310960000 0.888310960000
+O 0.888310960000 0.335067120000 0.888310960000
+O 0.335067120000 0.888310960000 0.888310960000
+Cl 0.000000000000 0.000000000000 0.000000000000
+Tl 0.500000000000 0.500000000000 0.500000000000
+        K_POINTS automatic
+        2 2 2 0 0 0
