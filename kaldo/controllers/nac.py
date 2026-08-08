@@ -20,6 +20,7 @@ import numpy as np
 import ase.units as units
 from numpy.typing import NDArray
 from opt_einsum import contract
+import spglib
 
 from kaldo.grid import Grid
 from kaldo.helpers.logger import get_logger
@@ -433,8 +434,8 @@ def _get_g_vec_list(reciprocal_lattice, g_rad):
 def _get_g_list(reciprocal_lattice, g_cutoff):
     g_rad = _get_minimum_g_rad(reciprocal_lattice, g_cutoff)
     g_vec_list = _get_g_vec_list(reciprocal_lattice, g_rad)
-    g_norm2 = (g_vec_list ** 2).sum(axis=1)
-    return np.array(g_vec_list[g_norm2 < g_cutoff ** 2], dtype="double", order="C")
+    g_norm2 = (g_vec_list**2).sum(axis=1)
+    return np.array(g_vec_list[g_norm2 < g_cutoff**2], dtype="double", order="C")
 
 
 def _multiply_borns(dd_in, born):
@@ -455,11 +456,15 @@ def _get_dd_base(
 ):
     if pair_phase is None:
         position_deltas = positions[:, None, :] - positions[None, :, :]
-        phases = 2j * np.pi * np.einsum(
-            "ga,ija->gij",
-            g_list,
-            position_deltas,
-            optimize=True,
+        phases = (
+            2j
+            * np.pi
+            * np.einsum(
+                "ga,ija->gij",
+                g_list,
+                position_deltas,
+                optimize=True,
+            )
         )
         pair_phase = np.exp(phases)
 
@@ -469,15 +474,21 @@ def _get_dd_base(
     l2 = 4 * lambda_ * lambda_
     active = norms >= tolerance
     if np.any(active):
-        denom = np.einsum("gi,ij,gj->g", qk[active], dielectric, qk[active], optimize=True)
+        denom = np.einsum(
+            "gi,ij,gj->g", qk[active], dielectric, qk[active], optimize=True
+        )
         scale = np.exp(-denom / l2) / denom
         # Build all reciprocal-space dyads at once before contracting onto atom pairs.
-        kk[active] = np.einsum("gi,gj,g->gij", qk[active], qk[active], scale, optimize=True)
+        kk[active] = np.einsum(
+            "gi,gj,g->gij", qk[active], qk[active], scale, optimize=True
+        )
     if q_direction_cart is not None:
         inactive = ~active
         if np.any(inactive):
             direction_denom = _dielectric_part(q_direction_cart, dielectric)
-            direction_kk = np.outer(q_direction_cart, q_direction_cart) / direction_denom
+            direction_kk = (
+                np.outer(q_direction_cart, q_direction_cart) / direction_denom
+            )
             kk[inactive] = direction_kk
     return np.einsum("gab,gij->iajb", kk, pair_phase, optimize=True)
 
@@ -494,11 +505,15 @@ def _get_dd_base_many(
 ):
     if pair_phase is None:
         position_deltas = positions[:, None, :] - positions[None, :, :]
-        phases = 2j * np.pi * np.einsum(
-            "ga,ija->gij",
-            g_list,
-            position_deltas,
-            optimize=True,
+        phases = (
+            2j
+            * np.pi
+            * np.einsum(
+                "ga,ija->gij",
+                g_list,
+                position_deltas,
+                optimize=True,
+            )
         )
         pair_phase = np.exp(phases)
 
@@ -533,7 +548,9 @@ def _get_dd_base_many(
 
 def _recip_dipole_dipole_q0(g_list, born, dielectric, positions, lambda_, tolerance):
     zero = np.zeros(3, dtype="double")
-    dd_tmp1 = _get_dd_base(g_list, zero, None, dielectric, positions, lambda_, tolerance)
+    dd_tmp1 = _get_dd_base(
+        g_list, zero, None, dielectric, positions, lambda_, tolerance
+    )
     dd_tmp2 = _multiply_borns(dd_tmp1, born)
     dd_q0 = dd_tmp2.sum(axis=2)
     dd_q0 = 0.5 * (dd_q0 + np.transpose(dd_q0.conj(), (0, 2, 1)))
@@ -543,19 +560,19 @@ def _recip_dipole_dipole_q0(g_list, born, dielectric, positions, lambda_, tolera
 def _limiting_dipole_dipole(dielectric, lambda_):
     inv_eps = np.linalg.inv(dielectric)
     sqrt_det_eps = np.sqrt(np.linalg.det(dielectric))
-    return -4.0 / 3 / np.sqrt(np.pi) * inv_eps / sqrt_det_eps * lambda_ ** 3
+    return -4.0 / 3 / np.sqrt(np.pi) * inv_eps / sqrt_det_eps * lambda_**3
 
 
-def _real_dipole_dipole(q_red, svecs, multi, s2pp_map, dielectric, lambda_, supercell_cell):
+def _real_dipole_dipole(
+    q_red, svecs, multi, s2pp_map, dielectric, lambda_, supercell_cell
+):
     phase_all = np.exp(2j * np.pi * (svecs @ q_red))
     h = _h_tensor(supercell_cell, svecs, dielectric, lambda_)
-    vals = -(lambda_ ** 3) * h * phase_all * np.linalg.det(dielectric) ** (-0.5)
+    vals = -(lambda_**3) * h * phase_all * np.linalg.det(dielectric) ** (-0.5)
     starts = multi[:, :, 1]
     multiplicities = multi[:, :, 0].astype(np.float64)
     gathered = vals[:, :, starts]
-    symmetric_blocks = 0.5 * (
-        gathered + np.transpose(gathered.conj(), (1, 0, 2, 3))
-    )
+    symmetric_blocks = 0.5 * (gathered + np.transpose(gathered.conj(), (1, 0, 2, 3)))
     contributions = np.transpose(
         symmetric_blocks / multiplicities[np.newaxis, np.newaxis, :, :],
         (2, 3, 0, 1),
@@ -582,15 +599,19 @@ def _real_dipole_dipole_many(
         h_tensor = _h_tensor(supercell_cell, svecs, dielectric, lambda_)
     if det_scale is None:
         det_scale = np.linalg.det(dielectric) ** (-0.5)
-    phase_all = np.exp(2j * np.pi * np.einsum("qa,sa->qs", q_reds, svecs, optimize=True))
-    vals = -(lambda_ ** 3) * h_tensor[np.newaxis, :, :, :] * phase_all[:, np.newaxis, np.newaxis, :]
+    phase_all = np.exp(
+        2j * np.pi * np.einsum("qa,sa->qs", q_reds, svecs, optimize=True)
+    )
+    vals = (
+        -(lambda_**3)
+        * h_tensor[np.newaxis, :, :, :]
+        * phase_all[:, np.newaxis, np.newaxis, :]
+    )
     vals *= det_scale
     starts = multi[:, :, 1]
     multiplicities = multi[:, :, 0].astype(np.float64)
     gathered = vals[:, :, :, starts]
-    symmetric_blocks = 0.5 * (
-        gathered + np.transpose(gathered.conj(), (0, 2, 1, 3, 4))
-    )
+    symmetric_blocks = 0.5 * (gathered + np.transpose(gathered.conj(), (0, 2, 1, 3, 4)))
     contributions = np.transpose(
         symmetric_blocks / multiplicities[np.newaxis, np.newaxis, np.newaxis, :, :],
         (0, 3, 4, 1, 2),
@@ -647,9 +668,9 @@ def _short_range_dynamical_matrix(
     phase_all = np.exp(2j * np.pi * (svecs @ q_red))
     phase_factors = np.einsum("spl,l->sp", phase_weights, phase_all, optimize=True)
     if target_mask is None:
-        target_mask = (
-            s2p_map[:, np.newaxis] == p2s_map[np.newaxis, :]
-        ).astype(np.complex128)
+        target_mask = (s2p_map[:, np.newaxis] == p2s_map[np.newaxis, :]).astype(
+            np.complex128
+        )
     fc_source = fc if is_compact_fc else fc[p2s_map]
     weighted_fc = fc_source * phase_factors.T[:, :, np.newaxis, np.newaxis]
     dm_blocks = np.einsum("isab,sj->ijab", weighted_fc, target_mask, optimize=True)
@@ -675,13 +696,15 @@ def _short_range_dynamical_matrix_many(
     is_compact_fc = fc.shape[0] != fc.shape[1]
     if phase_weights is None:
         phase_weights = _build_segment_phase_weights(multi, len(svecs))
-    phase_all = np.exp(2j * np.pi * np.einsum("qa,sa->qs", q_reds, svecs, optimize=True))
+    phase_all = np.exp(
+        2j * np.pi * np.einsum("qa,sa->qs", q_reds, svecs, optimize=True)
+    )
     # Average all shortest-path phases for every q-point and primitive/supercell pair.
     phase_factors = np.einsum("spl,ql->qsp", phase_weights, phase_all, optimize=True)
     if target_mask is None:
-        target_mask = (
-            s2p_map[:, np.newaxis] == p2s_map[np.newaxis, :]
-        ).astype(np.complex128)
+        target_mask = (s2p_map[:, np.newaxis] == p2s_map[np.newaxis, :]).astype(
+            np.complex128
+        )
     if mass_matrix is None:
         mass_matrix = np.sqrt(np.outer(masses, masses))
     fc_source = fc if is_compact_fc else fc[p2s_map]
@@ -707,8 +730,8 @@ def _h_tensor(supercell_cell, svecs, dielectric, lambda_):
     condition = y < 1e-10
     y_safe = y.copy()
     y_safe[condition] = 1.0
-    y2 = y_safe ** 2
-    y3 = y_safe ** 3
+    y2 = y_safe**2
+    y3 = y_safe**3
     exp_y2 = np.exp(-y2)
     erfc_y = np.vectorize(math.erfc)(y_safe)
     a = np.where(
@@ -727,9 +750,7 @@ def normalize_bvk_supercell_matrix(nac_bvk_supercell_matrix):
         return None
     matrix = np.array(nac_bvk_supercell_matrix, dtype=int)
     if matrix.shape != (3, 3):
-        raise ValueError(
-            "nac_bvk_supercell_matrix must be a 3x3 integer matrix."
-        )
+        raise ValueError("nac_bvk_supercell_matrix must be a 3x3 integer matrix.")
     determinant = int(round(np.linalg.det(matrix)))
     if determinant == 0:
         raise ValueError("nac_bvk_supercell_matrix must be non-singular.")
@@ -797,17 +818,24 @@ def _phonopy_lattice_points():
 
 
 def _fold_points_to_first_bz(qpoints, reciprocal_lattice, tolerance=0.01):
+    """Select Phonopy-compatible first-BZ images after Niggli reduction."""
     qpoints = np.array(qpoints, dtype=float, copy=True)
     reciprocal_lattice = np.array(reciprocal_lattice, dtype=float, copy=True)
-    distance_tolerance = float(min(np.sum(reciprocal_lattice ** 2, axis=0)) * tolerance)
+    distance_tolerance = float(min(np.sum(reciprocal_lattice**2, axis=0)) * tolerance)
+    reduced = spglib.niggli_reduce(reciprocal_lattice.T, eps=1.0e-5)
+    if reduced is None:
+        raise ValueError("Niggli reduction failed for the reciprocal lattice")
+    transform = np.linalg.inv(reciprocal_lattice) @ reduced.T
+    transform_inverse = np.linalg.inv(transform)
     folded = []
     for qpoint in qpoints:
-        reduced = qpoint - np.rint(qpoint)
-        candidates = reduced + _BZ_SEARCH_SPACE
-        distances = np.sum((candidates @ reciprocal_lattice.T) ** 2, axis=1)
+        reduced_qpoint = qpoint @ transform_inverse.T
+        reduced_qpoint -= np.rint(reduced_qpoint)
+        candidates = reduced_qpoint + _BZ_SEARCH_SPACE
+        distances = np.sum((candidates @ reduced) ** 2, axis=1)
         min_distance = distances.min()
         shortest_indices = np.where(distances < min_distance + distance_tolerance)[0]
-        folded.append(candidates[shortest_indices[0]])
+        folded.append(candidates[shortest_indices[0]] @ transform.T)
     folded = np.array(folded, dtype="double", order="C")
     folded[np.isclose(folded, 0.0, atol=1e-14)] = 0.0
     return folded
@@ -832,6 +860,7 @@ def _commensurate_points(supercell, reciprocal_lattice=None):
 
 
 def _dipole_dipole_dynamical_matrix(q_red, static_data, mapping, q_direction_red=None):
+    """Return Phonopy's reciprocal Gonze dipole matrix at one q point."""
     q_red = np.array(q_red, dtype=float, copy=True)
     q_cart = static_data["reciprocal_lattice"] @ q_red
     if q_direction_red is None:
@@ -844,9 +873,8 @@ def _dipole_dipole_dynamical_matrix(q_red, static_data, mapping, q_direction_red
             q_direction_red, dtype=float
         )
 
-    recip_dd_q0 = np.zeros_like(static_data["dd_q0"])
     dd_recip = _recip_dipole_dipole(
-        recip_dd_q0,
+        static_data["dd_q0"],
         static_data["G_list"],
         q_cart,
         q_direction_cart,
@@ -858,19 +886,8 @@ def _dipole_dipole_dynamical_matrix(q_red, static_data, mapping, q_direction_red
         float(static_data["q_direction_tolerance"]),
         pair_phase=static_data.get("pair_phase"),
     )
-    dd_real = _real_dipole_dipole(
-        q_red,
-        mapping["svecs"],
-        mapping["multi"],
-        mapping["s2pp_map"],
-        static_data["dielectric"],
-        float(static_data["Lambda"]),
-        mapping.get("svecs_cell", static_data["supercell_cell"]),
-    )
-    dd_total = dd_recip + static_data["dd_limiting_expanded"] + dd_real
-    dd_total[:, :, :, :] -= static_data["dd_drift_blocks"]
     conversion = units.mol / (10 * units.J)
-    return _mass_weight(dd_total * conversion, static_data["masses"])
+    return _mass_weight(dd_recip * conversion, static_data["masses"])
 
 
 def dynamical_matrices(q_reds, static_data, mapping, q_direction_carts, fc=None):
@@ -893,16 +910,21 @@ def dynamical_matrices(q_reds, static_data, mapping, q_direction_carts, fc=None)
         # the total-IFC subtraction strategy and is not an interchangeable
         # representation of this q2r body.
         from kaldo.observables.secondorder import _dynamical_matrix_from_second_order
-        dm_short = np.asarray([
-            _dynamical_matrix_from_second_order(
-                static_data["qe_second_order"], q_red, include_pair_phase=False
-            )
-            for q_red in q_reds
-        ])
-        corrections = np.asarray([
-            _qe_correction(static_data, q_red, q_direction_cart)
-            for q_red, q_direction_cart in zip(q_reds, q_direction_carts)
-        ])
+
+        dm_short = np.asarray(
+            [
+                _dynamical_matrix_from_second_order(
+                    static_data["qe_second_order"], q_red, include_pair_phase=False
+                )
+                for q_red in q_reds
+            ]
+        )
+        corrections = np.asarray(
+            [
+                _qe_correction(static_data, q_red, q_direction_cart)
+                for q_red, q_direction_cart in zip(q_reds, q_direction_carts)
+            ]
+        )
         result = dm_short + corrections
         return 0.5 * (result + np.swapaxes(result.conj(), 1, 2))
 
@@ -930,23 +952,12 @@ def dynamical_matrices(q_reds, static_data, mapping, q_direction_carts, fc=None)
         static_data["born"],
         optimize=True,
     )
+    diagonal = np.arange(len(static_data["masses"]))
+    for atom in diagonal:
+        dd_recip[:, atom, :, atom, :] -= static_data["dd_q0"][atom][np.newaxis, :, :]
     dd_recip *= float(static_data["nac_factor"])
-
-    dd_real = _real_dipole_dipole_many(
-        q_reds,
-        mapping["svecs"],
-        mapping["multi"],
-        mapping["s2pp_map"],
-        static_data["dielectric"],
-        float(static_data["Lambda"]),
-        mapping.get("svecs_cell", static_data["supercell_cell"]),
-        h_tensor=static_data.get("h_tensor"),
-        det_scale=static_data.get("real_dipole_det_scale"),
-    )
-    dd_total = dd_recip + static_data["dd_limiting_expanded"][np.newaxis, :, :, :, :] + dd_real
-    dd_total -= static_data["dd_drift_blocks"][np.newaxis, :, :, :, :]
     dd_total_mass_weighted = _mass_weight_many(
-        dd_total * static_data["nac_conversion"],
+        dd_recip * static_data["nac_conversion"],
         static_data["masses"],
         mass_matrix=static_data.get("sqrt_mass_matrix"),
     )
@@ -1040,7 +1051,22 @@ def _build_interleaved_fc(second_order):
     return fc
 
 
-def _build_supercell_matrix_mapping(atoms, supercell_matrix, symprec=1e-5):
+def _build_supercell_matrix_mapping(
+    atoms,
+    supercell_matrix,
+    replicated_atoms=None,
+    symprec=1e-5,
+):
+    """Build Phonopy-compatible atom maps and shortest pair vectors.
+
+    The returned compact ordering is atom-major, as required by kALDo's force
+    constants. When an explicit replicated cell is available, its positions
+    are matched to that ordering instead of being reconstructed from the
+    primitive coordinates. This preserves small coordinate differences in
+    externally generated Phonopy supercells without coupling the controller to
+    Phonopy's own atom ordering.
+    """
+
     supercell_matrix = np.array(supercell_matrix, dtype=int)
     primitive_matrix = np.linalg.inv(supercell_matrix)
     primitive_cell = np.array(atoms.cell.array, dtype=float, copy=True)
@@ -1062,11 +1088,12 @@ def _build_supercell_matrix_mapping(atoms, supercell_matrix, symprec=1e-5):
         _factor = _n * _max_denom
         _sort_key = lambda pos: _diagonal_supercell_sort_key(pos, _factor)
     else:
-        raise NotImplementedError(
-            "Supercell atom ordering is only defined for diagonal supercell "
-            f"matrices; got\n{supercell_matrix}. See build_mapping for the "
-            "Born-von-Karman lattice contract."
-        )
+        # The long-range Gonze kernel depends on a consistent translation
+        # order, not on a diagonal-grid enumeration.  Fractional supercell
+        # coordinates provide a deterministic order for a general integer
+        # matrix; callers that combine this mapping with short-range IFCs must
+        # still ensure that their compact-FC replica axis uses the same order.
+        _sort_key = lambda pos: tuple(np.round(pos, 10)[::-1])
     translations = _unique_supercell_translations(supercell_matrix, symprec=symprec)
     translations = sorted(translations, key=lambda item: _sort_key(item[1]))
     n_translation = len(translations)
@@ -1081,25 +1108,76 @@ def _build_supercell_matrix_mapping(atoms, supercell_matrix, symprec=1e-5):
     for i_atom in range(n_atom):
         for i_translation, (shift, _) in enumerate(translations):
             index = i_atom * n_translation + i_translation
-            supercell_scaled = ((primitive_scaled[i_atom] + shift) @ primitive_matrix) % 1.0
+            supercell_scaled = (
+                (primitive_scaled[i_atom] + shift) @ primitive_matrix
+            ) % 1.0
             supercell_scaled[np.isclose(supercell_scaled, 1.0, atol=symprec)] = 0.0
             supercell_scaled_positions[index] = supercell_scaled
             primitive_shifts[index] = shift
             s2p_map[index] = p2s_map[i_atom]
             s2pp_map[index] = i_atom
-    primitive_positions_in_supercell = supercell_scaled_positions[p2s_map]
+    if replicated_atoms is not None:
+        replicated_cell = np.asarray(replicated_atoms.cell.array, dtype=float)
+        if not np.allclose(replicated_cell, supercell_cell, rtol=0, atol=1.0e-6):
+            raise ValueError("replicated-atom cell does not match the NAC supercell")
+        if len(replicated_atoms) != len(supercell_scaled_positions):
+            raise ValueError("replicated-atom count does not match the NAC supercell")
+
+        explicit_positions = np.asarray(
+            replicated_atoms.get_scaled_positions(wrap=False), dtype=float
+        )
+        explicit_symbols = np.asarray(replicated_atoms.get_chemical_symbols())
+        primitive_symbols = np.asarray(atoms.get_chemical_symbols())
+        available = np.ones(len(explicit_positions), dtype=bool)
+        reordered_positions = np.empty_like(supercell_scaled_positions)
+        for index, expected_position in enumerate(supercell_scaled_positions):
+            delta = explicit_positions - expected_position
+            delta -= np.rint(delta)
+            distances = np.linalg.norm(delta @ supercell_cell, axis=1)
+            compatible = available & (
+                explicit_symbols == primitive_symbols[s2pp_map[index]]
+            )
+            distances[~compatible] = np.inf
+            match = int(np.argmin(distances))
+            if not np.isfinite(distances[match]) or distances[match] > max(
+                10 * symprec, 1e-6
+            ):
+                raise ValueError(
+                    "could not match replicated atoms to the NAC compact order"
+                )
+            reordered_positions[index] = explicit_positions[match]
+            available[match] = False
+        supercell_scaled_positions = reordered_positions
+    reduced_cell = spglib.niggli_reduce(supercell_cell, eps=symprec)
+    if reduced_cell is None:
+        raise ValueError("Niggli reduction failed for the NAC supercell")
+    transform_float = supercell_cell @ np.linalg.inv(reduced_cell)
+    transform = np.rint(transform_float).astype(np.int64)
+    if not np.allclose(transform_float, transform, rtol=0, atol=1.0e-8):
+        raise ValueError("NAC supercell Niggli transform is not integral")
+    inverse_float = np.linalg.inv(transform)
+    inverse_transform = np.rint(inverse_float).astype(np.int64)
+    if not np.allclose(inverse_float, inverse_transform, rtol=0, atol=1.0e-8):
+        raise ValueError("inverse NAC supercell Niggli transform is not integral")
+
+    reduced_positions = supercell_scaled_positions @ transform
+    reduced_positions -= np.rint(reduced_positions)
+    primitive_positions_in_supercell = reduced_positions[p2s_map]
     lattice_points = _phonopy_lattice_points()
     svecs = []
     phase_svecs = []
     multi = np.zeros((len(supercell_scaled_positions), n_atom, 2), dtype=np.int64)
-    for i_s, supercell_position in enumerate(supercell_scaled_positions):
+    for i_s, supercell_position in enumerate(reduced_positions):
         for i_p, primitive_position in enumerate(primitive_positions_in_supercell):
-            candidates_supercell = supercell_position - primitive_position + lattice_points
-            distances = np.linalg.norm(candidates_supercell @ supercell_cell, axis=1)
+            candidates_reduced = (
+                supercell_position - primitive_position + lattice_points
+            )
+            distances = np.linalg.norm(candidates_reduced @ reduced_cell, axis=1)
             min_distance = distances.min()
             start = len(svecs)
-            for vec_supercell, distance in zip(candidates_supercell, distances):
+            for vec_reduced, distance in zip(candidates_reduced, distances):
                 if abs(distance - min_distance) < symprec:
+                    vec_supercell = vec_reduced @ inverse_transform
                     svecs.append(vec_supercell)
                     phase_svecs.append(vec_supercell @ supercell_matrix)
             multi[i_s, i_p, 0] = len(svecs) - start
@@ -1140,8 +1218,7 @@ def ensure_kernel_cache(static_data, mapping):
             )
         if "target_mask" not in mapping:
             mapping["target_mask"] = (
-                mapping["s2p_map"][:, np.newaxis]
-                == mapping["p2s_map"][np.newaxis, :]
+                mapping["s2p_map"][:, np.newaxis] == mapping["p2s_map"][np.newaxis, :]
             ).astype(np.complex128)
         return static_data, mapping
 
@@ -1150,33 +1227,17 @@ def ensure_kernel_cache(static_data, mapping):
             static_data["primitive_positions"][:, np.newaxis, :]
             - static_data["primitive_positions"][np.newaxis, :, :]
         )
-        phases = 2j * np.pi * np.einsum(
-            "ga,ija->gij",
-            static_data["G_list"],
-            position_deltas,
-            optimize=True,
+        phases = (
+            2j
+            * np.pi
+            * np.einsum(
+                "ga,ija->gij",
+                static_data["G_list"],
+                position_deltas,
+                optimize=True,
+            )
         )
         static_data["pair_phase"] = np.exp(phases)
-    if "dd_limiting_expanded" not in static_data:
-        n_atom = len(static_data["masses"])
-        dd_limiting_expanded = np.zeros((n_atom, 3, n_atom, 3), dtype=np.complex128)
-        diag = np.arange(n_atom)
-        dd_limiting_expanded[diag, :, diag, :] = static_data["dd_limiting"]
-        static_data["dd_limiting_expanded"] = dd_limiting_expanded
-    if "dd_drift_blocks" not in static_data:
-        dd_drift_blocks = np.zeros_like(static_data["dd_limiting_expanded"])
-        diag = np.arange(len(static_data["masses"]))
-        dd_drift_blocks[diag, :, diag, :] = static_data["dd_drift"]
-        static_data["dd_drift_blocks"] = dd_drift_blocks
-    if "h_tensor" not in static_data:
-        static_data["h_tensor"] = _h_tensor(
-            mapping.get("svecs_cell", static_data["supercell_cell"]),
-            mapping["svecs"],
-            static_data["dielectric"],
-            float(static_data["Lambda"]),
-        )
-    if "real_dipole_det_scale" not in static_data:
-        static_data["real_dipole_det_scale"] = np.linalg.det(static_data["dielectric"]) ** (-0.5)
     if "sqrt_mass_matrix" not in static_data:
         static_data["sqrt_mass_matrix"] = np.sqrt(
             np.outer(static_data["masses"], static_data["masses"])
@@ -1204,46 +1265,68 @@ def build_static_data(second, matrix=None):
         # do not construct or subtract the Gonze dipole-dipole terms.
         qe_static_data = _prepare_qe_static_data(qe_header)
         if len(atoms) != len(qe_static_data["masses"]):
-            raise QENACError("q2r atom count does not match the SecondOrder primitive cell")
+            raise QENACError(
+                "q2r atom count does not match the SecondOrder primitive cell"
+            )
         qe_cell = (
             qe_static_data["qe_at_columns"].T
             * qe_static_data["qe_alat_bohr"]
             * BOHR_ANGSTROM
         )
-        if not np.allclose(
-            np.asarray(atoms.cell), qe_cell, rtol=2e-7, atol=2e-7
-        ):
-            raise QENACError("q2r lattice does not match the SecondOrder primitive cell")
-        qe_static_data.update({
-            "convention": "qe_q2r",
-            "qe_second_order": second,
-            "primitive_cell": np.array(atoms.cell.array, dtype=float, copy=True),
-            "reciprocal_lattice": np.array(atoms.cell.reciprocal(), dtype=float, copy=True),
-            "supercell_cell": np.array(second.replicated_atoms.cell.array, dtype=float, copy=True),
-            "q_direction_tolerance": np.array(QE_GAMMA_TOLERANCE),
-            "sqrt_mass_matrix": np.sqrt(np.outer(atoms.get_masses(), atoms.get_masses())),
-            "nac_conversion": units.mol / (10 * units.J),
-        })
+        if not np.allclose(np.asarray(atoms.cell), qe_cell, rtol=2e-7, atol=2e-7):
+            raise QENACError(
+                "q2r lattice does not match the SecondOrder primitive cell"
+            )
+        qe_static_data.update(
+            {
+                "convention": "qe_q2r",
+                "qe_second_order": second,
+                "primitive_cell": np.array(atoms.cell.array, dtype=float, copy=True),
+                # Store the column-action reciprocal transform: ``B @ q_red``.
+                # ASE exposes reciprocal basis vectors as rows, whose transpose is
+                # required by the controller's matrix-vector convention.
+                "reciprocal_lattice": np.linalg.inv(
+                    np.array(atoms.cell.array, dtype=float, copy=True)
+                ),
+                "supercell_cell": np.array(
+                    second.replicated_atoms.cell.array, dtype=float, copy=True
+                ),
+                "q_direction_tolerance": np.array(QE_GAMMA_TOLERANCE),
+                "sqrt_mass_matrix": np.sqrt(
+                    np.outer(atoms.get_masses(), atoms.get_masses())
+                ),
+                "nac_conversion": units.mol / (10 * units.J),
+            }
+        )
         return qe_static_data
 
     born = np.array(atoms.get_array("charges"), dtype=float, copy=True)
+    # Match Phonopy's Gonze preparation: enforce the Born acoustic sum rule on
+    # a private copy so caller-owned atom data remain unchanged.
+    born -= born.mean(axis=0)
     dielectric = np.array(atoms.info["dielectric"], dtype=float, copy=True)
     primitive_cell = np.array(atoms.cell.array, dtype=float, copy=True)
     primitive_positions = np.array(atoms.positions, dtype=float, copy=True)
-    reciprocal_lattice = np.array(atoms.cell.reciprocal(), dtype=float, copy=True)
+    # Controller kernels apply this matrix to reduced-coordinate column
+    # vectors; for row-vector direct cells that transform is ``inv(cell)``.
+    reciprocal_lattice = np.linalg.inv(primitive_cell)
     masses = np.array(atoms.get_masses(), dtype=float, copy=True)
     matrix = normalize_bvk_supercell_matrix(matrix)
     if matrix is None:
-        supercell_cell = np.array(second.replicated_atoms.cell.array, dtype=float, copy=True)
+        supercell_cell = np.array(
+            second.replicated_atoms.cell.array, dtype=float, copy=True
+        )
     else:
         supercell_cell = np.array(matrix @ primitive_cell, dtype=float, copy=True)
     volume = float(abs(np.linalg.det(primitive_cell)))
     num_g_points = 300
     g_cutoff = float((3 * num_g_points / (4 * np.pi) / volume) ** (1.0 / 3))
     exp_cutoff = 1e-10
-    geg = g_cutoff ** 2 * np.trace(dielectric) / 3
+    geg = g_cutoff**2 * np.trace(dielectric) / 3
     lambda_ = float(np.sqrt(-geg / 4 / np.log(exp_cutoff)))
-    unit_conversion_factor = 14.4
+    unit_conversion_factor = float(
+        atoms.info.get("nac_factor", units.Hartree * units.Bohr)
+    )
     nac_factor = float(unit_conversion_factor * 4 * np.pi / volume)
     tolerance = 1e-5
     g_list = _get_g_list(reciprocal_lattice, g_cutoff)
@@ -1295,4 +1378,8 @@ def build_mapping(second, matrix=None):
             "constants on a different Born-von-Karman lattice is not "
             "implemented."
         )
-    return _build_supercell_matrix_mapping(second.atoms, matrix)
+    return _build_supercell_matrix_mapping(
+        second.atoms,
+        matrix,
+        replicated_atoms=second.replicated_atoms,
+    )
