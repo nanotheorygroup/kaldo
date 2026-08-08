@@ -1,8 +1,31 @@
 """Long-range dipole electrostatics for harmonic phonons in polar crystals.
 
-Every supported path constructs the full dynamical matrix as
+Why this controller exists
+--------------------------
+A displacement of a charged sublattice changes the macroscopic polarization.
+The Born effective charge ``Z*`` measures that polarization response, and the
+electronic dielectric tensor ``epsilon`` describes how the resulting electric
+field is screened. In a polar crystal the induced dipole field is long ranged,
+so a finite real-space force-constant supercell cannot represent it smoothly.
+Near Gamma the field also depends on the direction from which q approaches
+zero; this is the microscopic origin of longitudinal--transverse optical
+(LO--TO) splitting.
+
+The ordinary harmonic dynamical matrix is the mass-weighted Fourier transform
+of the interatomic force constants (IFCs),
+
+``D(q) = M^(-1/2) FT[Phi](q) M^(-1/2)``.
+
+For polar IFCs this module separates the rapidly decaying part from the
+analytical dipole field and evaluates
 
 ``D_full(q) = FT[IFC_short](q) + D_dipole(q)``.
+
+The Ewald sums below are not an additional interaction model. They are a
+convergent representation of the same dipole field: reciprocal vectors build
+the long-range contribution, the q=0 onsite term preserves translational
+invariance, and Born charges convert the geometric electric-field kernel into
+force response between atomic displacements.
 
 The controller supports two input conventions, selected from force-constant
 provenance rather than from the chemical species or a numerical fallback:
@@ -24,7 +47,9 @@ provenance rather than from the chemical species or a numerical fallback:
 The invariant is exactly one dipole removal and one matching restoration.
 Both paths require a 3x3 electronic dielectric tensor and one 3x3 Born
 effective-charge tensor per primitive atom. This module implements and tests
-three-dimensional periodic electrostatics only.
+three-dimensional periodic electrostatics only. Comments use ``i`` and ``j``
+for atoms, Greek indices for Cartesian components, ``G`` for reciprocal
+lattice vectors, and ``q`` for the requested phonon wavevector.
 """
 
 import itertools
@@ -85,7 +110,12 @@ class QENACError(ValueError):
 
 
 def qe_default_alpha(alat_bohr: float) -> float:
-    """Return the default Ewald alpha used by QE ``rigid.f90``."""
+    """Return the default Ewald width used by QE ``rigid.f90``.
+
+    ``alpha = (alat / 2*pi)^2`` controls the Gaussian damping of reciprocal
+    terms. It changes how the Ewald representation converges, not the physical
+    long-range interaction that is ultimately restored.
+    """
     alat_bohr = float(alat_bohr)
     if not np.isfinite(alat_bohr) or alat_bohr <= 0:
         raise QENACError("alat_bohr must be finite and positive")
@@ -119,6 +149,7 @@ class _QERigidIonKernel:
     scope and are intentionally not represented by this kernel.
     """
 
+    # Quantities above the separator are preserved in QE's native q2r gauge.
     at_columns: _FLOAT
     tau: _FLOAT
     born: _FLOAT
@@ -128,6 +159,8 @@ class _QERigidIonKernel:
     alat_bohr: float
     volume_bohr3: float
     masses_amu: _FLOAT
+    # These reciprocal-space and onsite terms depend only on the structure, so
+    # build them once rather than repeating the Ewald setup at every q point.
     bg_columns: _FLOAT = field(init=False, repr=False)
     g_vectors: _FLOAT = field(init=False, repr=False)
     onsite: _COMPLEX = field(init=False, repr=False)
@@ -150,7 +183,13 @@ class _QERigidIonKernel:
         )
 
     def __post_init__(self) -> None:
-        """Check q2r invariants and precompute the q-independent Ewald terms."""
+        """Check q2r invariants and precompute the q-independent Ewald terms.
+
+        The checks are physical consistency checks as well as shape checks: a
+        rigid-ion kernel is meaningful only when lattice, volume, atoms,
+        charges, dielectric screening, and masses describe the same primitive
+        cell. Mixing any of these from another calculation changes the field.
+        """
         if self.at_columns.shape != (3, 3) or abs(np.linalg.det(self.at_columns)) < 1e-14:
             raise QENACError("q2r lattice must be a nonsingular 3x3 matrix")
         if self.tau.ndim != 2 or self.tau.shape[1] != 3:
@@ -172,6 +211,8 @@ class _QERigidIonKernel:
         if not np.isclose(self.volume_bohr3, inferred_volume, rtol=2e-10, atol=1e-10):
             raise QENACError("q2r volume is inconsistent with its lattice")
 
+        # QE acts on column lattice vectors. The inverse transpose therefore
+        # supplies reciprocal basis columns satisfying at.T @ bg = identity.
         self.bg_columns = np.linalg.inv(self.at_columns).T
         self.g_vectors = self._build_g_vectors()
         self.onsite = self._build_onsite_tensor()
@@ -187,7 +228,15 @@ class _QERigidIonKernel:
         return self.at_columns.T * self.alat_bohr * BOHR_ANGSTROM
 
     def _build_g_vectors(self) -> _FLOAT:
-        """Build the reciprocal box used by QE ``rgd_blk``'s Ewald sum."""
+        """Build the reciprocal box used by QE ``rgd_blk``'s Ewald sum.
+
+        The box only needs to enclose vectors that can pass QE's Gaussian
+        cutoff ``G.epsilon.G / (4*alpha) < QE_GMAX``. As in ``rigid.f90``, a
+        direction with only one q2r mesh point is kept at its zero reciprocal
+        image; otherwise the Ewald cutoff determines the loop bound.
+        """
+        # ``radius`` is the isotropic outer bound before dielectric screening
+        # removes individual vectors in _screening.
         radius = np.sqrt(4 * QE_GMAX * self.alpha)
         bounds = []
         for axis, count in enumerate(self.q_grid):
@@ -217,19 +266,32 @@ class _QERigidIonKernel:
         fixed value 14 is the reciprocal-space cutoff in ``rigid.f90``.
         ``None`` denotes a zero or excluded vector.
         """
+        # epsilon turns the Euclidean |G+q|² into the screened electrostatic
+        # denominator (G+q).epsilon.(G+q).
         geg = float(vector @ self.dielectric @ vector)
         if geg <= 0 or geg / (4 * self.alpha) >= QE_GMAX:
             return None
+        # 4*pi/V is the reciprocal-space Coulomb prefactor; the exponential is
+        # Ewald damping and 1/geg is the screened Coulomb propagator.
         return float(
             sign * E2_RY * FOUR_PI / self.volume_bohr3 * np.exp(-geg / (4 * self.alpha)) / geg
         )
 
     def _charge_projection(self, vector: _FLOAT) -> _FLOAT:
-        """Return ``G.Z*`` for every atom, with shape ``(n_atoms, 3)``."""
+        """Return ``(G+q).Z*`` for every atom, shape ``(n_atoms, 3)``.
+
+        This converts the electric-field direction into the force/displacement
+        Cartesian axes carried by each Born effective-charge tensor.
+        """
         return np.einsum("i,nij->nj", vector, self.born, optimize=True)
 
     def _pair_phase(self, vector: _FLOAT) -> _FLOAT:
-        """Return QE's dimensionless ``2*pi*(tau_i-tau_j).vector`` phases."""
+        """Return QE's dimensionless ``2*pi*(tau_i-tau_j).vector`` phases.
+
+        The complex exponential of this phase locates the two basis atoms
+        inside the primitive cell. Omitting it would be correct only for atoms
+        at the same basis position and fails for multi-atom cells.
+        """
         return TWO_PI * np.einsum(
             "abi,i->ab",
             self.tau[:, None, :] - self.tau[None, :, :],
@@ -251,6 +313,9 @@ class _QERigidIonKernel:
             if prefactor is None:
                 continue
             projected_charge = self._charge_projection(vector)
+            # QE's fnat contracts the response of every partner atom with the
+            # real (cosine) basis phase. It produces the diagonal self block
+            # that balances the force exerted on all other atoms.
             fnat = np.cos(self._pair_phase(vector)) @ projected_charge
             for atom in range(self.atom_count):
                 block = np.outer(projected_charge[atom], fnat[atom])
@@ -260,7 +325,13 @@ class _QERigidIonKernel:
     def to_cartesian(
         self, qpoint: Sequence[float], coordinates: _QCoordinates = "crystal"
     ) -> _FLOAT:
-        """Convert q to QE Cartesian coordinates in units of ``2*pi/alat``."""
+        """Convert q to QE Cartesian coordinates in units of ``2*pi/alat``.
+
+        Crystal coordinates are coefficients of reciprocal basis vectors;
+        ``rigd_blk`` instead consumes their Cartesian sum. Keeping this
+        conversion at the kernel boundary prevents row/column lattice gauges
+        from leaking into the electrostatic formulas.
+        """
         qpoint = _vector(qpoint, "qpoint")
         if coordinates == "qe_cartesian":
             return np.array(qpoint, copy=True)
@@ -269,7 +340,12 @@ class _QERigidIonKernel:
         raise QENACError(f"unsupported q coordinate convention {coordinates!r}")
 
     def is_gamma(self, qpoint: Sequence[float], coordinates: _QCoordinates = "crystal") -> bool:
-        """Test for Gamma modulo a reciprocal vector, including skewed cells."""
+        """Test for Gamma modulo a reciprocal vector, including skewed cells.
+
+        q and q+G describe the same crystal momentum. Testing reduced integer
+        residuals, rather than a Cartesian norm alone, recognizes every
+        reciprocal image of Gamma in a non-orthogonal cell.
+        """
         q_reduced = self.to_cartesian(qpoint, coordinates) @ self.at_columns
         residual = np.abs(q_reduced - np.rint(q_reduced))
         return bool(np.all(residual <= QE_GAMMA_TOLERANCE))
@@ -282,6 +358,8 @@ class _QERigidIonKernel:
         pair phase. The result has shape ``(n_atoms, 3, n_atoms, 3)``.
         """
         q_cartesian = self.to_cartesian(qpoint)
+        # Start from the q-independent diagonal compensation. The loop then
+        # restores the finite-q interaction removed by q2r with sign=-1.
         tensor = np.array(self.onsite, copy=True)
         for vector in self.g_vectors:
             shifted = vector + q_cartesian
@@ -290,6 +368,8 @@ class _QERigidIonKernel:
                 continue
             projected_charge = self._charge_projection(shifted)
             phase = np.exp(1j * self._pair_phase(shifted))
+            # Outer products of the two charge projections give the response
+            # between displacement component (a,i) and force component (b,j).
             tensor += prefactor * np.einsum(
                 "ai,bj,ab->aibj",
                 projected_charge,
@@ -311,11 +391,16 @@ class _QERigidIonKernel:
         norm = float(np.linalg.norm(q))
         if norm == 0:
             return np.zeros((self.atom_count, 3, self.atom_count, 3), dtype=np.complex128)
+        # Only the approach direction matters in the q -> 0 limit; its length
+        # cancels between numerator and dielectric denominator.
         q /= norm
         qeq = float(q @ self.dielectric @ q)
         if qeq < 1e-8:
             return np.zeros((self.atom_count, 3, self.atom_count, 3), dtype=np.complex128)
         projected_charge = self._charge_projection(q)
+        # D_NA is proportional to (q.Z_i*) (q.Z_j*) / (q.epsilon.q). This is
+        # the direction-dependent macroscopic field responsible for LO--TO
+        # splitting at exactly Gamma.
         return (
             FOUR_PI
             * E2_RY
@@ -335,12 +420,18 @@ class _QERigidIonKernel:
         is the inverse of q2r's single ``rgd_blk(..., sign=-1)`` removal; it
         must never be combined with the Gonze total-IFC subtraction path.
         """
+        # Finite-q rigid-ion restoration is present everywhere, including
+        # Gamma. The additional nonanalytic limit exists only when a direction
+        # has been requested for the exact-Gamma point.
         tensor = self.rigid_ion_tensor(qpoint)
         if gamma_direction_cartesian is not None and self.is_gamma(qpoint):
             tensor += self.nonanalytic_tensor(gamma_direction_cartesian)
 
         matrix = tensor.reshape(3 * self.atom_count, 3 * self.atom_count)
         roots = np.repeat(np.sqrt(self.masses_amu), 3)
+        # QE supplies an unweighted force-constant-like tensor in Ry/bohr².
+        # Convert energy/length first, apply M^(-1/2) on both atom axes, then
+        # convert to the 10 J/mol convention used by kALDo dynamical matrices.
         matrix *= RY_TO_EV / BOHR_ANGSTROM**2
         matrix /= roots[:, None] * roots[None, :]
         matrix *= EV_TO_10J_PER_MOL
@@ -356,6 +447,10 @@ class _QERigidIonKernel:
 # ---------------------------------------------------------------------------
 # Shared frequency and unit conversions
 # ---------------------------------------------------------------------------
+# The first, generic direction selects a reproducible basis inside degenerate
+# eigenspaces. The three Cartesian directions then provide dD/dq_x,y,z for
+# group velocity. A non-axis-aligned first direction avoids leaving common
+# crystal degeneracies unresolved by symmetry.
 NAC_VELOCITY_DIRECTIONS_CART = np.array(
     [
         np.array([1.0, 2.0, 3.0], dtype=float) / np.sqrt(14.0),
@@ -368,7 +463,13 @@ NAC_VELOCITY_DIRECTIONS_CART = np.array(
 
 
 def degenerate_sets(frequencies, tolerance=NAC_VELOCITY_DEGENERACY_TOLERANCE):
-    """Group adjacent sorted frequencies into degenerate perturbation sets."""
+    """Group adjacent sorted frequencies into degenerate perturbation sets.
+
+    An eigenvector inside an exactly or nearly degenerate phonon subspace is
+    not unique. NAC velocity derivatives must therefore diagonalize the q
+    perturbation within the whole subspace instead of assigning derivatives to
+    whichever eigenvectors a numerical eigensolver happened to return.
+    """
     sets = []
     current = [0]
     for index in range(1, len(frequencies)):
@@ -382,12 +483,21 @@ def degenerate_sets(frequencies, tolerance=NAC_VELOCITY_DEGENERACY_TOLERANCE):
 
 
 def _to_phonopy_dm(dm):
-    """Convert a kALDo dynamical matrix to Phonopy's frequency-squared units."""
+    """Convert a kALDo dynamical matrix to Phonopy's frequency-squared units.
+
+    This changes units only; both representations are already mass weighted
+    and have eigenvalues proportional to angular frequency squared.
+    """
     return np.array(dm, copy=True) / _PHONOPY_TO_KALDO_DM
 
 
 def _phonopy_frequencies_from_eigenvalues(eigenvalues):
-    """Convert signed Phonopy dynamical-matrix eigenvalues to THz."""
+    """Convert signed Phonopy dynamical-matrix eigenvalues to THz.
+
+    Negative eigenvalues denote imaginary harmonic modes. Their sign is kept
+    while the square root is taken from the magnitude, matching kALDo's signed
+    frequency convention instead of silently discarding an instability.
+    """
     factor = np.sqrt(_PHONOPY_TO_KALDO_DM) / (2 * np.pi)
     return np.sign(eigenvalues) * np.sqrt(np.abs(eigenvalues)) * factor
 
@@ -404,12 +514,21 @@ _BZ_SEARCH_SPACE = np.array(
 
 
 def _dielectric_part(q_cart, dielectric):
-    """Evaluate the screened reciprocal norm ``q.T @ dielectric @ q``."""
+    """Evaluate the screened reciprocal norm ``q.T @ dielectric @ q``.
+
+    In an anisotropic crystal this replaces the vacuum denominator ``|q|²``;
+    it is the scalar screening seen by a field polarized along q.
+    """
     return float(np.einsum("i,ij,j->", q_cart, dielectric, q_cart))
 
 
 def _get_minimum_g_rad(reciprocal_lattice, g_cutoff, g_rad=100):
-    """Find an integer search radius enclosing Phonopy's reciprocal cutoff."""
+    """Find an integer search radius enclosing Phonopy's reciprocal cutoff.
+
+    The Ewald sum is truncated by a Cartesian sphere, but reciprocal vectors
+    are enumerated by integer lattice coefficients. This routine finds a cube
+    of coefficients guaranteed to contain that sphere even for skewed cells.
+    """
     for trial_g_rad in range(g_rad, 0, -1):
         for a in (-1, 0, 1):
             for b in (-1, 0, 1):
@@ -423,14 +542,23 @@ def _get_minimum_g_rad(reciprocal_lattice, g_cutoff, g_rad=100):
 
 
 def _get_g_vec_list(reciprocal_lattice, g_rad):
-    """Enumerate reciprocal vectors in the integer cube ``[-g_rad, g_rad]``."""
+    """Enumerate reciprocal vectors in the integer cube ``[-g_rad, g_rad]``.
+
+    Multiplication by the reciprocal lattice converts integer coefficients to
+    Cartesian G vectors; the later spherical mask removes the cube corners.
+    """
     npts = g_rad * 2 + 1
     grid = np.array(list(np.ndindex((npts, npts, npts))), dtype=np.int64) - g_rad
     return np.array(grid @ reciprocal_lattice.T, dtype="double", order="C")
 
 
 def _get_g_list(reciprocal_lattice, g_cutoff):
-    """Return reciprocal vectors inside the spherical Gonze cutoff."""
+    """Return reciprocal vectors inside the spherical Gonze cutoff.
+
+    The cutoff makes the Gaussian-damped Ewald sum finite. It is chosen with
+    the Ewald width in :func:`build_static_data`, so changing one without the
+    other would change numerical convergence and break Phonopy equivalence.
+    """
     g_rad = _get_minimum_g_rad(reciprocal_lattice, g_cutoff)
     g_vec_list = _get_g_vec_list(reciprocal_lattice, g_rad)
     g_norm2 = (g_vec_list**2).sum(axis=1)
@@ -438,7 +566,13 @@ def _get_g_list(reciprocal_lattice, g_cutoff):
 
 
 def _multiply_borns(dd_in, born):
-    """Contract the geometric dipole kernel with Born tensors on both atoms."""
+    """Contract the geometric electric-field kernel with both Born tensors.
+
+    ``dd_in[i,p,j,q]`` couples field directions ``p`` and ``q``. Left and
+    right multiplication by ``Z_i*`` and ``Z_j*`` converts those directions
+    into Cartesian force/displacement components ``alpha`` and ``beta``:
+    ``D[i,alpha,j,beta] = Z_i*[p,alpha] dd[p,q] Z_j*[q,beta]``.
+    """
     born_t = np.transpose(born, (0, 2, 1))
     # Apply the Born-charge tensors on both Cartesian sides in one contraction.
     return np.einsum("iap,ipjq,jqb->iajb", born_t, dd_in, born, optimize=True)
@@ -462,6 +596,9 @@ def _get_dd_base(
     prefactor, onsite subtraction, and mass weighting are applied later.
     """
     if pair_phase is None:
+        # The basis phase locates atom i relative to atom j for every G. It is
+        # q independent in this Gonze gauge and is therefore cached after the
+        # first call by ensure_kernel_cache.
         position_deltas = positions[:, None, :] - positions[None, :, :]
         phases = (
             2j
@@ -475,6 +612,9 @@ def _get_dd_base(
         )
         pair_phase = np.exp(phases)
 
+    # Coulomb fields at crystal momentum q contain every reciprocal image
+    # k = G+q. Their k=0 member is singular and is treated as a directional
+    # limit below rather than divided by zero.
     g_plus_q = g_list + q_cart[np.newaxis, :]
     norms = np.linalg.norm(g_plus_q, axis=1)
     reciprocal_dyads = np.zeros((len(g_list), 3, 3), dtype=np.complex128)
@@ -501,11 +641,16 @@ def _get_dd_base(
     if q_direction_cart is not None:
         inactive = ~active
         if np.any(inactive):
+            # At exact Gamma, replace k k / (k.epsilon.k) by its q -> 0
+            # directional limit. Different directions give the LO--TO split.
             directional_screening = _dielectric_part(q_direction_cart, dielectric)
             directional_dyad = (
                 np.outer(q_direction_cart, q_direction_cart) / directional_screening
             )
             reciprocal_dyads[inactive] = directional_dyad
+    # Sum reciprocal images after attaching their atom-pair basis phases. Born
+    # charges are intentionally not applied here so this geometric kernel can
+    # be reused by both the scalar and batched assembly paths.
     return np.einsum("gab,gij->iajb", reciprocal_dyads, pair_phase, optimize=True)
 
 
@@ -527,6 +672,8 @@ def _get_dd_base_many(
     and mass weighting are deliberately left to :func:`dynamical_matrices`.
     """
     if pair_phase is None:
+        # Same q-independent basis phase as _get_dd_base, shared by every q in
+        # the batch. Production calls normally provide the cached value.
         position_deltas = positions[:, None, :] - positions[None, :, :]
         phases = (
             2j
@@ -540,6 +687,8 @@ def _get_dd_base_many(
         )
         pair_phase = np.exp(phases)
 
+    # Add the q axis in front of the reciprocal-vector axis. The following
+    # operations are the exact batched counterpart of _get_dd_base.
     q_carts = np.asarray(q_carts, dtype=float)
     g_plus_q = g_list[np.newaxis, :, :] + q_carts[:, np.newaxis, :]
     screened_norms = np.einsum(
@@ -570,6 +719,8 @@ def _get_dd_base_many(
             1.0 / directional_screening,
             optimize=True,
         )
+        # Only singular G+q entries receive this limit; ordinary finite-q
+        # terms retain their screened Ewald dyads.
         reciprocal_dyads += (
             (~active)[..., np.newaxis, np.newaxis]
             * directional_dyads[:, np.newaxis, :, :]
@@ -578,8 +729,17 @@ def _get_dd_base_many(
 
 
 def _recip_dipole_dipole_q0(g_list, born, dielectric, positions, lambda_, tolerance):
-    """Compute Phonopy's Hermitian q=0 onsite drift tensor before scaling."""
+    """Compute the q=0 onsite drift that enforces translational invariance.
+
+    A uniform translation must not create a restoring force. The reciprocal
+    atom-pair blocks at q=0 do not satisfy that identity term by term after the
+    Ewald truncation, so their sum over partner atom ``j`` is stored and later
+    subtracted from each diagonal ``i=i`` block. This is distinct from the Born
+    charge acoustic sum rule applied during generic input preparation.
+    """
     zero = np.zeros(3, dtype="double")
+    # No approach direction is supplied: this is the analytic q=0 drift used
+    # to balance translations, not the directional nonanalytic Gamma term.
     dd_tmp1 = _get_dd_base(g_list, zero, None, dielectric, positions, lambda_, tolerance)
     dd_tmp2 = _multiply_borns(dd_tmp1, born)
     dd_q0 = dd_tmp2.sum(axis=2)
@@ -591,7 +751,12 @@ def _recip_dipole_dipole_q0(g_list, born, dielectric, positions, lambda_, tolera
 # Gonze short-range interpolation and mass weighting
 # ---------------------------------------------------------------------------
 def _mass_weight(fc_term, masses):
-    """Apply ``1/sqrt(M_i M_j)`` and flatten one atom-block tensor."""
+    """Turn force-constant blocks into one harmonic dynamical matrix.
+
+    Dividing ``Phi[i,alpha,j,beta]`` by ``sqrt(M_i M_j)`` changes the
+    eigenproblem from Cartesian displacements to mass-normalized coordinates.
+    The block tensor is then flattened to the matrix diagonalized by kALDo.
+    """
     mass_matrix = np.sqrt(np.outer(masses, masses))
     out = np.array(fc_term, dtype=np.complex128, copy=True)
     out /= mass_matrix[:, np.newaxis, :, np.newaxis]
@@ -599,7 +764,7 @@ def _mass_weight(fc_term, masses):
 
 
 def _mass_weight_many(fc_terms, masses, mass_matrix=None):
-    """Apply atom-pair mass weighting to a batch of block tensors."""
+    """Apply the same ``M^(-1/2) Phi M^(-1/2)`` operation to many q points."""
     if mass_matrix is None:
         mass_matrix = np.sqrt(np.outer(masses, masses))
     out = np.array(fc_terms, dtype=np.complex128, copy=True)
@@ -608,7 +773,13 @@ def _mass_weight_many(fc_terms, masses, mass_matrix=None):
 
 
 def _build_segment_phase_weights(multi, n_svec):
-    """Expand shortest-vector multiplicities into normalized phase weights."""
+    """Assign equal Fourier weight to symmetry-tied shortest vectors.
+
+    A supercell atom and primitive atom may be connected by several periodic
+    images at exactly the same minimum distance. Phonopy averages their phase
+    factors instead of choosing one image; each member therefore receives
+    weight ``1 / multiplicity``. This is essential on cell and BZ boundaries.
+    """
     n_satom, n_patom = multi.shape[:2]
     weights = np.zeros((n_satom, n_patom, n_svec), dtype=np.float64)
     for i_s in range(n_satom):
@@ -635,17 +806,28 @@ def _short_range_dynamical_matrix(
     All equally short Wigner--Seitz vectors for an atom pair are phase averaged,
     matching Phonopy's dynamical-matrix convention. The result is mass weighted,
     flattened to ``(3*n_atoms, 3*n_atoms)``, and made Hermitian.
+
+    Conceptually this evaluates ``sum_R Phi_short(R) exp(2*pi*i*q.R)``. The
+    mapping arrays translate between primitive-atom and supercell-atom indices;
+    they carry geometry only and never alter the force constants themselves.
     """
     num_patom = len(p2s_map)
     is_compact_fc = fc.shape[0] != fc.shape[1]
     if phase_weights is None:
         phase_weights = _build_segment_phase_weights(multi, len(svecs))
+    # Fourier phase of every shortest real-space vector R at this q.
     phase_all = np.exp(2j * np.pi * (svecs @ q_red))
+    # Collapse all tied R vectors to one averaged phase for each supercell /
+    # primitive atom pair.
     phase_factors = np.einsum("spl,l->sp", phase_weights, phase_all, optimize=True)
     if target_mask is None:
         target_mask = (s2p_map[:, np.newaxis] == p2s_map[np.newaxis, :]).astype(np.complex128)
+    # A compact FC already has a primitive source-atom axis. For a full FC,
+    # p2s_map selects the representative source atom in the origin cell.
     fc_source = fc if is_compact_fc else fc[p2s_map]
     weighted_fc = fc_source * phase_factors.T[:, :, np.newaxis, np.newaxis]
+    # target_mask sums all supercell images belonging to primitive target j,
+    # producing primitive-by-primitive Cartesian blocks at q.
     dm_blocks = np.einsum("isab,sj->ijab", weighted_fc, target_mask, optimize=True)
     dm_blocks /= np.sqrt(np.outer(masses, masses))[:, :, np.newaxis, np.newaxis]
     dm = np.transpose(dm_blocks, (0, 2, 1, 3)).reshape(num_patom * 3, num_patom * 3)
@@ -670,12 +852,16 @@ def _short_range_dynamical_matrix_many(
     ``(n_s, n_s, 3, 3)`` force constants. All shortest-vector phases for each
     atom pair are averaged before the result is mass weighted. The returned
     array has shape ``(n_q, 3*n_p, 3*n_p)`` in kALDo dynamical-matrix units.
+    This is the production, vectorized form of
+    :func:`_short_range_dynamical_matrix`; the two implement the same Fourier
+    convention and shortest-vector averaging.
     """
     q_reds = np.asarray(q_reds, dtype=float)
     num_patom = len(p2s_map)
     is_compact_fc = fc.shape[0] != fc.shape[1]
     if phase_weights is None:
         phase_weights = _build_segment_phase_weights(multi, len(svecs))
+    # Form q.R for every requested q and every shortest real-space vector.
     phase_all = np.exp(2j * np.pi * np.einsum("qa,sa->qs", q_reds, svecs, optimize=True))
     # Average all shortest-path phases for every q-point and primitive/supercell pair.
     phase_factors = np.einsum("spl,ql->qsp", phase_weights, phase_all, optimize=True)
@@ -684,6 +870,8 @@ def _short_range_dynamical_matrix_many(
     if mass_matrix is None:
         mass_matrix = np.sqrt(np.outer(masses, masses))
     fc_source = fc if is_compact_fc else fc[p2s_map]
+    # Broadcast the averaged phase onto each Cartesian IFC block, then collect
+    # all periodic images into primitive target atoms with target_mask.
     weighted_fc = (
         fc_source[np.newaxis, :, :, :, :]
         * np.transpose(phase_factors, (0, 2, 1))[:, :, :, np.newaxis, np.newaxis]
@@ -698,7 +886,13 @@ def _short_range_dynamical_matrix_many(
 # Born--von Karman geometry and Wigner--Seitz mapping
 # ---------------------------------------------------------------------------
 def normalize_bvk_supercell_matrix(nac_bvk_supercell_matrix):
-    """Validate an optional integer Born--von Karman supercell matrix."""
+    """Validate an optional integer Born--von Karman supercell matrix.
+
+    A BvK matrix defines the periodic real-space lattice on which IFCs live;
+    its reciprocal dual defines the commensurate q mesh used by the discrete
+    Fourier transform. A singular matrix would not define a three-dimensional
+    periodic cell.
+    """
     if nac_bvk_supercell_matrix is None:
         return None
     matrix = np.array(nac_bvk_supercell_matrix, dtype=int)
@@ -711,7 +905,11 @@ def normalize_bvk_supercell_matrix(nac_bvk_supercell_matrix):
 
 
 def bvk_supercell_matrix_key(nac_bvk_supercell_matrix):
-    """Return a filesystem-safe cache key for a BvK supercell matrix."""
+    """Return a filesystem-safe cache key for a BvK supercell matrix.
+
+    Short-range IFCs depend on the BvK lattice used for subtraction, so caches
+    from different lattices must never share a name.
+    """
     matrix = normalize_bvk_supercell_matrix(nac_bvk_supercell_matrix)
     if matrix is None:
         return None
@@ -722,13 +920,24 @@ def bvk_supercell_matrix_key(nac_bvk_supercell_matrix):
 
 
 def _diagonal_supercell_sort_key(supercell_scaled, n):
-    """Sort a diagonal supercell with a fastest and c slowest, as in phonopy."""
+    """Reproduce Phonopy's replica order for a diagonal supercell.
+
+    Ordering has no physics by itself, but the IFC replica axis and geometric
+    phase mapping must use the same order or forces will be paired with the
+    wrong lattice translations.
+    """
     rounded = np.round(np.asarray(supercell_scaled, dtype=float) * n).astype(int) % n
     return (rounded[2], rounded[1], rounded[0])
 
 
 def _unique_supercell_translations(supercell_matrix, symprec=1e-8):
-    """Enumerate unique primitive translations of an integer supercell."""
+    """Enumerate primitive-cell cosets inside an integer supercell.
+
+    Translations that differ by a supercell lattice vector are physically the
+    same periodic image. Their fractional coordinates modulo one identify each
+    coset, and ``abs(det(supercell_matrix))`` is the required number of unique
+    primitive cells inside the supercell.
+    """
     supercell_matrix = np.array(supercell_matrix, dtype=int)
     primitive_matrix = np.linalg.inv(supercell_matrix)
     target_count = int(round(abs(np.linalg.det(supercell_matrix))))
@@ -754,7 +963,12 @@ def _unique_supercell_translations(supercell_matrix, symprec=1e-8):
 
 
 def _phonopy_lattice_points():
-    """Return Phonopy's nearby lattice images for shortest-vector searches."""
+    """Return nearby lattice images used in Phonopy shortest-vector searches.
+
+    The four generating directions span the neighboring images needed after
+    Niggli reduction. Searching them finds every periodic displacement tied for
+    the shortest atom-pair distance rather than assuming an orthogonal cell.
+    """
     lattice_1d = (-1, 0, 1)
     lattice_4d = np.array(
         [
@@ -774,10 +988,19 @@ def _phonopy_lattice_points():
 
 
 def _fold_points_to_first_bz(qpoints, reciprocal_lattice, tolerance=0.01):
-    """Select Phonopy-compatible first-BZ images after Niggli reduction."""
+    """Select Phonopy-compatible first-Brillouin-zone representatives.
+
+    q and q+G are equivalent crystal momenta, but a discrete inverse transform
+    must make the same representative and boundary tie choices as the forward
+    interpolation. Niggli reduction makes the nearest-image search robust for
+    skewed reciprocal cells; the origin-first search order resolves exact ties
+    in the same gauge as Phonopy.
+    """
     qpoints = np.array(qpoints, dtype=float, copy=True)
     reciprocal_lattice = np.array(reciprocal_lattice, dtype=float, copy=True)
     distance_tolerance = float(min(np.sum(reciprocal_lattice**2, axis=0)) * tolerance)
+    # Work in a reduced reciprocal basis so Euclidean nearest-image comparison
+    # corresponds to the actual Cartesian distance from Gamma.
     reduced = spglib.niggli_reduce(reciprocal_lattice.T, eps=1.0e-5)
     if reduced is None:
         raise ValueError("Niggli reduction failed for the reciprocal lattice")
@@ -787,6 +1010,8 @@ def _fold_points_to_first_bz(qpoints, reciprocal_lattice, tolerance=0.01):
     for qpoint in qpoints:
         reduced_qpoint = qpoint @ transform_inverse.T
         reduced_qpoint -= np.rint(reduced_qpoint)
+        # Equivalent candidates differ by nearby reciprocal lattice vectors.
+        # Select the shortest Cartesian image, retaining deterministic ties.
         candidates = reduced_qpoint + _BZ_SEARCH_SPACE
         distances = np.sum((candidates @ reduced) ** 2, axis=1)
         min_distance = distances.min()
@@ -800,8 +1025,11 @@ def _fold_points_to_first_bz(qpoints, reciprocal_lattice, tolerance=0.01):
 def _commensurate_points(supercell, reciprocal_lattice=None):
     """Return q points commensurate with a diagonal or general BvK cell.
 
-    When a reciprocal lattice is supplied, equivalent q points are folded to
-    the same first-Brillouin-zone representatives used by the Gonze kernel.
+    These are the reciprocal points for which ``exp(2*pi*i*q.R)`` is periodic
+    on the BvK supercell. They form the exact discrete-transform pair between
+    the sampled dynamical matrices and real-space IFC replicas. When a
+    reciprocal lattice is supplied, equivalent q points are folded to the same
+    first-Brillouin-zone representatives used by the Gonze kernel.
     """
     supercell = np.array(supercell)
     if supercell.shape == (3,):
@@ -822,10 +1050,20 @@ def _commensurate_points(supercell, reciprocal_lattice=None):
 # Full dynamical-matrix assembly
 # ---------------------------------------------------------------------------
 def _dipole_dipole_dynamical_matrix(q_red, static_data, mapping, q_direction_red=None):
-    """Return Phonopy's reciprocal Gonze dipole matrix at one q point."""
+    """Return the mass-weighted Gonze dipole matrix at one q point.
+
+    Away from Gamma, q itself supplies the longitudinal field direction. At
+    exact Gamma no direction is implied unless ``q_direction_red`` is passed;
+    this distinguishes the analytic Gamma matrix from a chosen q -> 0 LO--TO
+    limit. The result includes Born charges, onsite drift subtraction,
+    electrostatic scaling, unit conversion, and mass weighting.
+    """
     q_red = np.array(q_red, dtype=float, copy=True)
     q_cart = static_data["reciprocal_lattice"] @ q_red
     if q_direction_red is None:
+        # A finite q defines its own macroscopic-field direction. At Gamma the
+        # direction is undefined, so omit the singular term unless the caller
+        # explicitly supplies the direction of approach.
         if np.linalg.norm(q_cart) < static_data["q_direction_tolerance"]:
             q_direction_cart = None
         else:
@@ -835,6 +1073,8 @@ def _dipole_dipole_dynamical_matrix(q_red, static_data, mapping, q_direction_red
             q_direction_red, dtype=float
         )
 
+    # Build force-constant-like dipole blocks first; mass weighting is applied
+    # only after converting them to kALDo energy units.
     dd_recip = _recip_dipole_dipole(
         static_data["dd_q0"],
         static_data["G_list"],
@@ -878,6 +1118,11 @@ def dynamical_matrices(q_reds, static_data, mapping, q_direction_carts, fc=None)
         # representation of this q2r body.
         from kaldo.observables.secondorder import _dynamical_matrix_from_second_order
 
+        # QE representation:
+        #   D_QE(q) = FT_q2r[Phi_short](q) + D_rigid(q)
+        #             + delta(q,Gamma) D_directional(q_hat).
+        # include_pair_phase=False keeps the established q2r replica gauge;
+        # the rigid-ion kernel supplies QE's own basis phase.
         dm_short = np.asarray(
             [
                 _dynamical_matrix_from_second_order(
@@ -892,6 +1137,8 @@ def dynamical_matrices(q_reds, static_data, mapping, q_direction_carts, fc=None)
                 for q_red, q_direction_cart in zip(q_reds, q_direction_carts)
             ]
         )
+        # Addition happens only after both terms are in the same mass-weighted
+        # kALDo units. Hermitian projection removes reciprocal-cutoff roundoff.
         result = dm_short + corrections
         return 0.5 * (result + np.swapaxes(result.conj(), 1, 2))
 
@@ -908,6 +1155,8 @@ def dynamical_matrices(q_reds, static_data, mapping, q_direction_carts, fc=None)
                 "(HarmonicWithQ does this through its runtime cache)."
             ) from None
 
+    # Generic representation:
+    #   D_Gonze(q) = FT_WS[Phi_total - IFFT(D_dipole)](q) + D_dipole(q).
     # Reciprocal Ewald restoration. The geometric (G+q) kernel is built first,
     # then dressed by Born charges, corrected by the q=0 onsite drift, scaled
     # by the electrostatic prefactor, and finally mass weighted.
@@ -928,6 +1177,8 @@ def dynamical_matrices(q_reds, static_data, mapping, q_direction_carts, fc=None)
         pair_phase=static_data.get("pair_phase"),
     )
     born_t = np.transpose(static_data["born"], (0, 2, 1))
+    # Dress the geometric field kernel on both atom/Cartesian sides with Born
+    # charges. The einsum is the batched form of _multiply_borns.
     dd_recip = np.einsum(
         "iap,xipjq,jqb->xiajb",
         born_t,
@@ -935,9 +1186,12 @@ def dynamical_matrices(q_reds, static_data, mapping, q_direction_carts, fc=None)
         static_data["born"],
         optimize=True,
     )
+    # Subtract the q=0 partner sum from each onsite atom block. This guarantees
+    # that the restored dipole term does not exert a force on uniform motion.
     diagonal = np.arange(len(static_data["masses"]))
     for atom in diagonal:
         dd_recip[:, atom, :, atom, :] -= static_data["dd_q0"][atom][np.newaxis, :, :]
+    # nac_factor contains 4*pi/V and the input-format electrostatic unit factor.
     dd_recip *= float(static_data["nac_factor"])
     dd_total_mass_weighted = _mass_weight_many(
         dd_recip * static_data["nac_conversion"],
@@ -960,6 +1214,8 @@ def dynamical_matrices(q_reds, static_data, mapping, q_direction_carts, fc=None)
         target_mask=mapping.get("target_mask"),
         mass_matrix=static_data.get("sqrt_mass_matrix"),
     )
+    # Both pieces are now in the same gauge, units, atom order, and mass
+    # normalization. Their sum reconstructs the total polar dynamical matrix.
     dm_final = dm_short + dd_total_mass_weighted
     return 0.5 * (dm_final + np.swapaxes(dm_final.conj(), 1, 2))
 
@@ -977,7 +1233,13 @@ def _recip_dipole_dipole(
     tolerance,
     pair_phase=None,
 ):
-    """Assemble one scaled reciprocal Gonze dipole tensor including q=0 drift."""
+    """Assemble one force-constant-like Gonze dipole tensor.
+
+    The sequence mirrors the physical construction: build the screened field
+    propagator, map electric fields to atomic forces with Born charges, remove
+    the translational onsite drift, then apply ``4*pi/V`` and the format's
+    electrostatic conversion factor. Mass weighting is left to the caller.
+    """
     dd_tmp = _get_dd_base(
         g_list,
         q_cart,
@@ -989,6 +1251,8 @@ def _recip_dipole_dipole(
         pair_phase=pair_phase,
     )
     dd = _multiply_borns(dd_tmp, born)
+    # The diagonal correction is an atom-resolved acoustic constraint on the
+    # long-range term, not a removal of the nonanalytic Gamma direction.
     diag = np.arange(positions.shape[0])
     dd[diag, :, diag, :] -= dd_q0
     return dd * factor
@@ -1002,7 +1266,9 @@ def _inverse_transform_dynmats_to_force_constants(dynmats, qpoints, mapping, mas
 
     This is the Gonze subtraction bridge: full dynamical matrices minus their
     sampled dipole contribution are transformed into the short-range force
-    constants subsequently used for interpolation.
+    constants subsequently used for interpolation. The inverse transform uses
+    ``exp(-2*pi*i*q.R) / n_q`` and reverses the mass weighting, so the output is
+    a real compact IFC tensor rather than another dynamical matrix.
     """
     s2pp_map = mapping["s2pp_map"]
     svecs = mapping.get("phase_svecs", mapping["svecs"])
@@ -1010,11 +1276,18 @@ def _inverse_transform_dynmats_to_force_constants(dynmats, qpoints, mapping, mas
     p2s_map = mapping["p2s_map"]
     n_p = len(p2s_map)
     n_q = len(qpoints)
+    # Negative phase is the inverse of the forward interpolation. Average
+    # symmetry-tied shortest vectors with exactly the same weights in both
+    # directions so the discrete transform remains a matched pair.
     phase_all = np.exp(-2j * np.pi * np.dot(qpoints, svecs.T))
     phase_factors = np.einsum("spl,ql->qsp", phase_weights, phase_all, optimize=True)
+    # Restore explicit atom and Cartesian axes before mapping primitive target
+    # atoms to every periodic supercell image.
     dyn_blocks = dynmats.reshape(n_q, n_p, 3, n_p, 3)
     gathered_blocks = dyn_blocks[:, :, :, s2pp_map, :]
     fc = np.einsum("qiasb,qsi->isab", gathered_blocks, phase_factors, optimize=True)
+    # Multiplication by sqrt(M_i M_j) undoes dynamical-matrix mass weighting;
+    # division by n_q normalizes the discrete inverse Fourier transform.
     coef = np.sqrt(np.outer(masses, masses[s2pp_map])) / n_q
     return (fc * coef[:, :, np.newaxis, np.newaxis]).real / (units.mol / (10 * units.J))
 
@@ -1038,6 +1311,8 @@ def _build_interleaved_fc(second_order):
     translation_1 = replica_indices // (n2 * n3)
     translation_2 = (replica_indices // n3) % n2
     translation_3 = replica_indices % n3
+    # Negate each periodic translation because kALDo labels the cell of the
+    # force atom whereas the Gonze/Phonopy transform labels the displaced atom.
     reversed_replica_indices = (
         (-translation_1 % n1)
         + (-translation_2 % n2) * n1
@@ -1050,6 +1325,9 @@ def _build_interleaved_fc(second_order):
                 displaced_atom * n_replicas + reversed_replica_indices[replica_index]
             )
             for force_atom in range(n_atom):
+                # Transpose beta/alpha because the native tensor stores
+                # displacement before force component; compact FC uses force
+                # component before displacement component.
                 fc[force_atom, compact_index] = native_fc[
                     displaced_atom, :, replica_index, force_atom, :
                 ].T
@@ -1248,6 +1526,9 @@ def ensure_kernel_cache(static_data, mapping):
         raise ValueError(f"unknown NAC data convention {convention!r}")
 
     if "pair_phase" not in static_data:
+        # Reciprocal Ewald basis phases exp(2*pi*i*G.(r_i-r_j)) depend on the
+        # structure and G list but not on q, so they can be reused for every
+        # harmonic query on this SecondOrder object.
         position_deltas = (
             static_data["primitive_positions"][:, np.newaxis, :]
             - static_data["primitive_positions"][np.newaxis, :, :]
@@ -1264,15 +1545,22 @@ def ensure_kernel_cache(static_data, mapping):
         )
         static_data["pair_phase"] = np.exp(phases)
     if "sqrt_mass_matrix" not in static_data:
+        # Reused M_i^(1/2) M_j^(1/2) denominator for every q-point batch.
         static_data["sqrt_mass_matrix"] = np.sqrt(
             np.outer(static_data["masses"], static_data["masses"])
         )
     if "nac_conversion" not in static_data:
+        # Convert force-constant-like eV/angstrom² blocks to the energy-per-mole
+        # convention expected by kALDo's mass-weighted harmonic matrices.
         static_data["nac_conversion"] = units.mol / (10 * units.J)
     if "phase_weights" not in mapping:
+        # Equal weights implement the Wigner--Seitz average over all periodic
+        # images tied for the shortest distance of a given atom pair.
         phase_svecs = mapping.get("phase_svecs", mapping["svecs"])
         mapping["phase_weights"] = _build_segment_phase_weights(mapping["multi"], len(phase_svecs))
     if "target_mask" not in mapping:
+        # This incidence matrix tells the Fourier contraction which supercell
+        # images represent each primitive target atom.
         mapping["target_mask"] = (
             mapping["s2p_map"][:, np.newaxis] == mapping["p2s_map"][np.newaxis, :]
         ).astype(np.complex128)
@@ -1319,7 +1607,10 @@ def build_static_data(second, matrix=None):
 
     born = np.array(atoms.get_array("charges"), dtype=float, copy=True)
     # Match Phonopy's Gonze preparation: enforce the Born acoustic sum rule on
-    # a private copy so caller-owned atom data remain unchanged.
+    # a private copy so caller-owned atom data remain unchanged. Physically,
+    # sum_i Z_i*=0 expresses charge neutrality: translating every sublattice
+    # together cannot change the cell polarization. QE charges are not altered
+    # because reproducing q2r requires its original rigid.f90 tensors exactly.
     born -= born.mean(axis=0)
     dielectric = np.array(atoms.info["dielectric"], dtype=float, copy=True)
     primitive_cell = np.array(atoms.cell.array, dtype=float, copy=True)
@@ -1333,6 +1624,8 @@ def build_static_data(second, matrix=None):
         supercell_cell = np.array(second.replicated_atoms.cell.array, dtype=float, copy=True)
     else:
         supercell_cell = np.array(matrix @ primitive_cell, dtype=float, copy=True)
+    # The Coulomb prefactor scales as 4*pi/V of the primitive cell; using a
+    # supercell volume here would suppress the macroscopic field incorrectly.
     volume = float(abs(np.linalg.det(primitive_cell)))
     # These are Phonopy's Gonze defaults. Keeping them explicit here makes the
     # reciprocal cutoff and Ewald width part of the reproduced convention,
@@ -1340,12 +1633,20 @@ def build_static_data(second, matrix=None):
     g_cutoff = float(
         (3 * _GONZE_RECIPROCAL_POINT_TARGET / (4 * np.pi) / volume) ** (1.0 / 3)
     )
+    # Choose Lambda so a typical vector at the reciprocal cutoff is damped to
+    # _GONZE_EWAL_EXP_CUTOFF. The dielectric trace supplies the isotropic
+    # screening estimate used by Phonopy for this convergence choice.
     geg = g_cutoff**2 * np.trace(dielectric) / 3
     lambda_ = float(np.sqrt(-geg / 4 / np.log(_GONZE_EWAL_EXP_CUTOFF)))
+    # Input formats may define their electrostatic prefactor explicitly.
+    # Otherwise use the VASP/Phonopy Hartree*bohr convention. Multiplying by
+    # 4*pi/V completes the long-range dipole coefficient.
     unit_conversion_factor = float(atoms.info.get("nac_factor", units.Hartree * units.Bohr))
     nac_factor = float(unit_conversion_factor * 4 * np.pi / volume)
     tolerance = _GONZE_Q_DIRECTION_TOLERANCE
     g_list = _get_g_list(reciprocal_lattice, g_cutoff)
+    # Precompute the onsite partner sum once. It will be subtracted from every
+    # restored D_dipole(q) to preserve the acoustic translation constraint.
     dd_q0 = _recip_dipole_dipole_q0(
         g_list, born, dielectric, primitive_positions, lambda_, tolerance
     )
