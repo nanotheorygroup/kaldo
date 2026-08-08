@@ -15,11 +15,7 @@ from kaldo.controllers.nac import (
     BOHR_ANGSTROM,
     EV_TO_10J_PER_MOL,
     RY_TO_EV,
-    _prepare_qe_static_data,
-    _qe_correction,
-    _qe_nonanalytic_tensor,
-    _qe_rigid_ion_tensor,
-    _qe_to_cartesian,
+    _QERigidIonKernel,
     qe_default_alpha,
 )
 
@@ -35,7 +31,7 @@ def _reference() -> dict[str, np.ndarray]:
         return {name: np.array(data[name]) for name in data.files}
 
 
-def _static_data() -> dict:
+def _kernel() -> _QERigidIonKernel:
     alat = 9.7
     at = np.column_stack(([1.0, 0.0, 0.0], [0.21, 0.93, 0.0], [-0.13, 0.17, 1.11]))
     tau = np.asarray([[0.0, 0.0, 0.0], [0.19, 0.27, 0.31], [0.43, 0.11, 0.68]])
@@ -44,7 +40,10 @@ def _static_data() -> dict:
     )
     z2 = np.asarray(
         [-1.24, 0.04, 0.16, 0.12, -0.93, -0.05, 0.08, -0.14, -1.18]
-    ).reshape((3, 3), order="F")
+    ).reshape(
+        (3, 3),
+        order="F",
+    )
     born = np.asarray([z1, z2])
     header = SimpleNamespace(
         has_zstar=True,
@@ -60,25 +59,22 @@ def _static_data() -> dict:
         volume_bohr3=float(abs(np.linalg.det(at)) * alat**3),
         atom_masses_amu=np.asarray([28.085, 15.999, 15.999]),
     )
-    return _prepare_qe_static_data(header)
+    return _QERigidIonKernel.from_header(header)
 
 
 def test_qe_rigid_ion_matches_unmodified_qe76_rigid_f90() -> None:
     reference = _reference()
-    static_data = _static_data()
+    kernel = _kernel()
     np.testing.assert_allclose(
-        _qe_rigid_ion_tensor(static_data, reference["q_reduced_3d"]),
+        kernel.rigid_ion_tensor(reference["q_reduced_3d"]),
         reference["finite_3d"],
         rtol=2e-13,
         atol=3e-16,
     )
     np.testing.assert_allclose(
-        _qe_rigid_ion_tensor(static_data, np.zeros(3))
-        + _qe_nonanalytic_tensor(
-            static_data,
-            _qe_to_cartesian(
-                static_data, reference["gamma_direction_reduced"], "crystal"
-            ),
+        kernel.rigid_ion_tensor(np.zeros(3))
+        + kernel.nonanalytic_tensor(
+            kernel.to_cartesian(reference["gamma_direction_reduced"]),
         ),
         reference["gamma_directional_3d"],
         rtol=2e-13,
@@ -87,21 +83,21 @@ def test_qe_rigid_ion_matches_unmodified_qe76_rigid_f90() -> None:
 
 
 def test_unit_bridge_is_mass_weighted_kaldo_units() -> None:
-    static_data = _static_data()
+    kernel = _kernel()
     qpoint = [0.173, -0.119, 0.087]
-    raw = _qe_rigid_ion_tensor(static_data, qpoint).reshape(9, 9)
-    roots = np.repeat(np.sqrt(static_data["masses"]), 3)
+    raw = kernel.rigid_ion_tensor(qpoint).reshape(9, 9)
+    roots = np.repeat(np.sqrt(kernel.masses_amu), 3)
     expected = raw * (RY_TO_EV / BOHR_ANGSTROM**2)
     expected /= roots[:, None] * roots[None, :]
     expected *= EV_TO_10J_PER_MOL
-    np.testing.assert_allclose(_qe_correction(static_data, qpoint), expected)
+    np.testing.assert_allclose(kernel.correction(qpoint), expected)
 
 
-def test_qe_preparation_uses_the_common_static_data_layout() -> None:
-    static_data = _static_data()
-    assert static_data["qe_g_vectors"].shape[1] == 3
-    assert static_data["qe_onsite"].shape == (3, 3, 3, 3)
-    np.testing.assert_allclose(static_data["masses"], [28.085, 15.999, 15.999])
+def test_qe_kernel_owns_native_data_and_precomputed_ewald_terms() -> None:
+    kernel = _kernel()
+    assert kernel.g_vectors.shape[1] == 3
+    assert kernel.onsite.shape == (3, 3, 3, 3)
+    np.testing.assert_allclose(kernel.masses_amu, [28.085, 15.999, 15.999])
 
 
 def test_q2r_header_retains_alpha_grid_masses_and_born_without_asr(
@@ -120,11 +116,11 @@ def test_q2r_header_retains_alpha_grid_masses_and_born_without_asr(
         encoding="utf-8",
     )
     header = read_q2r_header(source)
-    static_data = _prepare_qe_static_data(header)
+    kernel = _QERigidIonKernel.from_header(header)
     assert header.alpha == 2.38332754222689
     assert header.q_grid == (4, 3, 2)
     np.testing.assert_allclose(header.dielectric, np.diag([4.7, 5.3, 3.9]))
     np.testing.assert_allclose(header.born[0], np.diag([2.0, 1.8, 2.2]))
     np.testing.assert_allclose(header.born[1], np.diag([-2.0, -1.8, -2.2]))
-    np.testing.assert_allclose(static_data["masses"], [28.085, 15.999])
-    np.testing.assert_allclose(static_data["qe_born"], header.born)
+    np.testing.assert_allclose(kernel.masses_amu, [28.085, 15.999])
+    np.testing.assert_allclose(kernel.born, header.born)

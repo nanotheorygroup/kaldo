@@ -63,32 +63,43 @@ def _warn_incommensurate_once(q_point, supercell):
 
 
 class HarmonicWithQ(Observable, Storable):
-    
+    """Harmonic observable at one q point, including provenance-aware NAC."""
+
     # Define storage formats for harmonic properties
     _store_formats = {
-        'frequency': 'formatted',
-        'velocity': 'formatted',
-        'participation_ratio': 'formatted',
-        '_dynmat_derivatives_x': 'numpy',
-        '_dynmat_derivatives_y': 'numpy', 
-        '_dynmat_derivatives_z': 'numpy',
-        '_dynmat_fourier': 'numpy',
-        '_eigensystem': 'numpy',
-        '_sij_x': 'numpy',
-        '_sij_y': 'numpy',
-        '_sij_z': 'numpy'
+        "frequency": "formatted",
+        "velocity": "formatted",
+        "participation_ratio": "formatted",
+        "_dynmat_derivatives_x": "numpy",
+        "_dynmat_derivatives_y": "numpy",
+        "_dynmat_derivatives_z": "numpy",
+        "_dynmat_fourier": "numpy",
+        "_eigensystem": "numpy",
+        "_sij_x": "numpy",
+        "_sij_y": "numpy",
+        "_sij_z": "numpy",
     }
 
-    def __init__(self, q_point, second,
-                 distance_threshold=None,
-                 storage='numpy',
-                 is_nw=False,
-                 is_unfolding=False,
-                 is_amorphous=False,
-                 nac_bvk_supercell_matrix=None,
-                 nac_q_direction=(1, 0, 0),
-                 *kargs,
-                 **kwargs):
+    def __init__(
+        self,
+        q_point,
+        second,
+        distance_threshold=None,
+        storage="numpy",
+        is_nw=False,
+        is_unfolding=False,
+        is_amorphous=False,
+        nac_bvk_supercell_matrix=None,
+        nac_q_direction=(1, 0, 0),
+        *kargs,
+        **kwargs,
+    ):
+        """Initialize a q-point calculation and its optional polar correction.
+
+        ``nac_q_direction`` is a reduced reciprocal direction used only for
+        the directional Gamma limit. ``nac_bvk_supercell_matrix`` identifies
+        the force-constant BvK grid; it is not a request to remesh IFCs.
+        """
         super().__init__(*kargs, **kwargs)
         # Input arguments
         self.q_point = q_point
@@ -101,15 +112,15 @@ class HarmonicWithQ(Observable, Storable):
         # Arguments for specific physical assumptions
         self.is_amorphous = is_amorphous
         self.is_unfolding = is_unfolding
-        if not is_unfolding and getattr(second, '_snf_mapping', None) is None:
+        if not is_unfolding and getattr(second, "_snf_mapping", None) is None:
             # The commensurability heuristic reads self.supercell as an
             # (nx, ny, nz) grid; SNF observables linearize it to (n_rep, 1, 1),
             # which would flag every off-axis q as incommensurate (and
             # is_unfolding is not supported on the SNF path anyway).
-            if 'dielectric' not in second.atoms.info:
+            if "dielectric" not in second.atoms.info:
                 _warn_incommensurate_once(q_point, self.supercell)
-        has_dielectric = 'dielectric' in self.atoms.info
-        if has_dielectric and 'charges' not in self.atoms.arrays:
+        has_dielectric = "dielectric" in self.atoms.info
+        if has_dielectric and "charges" not in self.atoms.arrays:
             raise ValueError(
                 "atoms.info['dielectric'] is set but atoms.arrays['charges'] is missing: "
                 "the non-analytic correction needs both."
@@ -118,7 +129,7 @@ class HarmonicWithQ(Observable, Storable):
         # charges; the correction is identically zero there.
         self.is_nac = bool(
             has_dielectric
-            and np.abs(self.atoms.get_array('charges')).max() > 1e-8
+            and np.abs(self.atoms.get_array("charges")).max() > 1e-8
         )
         self.nac_bvk_supercell_matrix = normalize_bvk_supercell_matrix(
             nac_bvk_supercell_matrix
@@ -139,31 +150,38 @@ class HarmonicWithQ(Observable, Storable):
         if self.n_modes > MIN_N_MODES_TO_STORE:
             self.storage = storage
         else:
-            self.storage = 'memory'
+            self.storage = "memory"
 
     def _load_formatted_property(self, property_name, name):
         """Override formatted loading for HarmonicWithQ-specific properties"""
-        if '_sij' in property_name:
+        if "_sij" in property_name:
             loaded = []
             for alpha in range(3):
-                loaded.append(np.loadtxt(name + '_' + str(alpha) + '.dat', skiprows=1, dtype=complex))
+                loaded.append(
+                    np.loadtxt(name + "_" + str(alpha) + ".dat", skiprows=1, dtype=complex)
+                )
             return np.array(loaded).transpose(1, 0)
         else:
             # Use default implementation for other properties
             return super()._load_formatted_property(property_name, name)
-    
+
     def _save_formatted_property(self, property_name, name, data):
         """Override formatted saving for HarmonicWithQ-specific properties"""
-        if '_sij' in property_name:
-            fmt = '%.18e'
+        if "_sij" in property_name:
+            fmt = "%.18e"
             for alpha in range(3):
-                np.savetxt(name + '_' + str(alpha) + '.dat', data[..., alpha].flatten(), fmt=fmt, 
-                          header=str(data[..., 0].shape))
+                np.savetxt(
+                    name + "_" + str(alpha) + ".dat",
+                    data[..., alpha].flatten(),
+                    fmt=fmt,
+                    header=str(data[..., 0].shape),
+                )
         else:
             # Use default implementation for other properties
             super()._save_formatted_property(property_name, name, data)
 
     def _resolve_nac_bvk_supercell_matrix(self):
+        """Return the explicit BvK matrix or the diagonal IFC-grid default."""
         if self.nac_bvk_supercell_matrix is not None:
             return np.array(self.nac_bvk_supercell_matrix, dtype=int, copy=True)
         supercell = np.asarray(self.second.supercell, dtype=int)
@@ -174,14 +192,20 @@ class HarmonicWithQ(Observable, Storable):
             )
         return np.diag(supercell)
 
-    def _calculate_nac_dynamical_matrix_for_q(self, q_red, _static_data=None, _mapping=None):
+    def _calculate_nac_dynamical_matrix_for_q(
+        self, q_red, _static_data=None, _mapping=None
+    ):
+        """Construct one full polar dynamical matrix at reduced ``q_red``."""
         return self._calculate_nac_dynamical_matrices_for_qs(
             np.array([q_red], dtype=float),
             _static_data,
             _mapping,
         )[0]
 
-    def _calculate_nac_velocity_direction_data(self, direction_index, static_data, _mapping=None):
+    def _calculate_nac_velocity_direction_data(
+        self, direction_index, static_data, _mapping=None
+    ):
+        """Finite-difference the polar matrix along one Cartesian direction."""
         if direction_index not in range(4):
             raise ValueError(f"direction_index must be in 0..3, got {direction_index}")
         direction_cart = np.array(
@@ -201,15 +225,17 @@ class HarmonicWithQ(Observable, Storable):
         return {"ddm_fd": ddm_fd}
 
     def _ensure_nac_runtime_data(self, static_data, mapping):
+        """Attach only the runtime caches required by the selected convention."""
         static_data, mapping = ensure_kernel_cache(static_data, mapping)
+        if static_data.get("convention") == "qe_q2r":
+            # QE evaluates the stored q2r IFC body through SecondOrder's native
+            # Fourier transform. No Gonze short-range FC or mapping is needed.
+            return static_data, mapping
         effective_matrix = self._resolve_nac_bvk_supercell_matrix()
         current_getter = self.second.get_nac_short_range_force_constants
         getter_identity = getattr(current_getter, "__func__", current_getter)
         fc_cache = self._nac_runtime_cache.get("fc_short")
-        if (
-            fc_cache is None
-            or fc_cache["getter_identity"] is not getter_identity
-        ):
+        if fc_cache is None or fc_cache["getter_identity"] is not getter_identity:
             fc_short = current_getter(effective_matrix)
             fc_cache = {
                 "getter_identity": getter_identity,
@@ -222,6 +248,7 @@ class HarmonicWithQ(Observable, Storable):
         return static_data, mapping
 
     def _nac_q_direction_carts(self, q_reds, static_data):
+        """Return Cartesian q vectors and directional Gamma replacements."""
         q_reds = np.atleast_2d(np.asarray(q_reds, dtype=float))
         reciprocal_lattice = static_data["reciprocal_lattice"]
         q_carts = np.einsum("ab,qb->qa", reciprocal_lattice, q_reds, optimize=True)
@@ -238,17 +265,20 @@ class HarmonicWithQ(Observable, Storable):
         _static_data=None,
         _mapping=None,
     ):
-        static_data = _static_data if _static_data is not None else self._build_nac_static_data_runtime()
+        """Evaluate the common NAC controller for a batch of reduced q points."""
+        static_data = (
+            _static_data if _static_data is not None else self._build_nac_static_data_runtime()
+        )
         mapping = _mapping if _mapping is not None else self._build_nac_mapping_runtime(static_data)
         static_data, mapping = self._ensure_nac_runtime_data(static_data, mapping)
         q_reds = np.atleast_2d(np.asarray(q_reds, dtype=float))
-        q_carts, q_direction_carts = self._nac_q_direction_carts(q_reds, static_data)
+        _, q_direction_carts = self._nac_q_direction_carts(q_reds, static_data)
         dm_final = dynamical_matrices(
             q_reds,
             static_data,
             mapping,
             q_direction_carts=q_direction_carts,
-            fc=static_data["fc_short_converted"],
+            fc=static_data.get("fc_short_converted"),
         )
         return dm_final
 
@@ -282,12 +312,17 @@ class HarmonicWithQ(Observable, Storable):
         active = cutoff_mask.astype(bool)
         # The finite-difference step is taken per 1/Bohr (phonopy convention),
         # so converting the projected derivative to A/ps needs the extra Bohr.
-        scaling[active] = _PHONOPY_TO_KALDO_DM * units.Bohr / (8.0 * np.pi ** 2 * frequencies[active])
+        scaling[active] = (
+            _PHONOPY_TO_KALDO_DM
+            * units.Bohr
+            / (8.0 * np.pi**2 * frequencies[active])
+        )
         gv_scaled = gv_raw * scaling[:, np.newaxis]
         gv_scaled[~active] = 0.0
         return gv_scaled, scaling, cutoff_mask
 
     def _calculate_nac_velocity_data(self):
+        """Return polar frequencies and group velocities from batched differences."""
         static_data = self._build_nac_static_data_runtime()
         mapping = self._build_nac_mapping_runtime(static_data)
         q_red = np.array(self.q_point, dtype=float, copy=True)
@@ -311,6 +346,7 @@ class HarmonicWithQ(Observable, Storable):
         return {"frequencies": frequencies, "gv_scaled": gv_scaled}
 
     def _build_nac_static_data_runtime(self):
+        """Return cached q-independent data for the active NAC convention."""
         if self._nac_precomputed is not None:
             return self._nac_precomputed["static_data"]
         matrix = self._resolve_nac_bvk_supercell_matrix()
@@ -319,6 +355,7 @@ class HarmonicWithQ(Observable, Storable):
         return data
 
     def _build_nac_mapping_runtime(self, static_data):
+        """Return the Gonze mapping, or ``None`` for native-grid QE q2r IFCs."""
         if self._nac_precomputed is not None:
             return self._nac_precomputed["mapping"]
         self._nac_precomputed = self.second.get_nac_precomputed(
@@ -327,6 +364,7 @@ class HarmonicWithQ(Observable, Storable):
         return self._nac_precomputed["mapping"]
 
     def _calculate_nac_dynamical_matrix(self, _static_data=None, _mapping=None):
+        """Construct the full polar dynamical matrix at ``self.q_point``."""
         return self._calculate_nac_dynamical_matrices_for_qs(
             np.array([self.q_point], dtype=float),
             _static_data,

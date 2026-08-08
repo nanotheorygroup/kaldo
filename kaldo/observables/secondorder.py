@@ -77,6 +77,7 @@ def _dynamical_matrix_from_second_order(second_order, q_red, include_pair_phase=
 
 
 def acoustic_sum_rule(dynmat):
+    """Apply kALDo's onsite translational sum-rule correction in place."""
     n_unit = dynmat[0].shape[0]
     sumrulecorr = 0.0
     for i in range(n_unit):
@@ -88,6 +89,8 @@ def acoustic_sum_rule(dynmat):
 
 
 class SecondOrder(ForceConstant, Storable):
+    """Second-order IFC observable with format-aware NAC preparation caches."""
+
     _store_formats = {
         "nac_short_range_force_constants": "numpy",
     }
@@ -95,6 +98,7 @@ class SecondOrder(ForceConstant, Storable):
     def __init__(
         self, value: ArrayLike | None, is_acoustic_sum: bool = False, *kargs, **kwargs
     ):
+        """Initialize IFCs and optionally enforce the translational sum rule."""
         # apply acoustic sum rule before initialize in forceconstnat
         # (value is None for the empty object used to compute force constants
         # later; calculate() applies the sum rule itself in that case)
@@ -112,24 +116,39 @@ class SecondOrder(ForceConstant, Storable):
 
     @lazy_property(label="", format="numpy")
     def nac_short_range_force_constants(self):
+        """Return cached Gonze short-range IFCs for the default BvK grid."""
         return self.calculate_nac_short_range_force_constants()
 
     def _refuse_dipole_subtracted_fc(self):
+        """Reject short-range IFCs whose matching restoration is unavailable.
+
+        Exactly one dipole term must be removed and restored. A parsed q2r
+        header supplies the QE restoration convention; a bare legacy marker
+        proves subtraction occurred but does not contain enough native data to
+        reconstruct it safely.
+        """
         if (
             self.atoms.info.get("dipole_subtracted_fc", False)
             and getattr(self, "_qe_q2r_header", None) is None
         ):
             raise NotImplementedError(
-                "These force constants come from a QE .fc file with embedded Born "
-                "charges, which q2r writes in the dipole-subtracted convention. The "
-                "non-analytic correction expects total force constants and "
-                "would subtract the dipole part a second time. Re-run q2r.x without "
-                "epsil so the file contains total force constants, and provide the "
-                "dielectric tensor and Born charges separately (atoms.info and "
-                "atoms.arrays, or a ShengBTE CONTROL file)."
+                "These force constants are marked as QE dipole-subtracted, but "
+                "their native q2r lattice, q-grid, and Ewald metadata are missing. "
+                "The QE rigid-ion term cannot be reconstructed safely, while the "
+                "generic Gonze path would subtract the dipole part a second time. "
+                "Reload the original .fc file through a QE interface, or re-run "
+                "q2r.x without epsil and provide dielectric/Born tensors separately "
+                "with total force constants."
             )
 
     def get_nac_short_range_force_constants(self, nac_bvk_supercell_matrix=None):
+        """Return convention-correct short-range IFCs for harmonic NAC.
+
+        QE q2r IFCs are already short range, so they are converted only to the
+        controller's compact atom-major ordering without another subtraction.
+        Total-IFC inputs are converted once through the Gonze
+        commensurate-mesh subtraction and cached by BvK matrix.
+        """
         self._refuse_dipole_subtracted_fc()
         matrix = nac.normalize_bvk_supercell_matrix(nac_bvk_supercell_matrix)
         if getattr(self, "_qe_q2r_header", None) is not None:
@@ -164,17 +183,35 @@ class SecondOrder(ForceConstant, Storable):
             return force_constants
 
     def _build_nac_static_data(self, matrix=None):
+        """Delegate construction of q-independent NAC physics to the controller."""
         return nac.build_static_data(self, matrix)
 
     def _build_nac_mapping(self, matrix=None):
+        """Build the Gonze Wigner--Seitz map for this IFC supercell."""
         return nac.build_mapping(self, matrix)
 
     def get_nac_precomputed(self, nac_bvk_supercell_matrix=None):
+        """Return cached NAC kernel data and any convention-required mapping."""
         matrix = nac.normalize_bvk_supercell_matrix(nac_bvk_supercell_matrix)
         key = nac.bvk_supercell_matrix_key(matrix) if matrix is not None else "default"
         if key not in self._nac_precomputed_cache:
             static_data = self._build_nac_static_data(matrix)
-            mapping = self._build_nac_mapping(matrix)
+            if static_data.get("convention") == "qe_q2r":
+                # QE q2r IFCs already live on their defining FFT grid and use
+                # the original kALDo replica Fourier transform. A different
+                # BvK lattice would require resampling those IFCs, which is not
+                # implemented; the equivalent diagonal matrix is accepted for
+                # compatibility with HarmonicWithQ's normalized default.
+                expected = np.diag(np.asarray(self.supercell, dtype=int))
+                if matrix is not None and not np.array_equal(matrix, expected):
+                    raise NotImplementedError(
+                        "nac_bvk_supercell_matrix cannot remesh QE q2r force "
+                        f"constants; expected diag(supercell)={expected.tolist()}, "
+                        f"got {matrix.tolist()}"
+                    )
+                mapping = None
+            else:
+                mapping = self._build_nac_mapping(matrix)
             static_data, mapping = nac.ensure_kernel_cache(static_data, mapping)
             self._nac_precomputed_cache[key] = {
                 "static_data": static_data,
@@ -183,6 +220,11 @@ class SecondOrder(ForceConstant, Storable):
         return self._nac_precomputed_cache[key]
 
     def calculate_nac_short_range_force_constants(self, nac_bvk_supercell_matrix=None):
+        """Remove the Gonze dipole term once and inverse-transform the remainder.
+
+        Polar q2r inputs bypass this operation because q2r already performed
+        the corresponding QE subtraction before writing the IFC body.
+        """
         self._refuse_dipole_subtracted_fc()
         if getattr(self, "_qe_q2r_header", None) is not None:
             return nac._build_interleaved_fc(self)
@@ -222,15 +264,11 @@ class SecondOrder(ForceConstant, Storable):
                 phase_weights=mapping["phase_weights"],
                 target_mask=mapping["target_mask"],
             )
-            # q2r IFCs already contain QE's short-range body. The early return
-            # above normally keeps them out of this loop; retain the explicit
-            # convention guard here so the subtraction invariant is local.
-            if static_data.get("convention") != "qe_q2r":
-                dynmat -= nac._dipole_dipole_dynamical_matrix(
-                    q_point,
-                    static_data,
-                    mapping,
-                )
+            dynmat -= nac._dipole_dipole_dynamical_matrix(
+                q_point,
+                static_data,
+                mapping,
+            )
             dynmats[i_q] = (dynmat + dynmat.conj().T) / 2
         return nac._inverse_transform_dynmats_to_force_constants(
             dynmats, qpoints, mapping, static_data["masses"]
@@ -402,8 +440,8 @@ class SecondOrder(ForceConstant, Storable):
                         if not os.path.isfile(filename):
                             raise FileNotFoundError(f"File {filename} not found.")
                         qe_header = qe_io.read_q2r_header(filename)
-                        _second_order, supercell, charges = (
-                            qe_io.read_second_order_qe_matrix(filename)
+                        _second_order, supercell, charges = qe_io.read_second_order_qe_matrix(
+                            filename
                         )
                         n_replicas = np.prod(supercell)
                         if not charges is None:
