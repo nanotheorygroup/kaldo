@@ -28,40 +28,56 @@ three-dimensional periodic electrostatics only.
 """
 
 import itertools
-import math
 from dataclasses import dataclass, field
 from typing import Literal, Sequence
 
 import numpy as np
 import ase.units as units
 from numpy.typing import NDArray
-from opt_einsum import contract
 import spglib
 
 from kaldo.grid import Grid
-from kaldo.helpers.logger import get_logger
 from kaldo.interfaces.qe_io import Q2RHeader
 
-logging = get_logger()
-
+# ---------------------------------------------------------------------------
+# Shared types and numerical conventions
+# ---------------------------------------------------------------------------
 _FLOAT = NDArray[np.float64]
 _COMPLEX = NDArray[np.complex128]
 
+# Finite-difference and degeneracy thresholds used by the NAC group-velocity
+# calculation in HarmonicWithQ. They are unrelated to either Ewald cutoff.
 NAC_VELOCITY_Q_LENGTH = 1e-5
-
-
 NAC_VELOCITY_DEGENERACY_TOLERANCE = 1e-4
-
-
 NAC_VELOCITY_CUTOFF_FREQUENCY = 1e-4
 
-
+# Keep the numerical constants used to validate the QE 7.6 rigid-ion
+# transcription together. Replacing them piecemeal with another CODATA set
+# introduces small but systematic differences from rigid.f90 reference data.
 PI = 3.14159265358979323846
 TWO_PI, FOUR_PI, E2_RY = 2.0 * PI, 4.0 * PI, 2.0
 BOHR_ANGSTROM = 0.529177210903
 RY_TO_EV = (4.3597447222071e-18 / 2.0) / 1.602176634e-19
 EV_TO_10J_PER_MOL = 6.02214076e23 / (10.0 * (1.0 / 1.602176634e-19))
-QCoordinates = Literal["crystal", "qe_cartesian"]
+
+# Phonopy-style matrices are expressed in its squared-frequency convention;
+# kALDo harmonic matrices use 10 J/mol after atom-pair mass weighting.
+_PHONOPY_TO_KALDO_DM = (units.Ry / units.Bohr**2) * (units.mol / (10 * units.J))
+
+_GONZE_TOTAL = "gonze_total"
+_QE_Q2R = "qe_q2r"
+
+# Fixed Phonopy Gonze defaults reproduced by build_static_data. These values
+# define the Ewald representation and are not exposed as user tuning knobs.
+_GONZE_RECIPROCAL_POINT_TARGET = 300
+_GONZE_EWAL_EXP_CUTOFF = 1e-10
+_GONZE_Q_DIRECTION_TOLERANCE = 1e-5
+
+
+# ---------------------------------------------------------------------------
+# QE q2r rigid-ion convention
+# ---------------------------------------------------------------------------
+_QCoordinates = Literal["crystal", "qe_cartesian"]
 
 
 class QENACError(ValueError):
@@ -242,7 +258,7 @@ class _QERigidIonKernel:
         return tensor
 
     def to_cartesian(
-        self, qpoint: Sequence[float], coordinates: QCoordinates = "crystal"
+        self, qpoint: Sequence[float], coordinates: _QCoordinates = "crystal"
     ) -> _FLOAT:
         """Convert q to QE Cartesian coordinates in units of ``2*pi/alat``."""
         qpoint = _vector(qpoint, "qpoint")
@@ -252,7 +268,7 @@ class _QERigidIonKernel:
             return np.asarray(qpoint @ self.bg_columns.T, dtype=float)
         raise QENACError(f"unsupported q coordinate convention {coordinates!r}")
 
-    def is_gamma(self, qpoint: Sequence[float], coordinates: QCoordinates = "crystal") -> bool:
+    def is_gamma(self, qpoint: Sequence[float], coordinates: _QCoordinates = "crystal") -> bool:
         """Test for Gamma modulo a reciprocal vector, including skewed cells."""
         q_reduced = self.to_cartesian(qpoint, coordinates) @ self.at_columns
         residual = np.abs(q_reduced - np.rint(q_reduced))
@@ -337,9 +353,9 @@ class _QERigidIonKernel:
         return np.asarray(matrix, dtype=np.complex128)
 
 
-_PHONOPY_TO_KALDO_DM = (units.Ry / units.Bohr**2) * (units.mol / (10 * units.J))
-
-
+# ---------------------------------------------------------------------------
+# Shared frequency and unit conversions
+# ---------------------------------------------------------------------------
 NAC_VELOCITY_DIRECTIONS_CART = np.array(
     [
         np.array([1.0, 2.0, 3.0], dtype=float) / np.sqrt(14.0),
@@ -376,8 +392,11 @@ def _phonopy_frequencies_from_eigenvalues(eigenvalues):
     return np.sign(eigenvalues) * np.sqrt(np.abs(eigenvalues)) * factor
 
 
-# All 27 nearest reciprocal-cell images, origin first so exact ties in
-# the folding fall back to the unshifted point.
+# ---------------------------------------------------------------------------
+# Generic Gonze reciprocal-space Ewald kernel
+# ---------------------------------------------------------------------------
+# All 27 nearest reciprocal-cell images, origin first so exact ties in the
+# Brillouin-zone folding fall back to the unshifted point.
 _BZ_SEARCH_SPACE = np.array(
     [[0, 0, 0]] + [p for p in itertools.product((-1, 0, 1), repeat=3) if any(p)],
     dtype=np.int64,
@@ -456,23 +475,38 @@ def _get_dd_base(
         )
         pair_phase = np.exp(phases)
 
-    qk = g_list + q_cart[np.newaxis, :]
-    norms = np.linalg.norm(qk, axis=1)
-    kk = np.zeros((len(g_list), 3, 3), dtype=np.complex128)
-    l2 = 4 * lambda_ * lambda_
+    g_plus_q = g_list + q_cart[np.newaxis, :]
+    norms = np.linalg.norm(g_plus_q, axis=1)
+    reciprocal_dyads = np.zeros((len(g_list), 3, 3), dtype=np.complex128)
+    four_lambda_squared = 4 * lambda_ * lambda_
     active = norms >= tolerance
     if np.any(active):
-        denom = np.einsum("gi,ij,gj->g", qk[active], dielectric, qk[active], optimize=True)
-        scale = np.exp(-denom / l2) / denom
-        # Build all reciprocal-space dyads at once before contracting onto atom pairs.
-        kk[active] = np.einsum("gi,gj,g->gij", qk[active], qk[active], scale, optimize=True)
+        screened_norms = np.einsum(
+            "gi,ij,gj->g",
+            g_plus_q[active],
+            dielectric,
+            g_plus_q[active],
+            optimize=True,
+        )
+        ewald_weights = np.exp(-screened_norms / four_lambda_squared) / screened_norms
+        # Each dyad is the geometric dipole kernel before Born-charge
+        # contraction and before the primitive-atom pair phase is applied.
+        reciprocal_dyads[active] = np.einsum(
+            "gi,gj,g->gij",
+            g_plus_q[active],
+            g_plus_q[active],
+            ewald_weights,
+            optimize=True,
+        )
     if q_direction_cart is not None:
         inactive = ~active
         if np.any(inactive):
-            direction_denom = _dielectric_part(q_direction_cart, dielectric)
-            direction_kk = np.outer(q_direction_cart, q_direction_cart) / direction_denom
-            kk[inactive] = direction_kk
-    return np.einsum("gab,gij->iajb", kk, pair_phase, optimize=True)
+            directional_screening = _dielectric_part(q_direction_cart, dielectric)
+            directional_dyad = (
+                np.outer(q_direction_cart, q_direction_cart) / directional_screening
+            )
+            reciprocal_dyads[inactive] = directional_dyad
+    return np.einsum("gab,gij->iajb", reciprocal_dyads, pair_phase, optimize=True)
 
 
 def _get_dd_base_many(
@@ -485,7 +519,13 @@ def _get_dd_base_many(
     tolerance,
     pair_phase=None,
 ):
-    """Vectorized form of :func:`_get_dd_base` for a batch of q points."""
+    """Build reciprocal Gonze dipole kernels for a batch of q points.
+
+    ``q_carts`` and ``q_direction_carts`` have shape ``(n_q, 3)``. The
+    returned geometric tensor has shape ``(n_q, n_atom, 3, n_atom, 3)``;
+    Born-charge contraction, the electrostatic prefactor, onsite subtraction,
+    and mass weighting are deliberately left to :func:`dynamical_matrices`.
+    """
     if pair_phase is None:
         position_deltas = positions[:, None, :] - positions[None, :, :]
         phases = (
@@ -501,32 +541,40 @@ def _get_dd_base_many(
         pair_phase = np.exp(phases)
 
     q_carts = np.asarray(q_carts, dtype=float)
-    qk = g_list[np.newaxis, :, :] + q_carts[:, np.newaxis, :]
-    denom = np.einsum("qgi,ij,qgj->qg", qk, dielectric, qk, optimize=True)
-    norms = np.linalg.norm(qk, axis=2)
+    g_plus_q = g_list[np.newaxis, :, :] + q_carts[:, np.newaxis, :]
+    screened_norms = np.einsum(
+        "qgi,ij,qgj->qg", g_plus_q, dielectric, g_plus_q, optimize=True
+    )
+    norms = np.linalg.norm(g_plus_q, axis=2)
     active = norms >= tolerance
-    scale = np.zeros_like(denom, dtype=np.complex128)
-    scale[active] = np.exp(-denom[active] / (4.0 * lambda_ * lambda_)) / denom[active]
-    # Build all reciprocal-space dyads for every q-point and reciprocal vector.
-    kk = np.einsum("qgi,qgj,qg->qgij", qk, qk, scale, optimize=True)
+    ewald_weights = np.zeros_like(screened_norms, dtype=np.complex128)
+    ewald_weights[active] = np.exp(
+        -screened_norms[active] / (4.0 * lambda_ * lambda_)
+    ) / screened_norms[active]
+    reciprocal_dyads = np.einsum(
+        "qgi,qgj,qg->qgij", g_plus_q, g_plus_q, ewald_weights, optimize=True
+    )
     if q_direction_carts is not None:
         q_direction_carts = np.asarray(q_direction_carts, dtype=float)
-        direction_denom = np.einsum(
+        directional_screening = np.einsum(
             "qi,ij,qj->q",
             q_direction_carts,
             dielectric,
             q_direction_carts,
             optimize=True,
         )
-        direction_kk = np.einsum(
+        directional_dyads = np.einsum(
             "qi,qj,q->qij",
             q_direction_carts,
             q_direction_carts,
-            1.0 / direction_denom,
+            1.0 / directional_screening,
             optimize=True,
         )
-        kk += (~active)[..., np.newaxis, np.newaxis] * direction_kk[:, np.newaxis, :, :]
-    return np.einsum("qgab,gij->qiajb", kk, pair_phase, optimize=True)
+        reciprocal_dyads += (
+            (~active)[..., np.newaxis, np.newaxis]
+            * directional_dyads[:, np.newaxis, :, :]
+        )
+    return np.einsum("qgab,gij->qiajb", reciprocal_dyads, pair_phase, optimize=True)
 
 
 def _recip_dipole_dipole_q0(g_list, born, dielectric, positions, lambda_, tolerance):
@@ -539,68 +587,9 @@ def _recip_dipole_dipole_q0(g_list, born, dielectric, positions, lambda_, tolera
     return dd_q0
 
 
-def _limiting_dipole_dipole(dielectric, lambda_):
-    """Return the real-space Ewald limiting tensor from Gonze--Lee Eq. 71."""
-    inv_eps = np.linalg.inv(dielectric)
-    sqrt_det_eps = np.sqrt(np.linalg.det(dielectric))
-    return -4.0 / 3 / np.sqrt(np.pi) * inv_eps / sqrt_det_eps * lambda_**3
-
-
-def _real_dipole_dipole(q_red, svecs, multi, s2pp_map, dielectric, lambda_, supercell_cell):
-    """Evaluate the real-space Gonze Ewald contribution at one reduced q."""
-    phase_all = np.exp(2j * np.pi * (svecs @ q_red))
-    h = _h_tensor(supercell_cell, svecs, dielectric, lambda_)
-    vals = -(lambda_**3) * h * phase_all * np.linalg.det(dielectric) ** (-0.5)
-    starts = multi[:, :, 1]
-    multiplicities = multi[:, :, 0].astype(np.float64)
-    gathered = vals[:, :, starts]
-    symmetric_blocks = 0.5 * (gathered + np.transpose(gathered.conj(), (1, 0, 2, 3)))
-    contributions = np.transpose(
-        symmetric_blocks / multiplicities[np.newaxis, np.newaxis, :, :],
-        (2, 3, 0, 1),
-    )
-    num_patom = multi.shape[1]
-    c_real = np.zeros((num_patom, num_patom, 3, 3), dtype=np.complex128)
-    np.add.at(c_real, s2pp_map, contributions)
-    return np.transpose(c_real, (0, 2, 1, 3))
-
-
-def _real_dipole_dipole_many(
-    q_reds,
-    svecs,
-    multi,
-    s2pp_map,
-    dielectric,
-    lambda_,
-    supercell_cell,
-    h_tensor=None,
-    det_scale=None,
-):
-    """Evaluate the real-space Gonze Ewald contribution for many q points."""
-    q_reds = np.asarray(q_reds, dtype=float)
-    if h_tensor is None:
-        h_tensor = _h_tensor(supercell_cell, svecs, dielectric, lambda_)
-    if det_scale is None:
-        det_scale = np.linalg.det(dielectric) ** (-0.5)
-    phase_all = np.exp(2j * np.pi * np.einsum("qa,sa->qs", q_reds, svecs, optimize=True))
-    vals = -(lambda_**3) * h_tensor[np.newaxis, :, :, :] * phase_all[:, np.newaxis, np.newaxis, :]
-    vals *= det_scale
-    starts = multi[:, :, 1]
-    multiplicities = multi[:, :, 0].astype(np.float64)
-    gathered = vals[:, :, :, starts]
-    symmetric_blocks = 0.5 * (gathered + np.transpose(gathered.conj(), (0, 2, 1, 3, 4)))
-    contributions = np.transpose(
-        symmetric_blocks / multiplicities[np.newaxis, np.newaxis, np.newaxis, :, :],
-        (0, 3, 4, 1, 2),
-    )
-    num_q = len(q_reds)
-    num_patom = multi.shape[1]
-    c_real = np.zeros((num_q, num_patom, num_patom, 3, 3), dtype=np.complex128)
-    for i_q in range(num_q):
-        np.add.at(c_real[i_q], s2pp_map, contributions[i_q])
-    return np.transpose(c_real, (0, 1, 3, 2, 4))
-
-
+# ---------------------------------------------------------------------------
+# Gonze short-range interpolation and mass weighting
+# ---------------------------------------------------------------------------
 def _mass_weight(fc_term, masses):
     """Apply ``1/sqrt(M_i M_j)`` and flatten one atom-block tensor."""
     mass_matrix = np.sqrt(np.outer(masses, masses))
@@ -675,7 +664,13 @@ def _short_range_dynamical_matrix_many(
     target_mask=None,
     mass_matrix=None,
 ):
-    """Vectorized Wigner--Seitz interpolation of short-range IFCs."""
+    """Interpolate short-range IFCs at a batch of reduced q points.
+
+    The input ``fc`` is either compact ``(n_p, n_s, 3, 3)`` or full
+    ``(n_s, n_s, 3, 3)`` force constants. All shortest-vector phases for each
+    atom pair are averaged before the result is mass weighted. The returned
+    array has shape ``(n_q, 3*n_p, 3*n_p)`` in kALDo dynamical-matrix units.
+    """
     q_reds = np.asarray(q_reds, dtype=float)
     num_patom = len(p2s_map)
     is_compact_fc = fc.shape[0] != fc.shape[1]
@@ -699,32 +694,9 @@ def _short_range_dynamical_matrix_many(
     return 0.5 * (dm + np.swapaxes(dm.conj(), 1, 2))
 
 
-def _h_tensor(supercell_cell, svecs, dielectric, lambda_):
-    """Evaluate the real-space Ewald H tensor for all shortest vectors."""
-    cart_vecs = svecs @ supercell_cell
-    eps_inv = np.linalg.inv(dielectric)
-    delta = cart_vecs @ eps_inv.T
-    d_norm = np.sqrt((cart_vecs * delta).sum(axis=1))
-    x = lambda_ * delta
-    y = lambda_ * d_norm
-    condition = y < 1e-10
-    y_safe = y.copy()
-    y_safe[condition] = 1.0
-    y2 = y_safe**2
-    y3 = y_safe**3
-    exp_y2 = np.exp(-y2)
-    erfc_y = np.vectorize(math.erfc)(y_safe)
-    a = np.where(
-        condition,
-        0.0,
-        (3 * erfc_y / y3 + 2 / np.sqrt(np.pi) * exp_y2 * (3 / y2 + 2)) / y2,
-    )
-    b = np.where(condition, 0.0, erfc_y / y3 + 2 / np.sqrt(np.pi) * exp_y2 / y2)
-    h = np.einsum("si,sj,s->ijs", x, x, a, optimize=True)
-    h -= eps_inv[:, :, np.newaxis] * b[np.newaxis, np.newaxis, :]
-    return h
-
-
+# ---------------------------------------------------------------------------
+# Born--von Karman geometry and Wigner--Seitz mapping
+# ---------------------------------------------------------------------------
 def normalize_bvk_supercell_matrix(nac_bvk_supercell_matrix):
     """Validate an optional integer Born--von Karman supercell matrix."""
     if nac_bvk_supercell_matrix is None:
@@ -846,6 +818,9 @@ def _commensurate_points(supercell, reciprocal_lattice=None):
     return np.array(qpoints, dtype="double", order="C")
 
 
+# ---------------------------------------------------------------------------
+# Full dynamical-matrix assembly
+# ---------------------------------------------------------------------------
 def _dipole_dipole_dynamical_matrix(q_red, static_data, mapping, q_direction_red=None):
     """Return Phonopy's reciprocal Gonze dipole matrix at one q point."""
     q_red = np.array(q_red, dtype=float, copy=True)
@@ -885,11 +860,17 @@ def dynamical_matrices(q_reds, static_data, mapping, q_direction_carts, fc=None)
     ``qe_q2r``, the stored q2r body is already short range, so its native
     replica transform is combined with :class:`_QERigidIonKernel`. In both
     cases the returned matrices use kALDo units and are explicitly Hermitian.
+
+    ``q_reds`` and ``q_direction_carts`` have shape ``(n_q, 3)``. ``mapping``
+    and ``fc`` are required only for ``gonze_total``; the ``qe_q2r`` branch
+    deliberately uses the native replica transform stored on ``SecondOrder``.
+    The return shape is ``(n_q, 3*n_atom, 3*n_atom)``.
     """
     q_reds = np.atleast_2d(np.asarray(q_reds, dtype=float))
     q_direction_carts = np.atleast_2d(np.asarray(q_direction_carts, dtype=float))
+    convention = static_data.get("convention")
 
-    if static_data.get("convention") == "qe_q2r":
+    if convention == _QE_Q2R:
         # q2r's body is already the short-range IFC on kALDo's native replica
         # grid. Preserve the original, format-independent Fourier transform;
         # the Phonopy/Gonze Wigner-Seitz reconstruction above is specifically
@@ -914,6 +895,9 @@ def dynamical_matrices(q_reds, static_data, mapping, q_direction_carts, fc=None)
         result = dm_short + corrections
         return 0.5 * (result + np.swapaxes(result.conj(), 1, 2))
 
+    if convention != _GONZE_TOTAL:
+        raise ValueError(f"unknown NAC data convention {convention!r}")
+
     if fc is None:
         try:
             fc = static_data["fc_short_converted"]
@@ -924,6 +908,9 @@ def dynamical_matrices(q_reds, static_data, mapping, q_direction_carts, fc=None)
                 "(HarmonicWithQ does this through its runtime cache)."
             ) from None
 
+    # Reciprocal Ewald restoration. The geometric (G+q) kernel is built first,
+    # then dressed by Born charges, corrected by the q=0 onsite drift, scaled
+    # by the electrostatic prefactor, and finally mass weighted.
     q_carts = np.einsum(
         "ab,qb->qa",
         static_data["reciprocal_lattice"],
@@ -958,6 +945,9 @@ def dynamical_matrices(q_reds, static_data, mapping, q_direction_carts, fc=None)
         mass_matrix=static_data.get("sqrt_mass_matrix"),
     )
 
+    # Fourier-interpolate the once-subtracted IFC body on the same BvK mapping
+    # used during the inverse transform. This pairing is what prevents a
+    # second dipole subtraction or an incompatible shortest-vector gauge.
     dm_short = _short_range_dynamical_matrix_many(
         fc,
         q_reds,
@@ -1004,6 +994,9 @@ def _recip_dipole_dipole(
     return dd * factor
 
 
+# ---------------------------------------------------------------------------
+# IFC layout conversion and supercell mapping
+# ---------------------------------------------------------------------------
 def _inverse_transform_dynmats_to_force_constants(dynmats, qpoints, mapping, masses):
     """Inverse-transform commensurate dynamical matrices to compact IFCs.
 
@@ -1027,30 +1020,39 @@ def _inverse_transform_dynmats_to_force_constants(dynmats, qpoints, mapping, mas
 
 
 def _build_interleaved_fc(second_order):
-    """Convert kALDo C-order FC to type-grouped compact format for phonopy-style FT.
+    """Convert kALDo replica IFCs to the compact atom-major Gonze layout.
 
-    kALDo's ShengBTE-QE FC stores val[j, β, l_C, i, α] = force on i at cell t(l_C)
-    due to displacement of j at cell 0 (R = cell of force-atom convention). The
-    phonopy standard uses R = cell of displaced atom, so the translation is negated:
-      k_F = (-t1 % n1) + (-t2 % n2)*n1 + (-t3 % n3)*(n1*n2)
+    kALDo stores ``value[j, beta, replica, i, alpha]``: the force on atom
+    ``i`` in ``replica`` due to displacement of atom ``j`` in the origin cell.
+    Gonze/Phonopy interpolation uses the opposite translation convention, so
+    each replica index is mapped to its periodic negative before atom blocks
+    are grouped.
 
-    Returns compact FC array of shape (n_atom, n_atom*n_replicas, 3, 3) in eV/Å².
+    The result has shape ``(n_atom, n_atom*n_replicas, 3, 3)`` in eV/angstrom².
     """
-    val = second_order.value[0]  # (j, β, l_C, i, α)
+    native_fc = second_order.value[0]
     n_atom = len(second_order.atoms)
     n1, n2, n3 = second_order.supercell
     n_replicas = n1 * n2 * n3
-    lC = np.arange(n_replicas)
-    t1 = lC // (n2 * n3)
-    t2 = (lC // n3) % n2
-    t3 = lC % n3
-    k_F = (-t1 % n1) + (-t2 % n2) * n1 + (-t3 % n3) * (n1 * n2)
+    replica_indices = np.arange(n_replicas)
+    translation_1 = replica_indices // (n2 * n3)
+    translation_2 = (replica_indices // n3) % n2
+    translation_3 = replica_indices % n3
+    reversed_replica_indices = (
+        (-translation_1 % n1)
+        + (-translation_2 % n2) * n1
+        + (-translation_3 % n3) * (n1 * n2)
+    )
     fc = np.zeros((n_atom, n_atom * n_replicas, 3, 3), dtype=float)
-    for j_type in range(n_atom):
-        for l_C_idx in range(n_replicas):
-            k = j_type * n_replicas + k_F[l_C_idx]
-            for i_type in range(n_atom):
-                fc[i_type, k, :, :] = val[j_type, :, l_C_idx, i_type, :].T
+    for displaced_atom in range(n_atom):
+        for replica_index in range(n_replicas):
+            compact_index = (
+                displaced_atom * n_replicas + reversed_replica_indices[replica_index]
+            )
+            for force_atom in range(n_atom):
+                fc[force_atom, compact_index] = native_fc[
+                    displaced_atom, :, replica_index, force_atom, :
+                ].T
     return fc
 
 
@@ -1068,40 +1070,58 @@ def _build_supercell_matrix_mapping(
     primitive coordinates. This preserves small coordinate differences in
     externally generated Phonopy supercells without coupling the controller to
     Phonopy's own atom ordering.
+
+    ``svecs`` are shortest vectors in supercell fractional coordinates;
+    ``phase_svecs`` express the same vectors in primitive fractional
+    coordinates for ``exp(2*pi*i*q.R)``. ``multi[..., 0]`` stores how many
+    equally short vectors belong to an atom pair and ``multi[..., 1]`` stores
+    the first vector's index.
     """
 
+    # Establish a deterministic translation order. Diagonal cells reproduce
+    # kALDo's historical C-order replica axis; general integer cells use their
+    # fractional coordinates as an order independent of atom enumeration.
     supercell_matrix = np.array(supercell_matrix, dtype=int)
     primitive_matrix = np.linalg.inv(supercell_matrix)
     primitive_cell = np.array(atoms.cell.array, dtype=float, copy=True)
     supercell_cell = supercell_matrix @ primitive_cell
     primitive_scaled = atoms.get_scaled_positions(wrap=False)
-    _diag = np.diag(supercell_matrix)
-    if np.all(supercell_matrix == np.diag(_diag)):
-        _n = int(np.max(np.abs(_diag)))
-        _max_denom = 1
-        for pos in primitive_scaled:
-            for coord in pos:
-                frac = coord % 1.0
-                if frac > 1e-10:
-                    for d in range(1, 64):
-                        if abs(round(frac * d) / d - frac) < 1e-8:
-                            if d > _max_denom:
-                                _max_denom = d
+    diagonal = np.diag(supercell_matrix)
+    if np.all(supercell_matrix == np.diag(diagonal)):
+        max_grid_extent = int(np.max(np.abs(diagonal)))
+        max_basis_denominator = 1
+        for position in primitive_scaled:
+            for coordinate in position:
+                fractional_coordinate = coordinate % 1.0
+                if fractional_coordinate > 1e-10:
+                    for denominator in range(1, 64):
+                        rational = round(fractional_coordinate * denominator) / denominator
+                        if abs(rational - fractional_coordinate) < 1e-8:
+                            max_basis_denominator = max(max_basis_denominator, denominator)
                             break
-        _factor = _n * _max_denom
-        _sort_key = lambda pos: _diagonal_supercell_sort_key(pos, _factor)
+        sort_factor = max_grid_extent * max_basis_denominator
+
+        def sort_key(position):
+            """Return the historical diagonal-grid replica order."""
+            return _diagonal_supercell_sort_key(position, sort_factor)
+
     else:
         # The long-range Gonze kernel depends on a consistent translation
-        # order, not on a diagonal-grid enumeration.  Fractional supercell
+        # order, not on a diagonal-grid enumeration. Fractional supercell
         # coordinates provide a deterministic order for a general integer
         # matrix; callers that combine this mapping with short-range IFCs must
         # still ensure that their compact-FC replica axis uses the same order.
-        _sort_key = lambda pos: tuple(np.round(pos, 10)[::-1])
+        def sort_key(position):
+            """Return a deterministic order for a general integer cell."""
+            return tuple(np.round(position, 10)[::-1])
+
     translations = _unique_supercell_translations(supercell_matrix, symprec=symprec)
-    translations = sorted(translations, key=lambda item: _sort_key(item[1]))
+    translations = sorted(translations, key=lambda item: sort_key(item[1]))
     n_translation = len(translations)
     n_atom = len(atoms)
 
+    # Build the atom-major compact order consumed by _build_interleaved_fc:
+    # all translations of primitive atom 0, then atom 1, and so forth.
     supercell_scaled_positions = np.zeros((n_atom * n_translation, 3), dtype=float)
     primitive_shifts = np.zeros((n_atom * n_translation, 3), dtype=float)
     s2p_map = np.zeros(n_atom * n_translation, dtype=np.int64)
@@ -1117,6 +1137,10 @@ def _build_supercell_matrix_mapping(
             primitive_shifts[index] = shift
             s2p_map[index] = p2s_map[i_atom]
             s2pp_map[index] = i_atom
+
+    # When SecondOrder carries an explicit replicated structure, align its
+    # coordinates with the compact order while matching chemical identity.
+    # This preserves small input-coordinate differences in the vector search.
     if replicated_atoms is not None:
         replicated_cell = np.asarray(replicated_atoms.cell.array, dtype=float)
         if not np.allclose(replicated_cell, supercell_cell, rtol=0, atol=1.0e-6):
@@ -1143,6 +1167,10 @@ def _build_supercell_matrix_mapping(
             reordered_positions[index] = explicit_positions[match]
             available[match] = False
         supercell_scaled_positions = reordered_positions
+
+    # Phonopy finds shortest vectors in a Niggli-reduced cell. The transform
+    # must be integral so it represents an exact basis change of this lattice,
+    # rather than a numerical deformation of the force-constant supercell.
     reduced_cell = spglib.niggli_reduce(supercell_cell, eps=symprec)
     if reduced_cell is None:
         raise ValueError("Niggli reduction failed for the NAC supercell")
@@ -1159,6 +1187,9 @@ def _build_supercell_matrix_mapping(
     reduced_positions -= np.rint(reduced_positions)
     primitive_positions_in_supercell = reduced_positions[p2s_map]
     lattice_points = _phonopy_lattice_points()
+
+    # Retain every vector tied for the minimum distance. Their Fourier phases
+    # are averaged later; choosing only one would break symmetry at BZ edges.
     svecs = []
     phase_svecs = []
     multi = np.zeros((len(supercell_scaled_positions), n_atom, 2), dtype=np.int64)
@@ -1196,18 +1227,25 @@ def _build_supercell_matrix_mapping(
     }
 
 
+# ---------------------------------------------------------------------------
+# Convention selection and reusable controller data
+# ---------------------------------------------------------------------------
 def ensure_kernel_cache(static_data, mapping):
     """Populate reusable arrays required by the selected NAC convention.
 
     The QE kernel owns its own reciprocal and onsite caches and has no Gonze
     mapping. The generic path caches atom-pair phases, mass factors, and
-    Wigner--Seitz phase weights in the existing controller dictionaries.
+    Wigner--Seitz phase weights in the existing controller dictionaries. Both
+    dictionaries are updated in place and returned for the caller's cache.
     """
-    if static_data.get("convention") == "qe_q2r":
+    convention = static_data.get("convention")
+    if convention == _QE_Q2R:
         # The q2r body stays on SecondOrder's native replica grid. Its QE
         # kernel owns every Ewald cache, so the Gonze Wigner--Seitz mapping is
         # intentionally absent.
         return static_data, mapping
+    if convention != _GONZE_TOTAL:
+        raise ValueError(f"unknown NAC data convention {convention!r}")
 
     if "pair_phase" not in static_data:
         position_deltas = (
@@ -1246,7 +1284,13 @@ def build_static_data(second, matrix=None):
 
     q2r provenance creates one :class:`_QERigidIonKernel` without altering its
     Born charges. Other polar inputs create the Phonopy-compatible Gonze data
-    and enforce the Born-charge acoustic sum rule on a private copy.
+    and enforce the Born-charge acoustic sum rule on a private copy. ``matrix``
+    identifies the defining BvK lattice for the generic path; it never
+    remeshes QE's native q2r IFC body.
+
+    The returned dictionary is intentionally a controller cache rather than a
+    user-facing data model. Its ``convention`` field is the sole dispatch key;
+    numerical fallbacks never select between the two physical representations.
     """
     atoms = second.atoms
     qe_header = getattr(second, "_qe_q2r_header", None)
@@ -1261,7 +1305,7 @@ def build_static_data(second, matrix=None):
         if not np.allclose(np.asarray(atoms.cell), qe_cell, rtol=2e-7, atol=2e-7):
             raise QENACError("q2r lattice does not match the SecondOrder primitive cell")
         return {
-            "convention": "qe_q2r",
+            "convention": _QE_Q2R,
             "qe_kernel": qe_kernel,
             "qe_second_order": second,
             "primitive_cell": np.array(atoms.cell.array, dtype=float, copy=True),
@@ -1290,21 +1334,23 @@ def build_static_data(second, matrix=None):
     else:
         supercell_cell = np.array(matrix @ primitive_cell, dtype=float, copy=True)
     volume = float(abs(np.linalg.det(primitive_cell)))
-    num_g_points = 300
-    g_cutoff = float((3 * num_g_points / (4 * np.pi) / volume) ** (1.0 / 3))
-    exp_cutoff = 1e-10
+    # These are Phonopy's Gonze defaults. Keeping them explicit here makes the
+    # reciprocal cutoff and Ewald width part of the reproduced convention,
+    # rather than apparently tunable accuracy parameters.
+    g_cutoff = float(
+        (3 * _GONZE_RECIPROCAL_POINT_TARGET / (4 * np.pi) / volume) ** (1.0 / 3)
+    )
     geg = g_cutoff**2 * np.trace(dielectric) / 3
-    lambda_ = float(np.sqrt(-geg / 4 / np.log(exp_cutoff)))
+    lambda_ = float(np.sqrt(-geg / 4 / np.log(_GONZE_EWAL_EXP_CUTOFF)))
     unit_conversion_factor = float(atoms.info.get("nac_factor", units.Hartree * units.Bohr))
     nac_factor = float(unit_conversion_factor * 4 * np.pi / volume)
-    tolerance = 1e-5
+    tolerance = _GONZE_Q_DIRECTION_TOLERANCE
     g_list = _get_g_list(reciprocal_lattice, g_cutoff)
     dd_q0 = _recip_dipole_dipole_q0(
         g_list, born, dielectric, primitive_positions, lambda_, tolerance
     )
-    dd_limiting = _limiting_dipole_dipole(dielectric, lambda_)
     return {
-        "convention": "gonze_total",
+        "convention": _GONZE_TOTAL,
         "born": born,
         "dielectric": dielectric,
         "primitive_cell": primitive_cell,
@@ -1320,7 +1366,6 @@ def build_static_data(second, matrix=None):
         "nac_factor": np.array(nac_factor),
         "q_direction_tolerance": np.array(tolerance),
         "dd_q0": dd_q0,
-        "dd_limiting": dd_limiting,
     }
 
 

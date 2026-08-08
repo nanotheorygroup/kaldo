@@ -168,6 +168,21 @@ def test_nac_multiply_borns_contracts_cartesian_axes():
     np.testing.assert_allclose(actual, expected, rtol=0.0, atol=1e-14)
 
 
+def test_nac_controller_rejects_unknown_data_convention():
+    static_data = {"convention": "unknown"}
+
+    with pytest.raises(ValueError, match="unknown NAC data convention 'unknown'"):
+        so.ensure_kernel_cache(static_data, {})
+
+    with pytest.raises(ValueError, match="unknown NAC data convention 'unknown'"):
+        so.dynamical_matrices(
+            q_reds=[[0.0, 0.0, 0.0]],
+            static_data=static_data,
+            mapping={},
+            q_direction_carts=[[1.0, 0.0, 0.0]],
+        )
+
+
 @pytest.mark.parametrize(
     "q_red",
     [
