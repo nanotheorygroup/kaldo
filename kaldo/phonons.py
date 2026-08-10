@@ -12,7 +12,7 @@ from kaldo.helpers.logger import log_size
 from kaldo.storable import FOLDER_NAME
 from kaldo.grid import Grid
 from kaldo.observables.harmonic_with_q import HarmonicWithQ
-from kaldo.observables.harmonic_with_q_temp import HarmonicWithQTemp
+from kaldo.observables.harmonic_with_q_temp import HarmonicWithQTemp, CLASSICAL_HBAR_SCALE
 from kaldo.forceconstants import ForceConstants
 import kaldo.controllers.anharmonic as aha
 import tensorflow as tf
@@ -563,9 +563,6 @@ class Phonons(Storable):
         self.n_atoms = self.forceconstants.n_atoms
         self.n_modes = self.forceconstants.n_modes
         self.n_phonons = self.n_k_points * self.n_modes
-        self.hbar = units._hbar
-        if self.is_classic:
-            self.hbar = self.hbar * 1e-6
         self.g_factor = g_factor
         self.include_isotopes = include_isotopes
         self.iso_speed_up = iso_speed_up
@@ -878,8 +875,12 @@ class Phonons(Storable):
     def population(self):
         """
         Calculate the phonons population for each k point in k_points and each mode.
-        If classical, it returns the temperature divided by each frequency, using equipartition theorem.
-        If quantum it returns the Bose-Einstein distribution
+        If quantum, it returns the Bose-Einstein distribution.
+        If classical, it returns the equipartition occupation k_B*T/(hbar*omega)
+        scaled by the internal 1/CLASSICAL_HBAR_SCALE convention, minus 1/2
+        (see kaldo.observables.harmonic_with_q_temp); the convention factors
+        cancel in the scattering rates, so bandwidth and conductivity are
+        unaffected, but the array itself is not the physical occupation.
 
         Returns
         -------
@@ -985,13 +986,32 @@ class Phonons(Storable):
         f_cell = thermal_part_eV + zpe_part
         return f_cell / self.n_k_points
 
+    @property
+    def _thermodynamic_modes(self):
+        """Boolean mask of modes that enter the thermodynamic sums:
+        physical modes with positive (real) frequencies. Shared by
+        free_energy and zero_point_harmonic_energy so their exclusions
+        cannot diverge."""
+        return self.physical_mode.reshape(self.frequency.shape) & (self.frequency > 0)
+
     @lazy_property(label='')
     def zero_point_harmonic_energy(self):
         """
         Harmonic zero-point energy, Brillouin-zone averaged,
         returned in eV per mode.
+
+        Non-physical modes and modes with imaginary (negative) frequencies
+        contribute zero, matching the ``free_energy`` contract; summing
+        hbar*omega/2 over imaginary modes would otherwise poison the total
+        with negative spurious contributions on unstable structures.
+
+        This is a quantum quantity (hbar*omega/2); it has no classical
+        counterpart and ``free_energy`` with ``is_classic=True`` does not
+        include it.
         """
-        zpe_cell = 0.5 * units._hbar * self.frequency * 2.0 * np.pi * 1.0e12 / units._e
+        zpe_cell = np.zeros_like(self.frequency)
+        valid = self._thermodynamic_modes
+        zpe_cell[valid] = 0.5 * units._hbar * self.frequency[valid] * 2.0 * np.pi * 1.0e12 / units._e
         return zpe_cell / self.n_k_points
 
 
@@ -1056,6 +1076,11 @@ class Phonons(Storable):
     def phase_space(self):
         """
         Calculate the 3-phonons-processes phase_space, for each k point in k_points and each mode.
+
+        With ``is_classic=True`` the values carry the internal
+        1/CLASSICAL_HBAR_SCALE population convention (see
+        kaldo.observables.harmonic_with_q_temp), so classical and quantum
+        phase spaces are not directly comparable in magnitude.
 
         Returns
         -------
@@ -1460,8 +1485,10 @@ class Phonons(Storable):
         # Reshape population to 1D for unified indexing
         population_flat = self.population.flatten()
 
-        # Apply hbar scaling factor for classical vs quantum
-        hbar_factor = 1e-6 if self.is_classic else 1
+        # Classical statistics: cancel the 1/CLASSICAL_HBAR_SCALE the
+        # population carries (see harmonic_with_q_temp.CLASSICAL_HBAR_SCALE)
+        # by scaling the potential with the matching factor.
+        hbar_factor = CLASSICAL_HBAR_SCALE if self.is_classic else 1
 
         ps_and_gamma = aha.calculate_ps_and_gamma(
             self.sparse_phase,

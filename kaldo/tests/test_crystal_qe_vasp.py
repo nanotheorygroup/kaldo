@@ -23,6 +23,7 @@ def phonons():
         kpts=[3, 3, 3],
         is_classic=False,
         temperature=300,
+        third_bandwidth=0.5,  # fixed: gauge-invariant regression config (#290)
         storage="memory",
     )
     return phonons
@@ -79,18 +80,22 @@ def test_qhgk_conductivity(phonons):
     cond = Conductivity(phonons=phonons, method="qhgk", storage="memory",
                         diffusivity_bandwidth=1.0).conductivity.sum(axis=0)
     cond = np.abs(np.mean(cond.diagonal()))
-    np.testing.assert_approx_equal(cond, 2.2, significant=2)
+    np.testing.assert_allclose(cond, 2.241208, rtol=5e-3, atol=0.0)
 
 
 def test_rta_conductivity(phonons):
     cond = np.abs(
         np.mean(Conductivity(phonons=phonons, method="rta", storage="memory").conductivity.sum(axis=0).diagonal())
     )
-    np.testing.assert_approx_equal(cond, 2.7, significant=2)
+    # recalibrated after the ShengBTE FC3 parser fix (mod-wrapped cell offsets); the old value baked in
+    # silently dropped force constants
+    np.testing.assert_allclose(cond, 4.500018, rtol=5e-3, atol=0.0)
 
 
 def test_inverse_conductivity(phonons):
     cond = np.abs(
         np.mean(Conductivity(phonons=phonons, method="inverse", storage="memory").conductivity.sum(axis=0).diagonal())
     )
-    np.testing.assert_approx_equal(cond, 2.4, significant=2)
+    # recalibrated after the ShengBTE FC3 parser fix (mod-wrapped cell offsets); the old value baked in
+    # silently dropped force constants
+    np.testing.assert_allclose(cond, 5.049113, rtol=5e-3, atol=0.0)

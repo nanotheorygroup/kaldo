@@ -197,8 +197,10 @@ class SecondOrder(ForceConstant):
                             raise FileNotFoundError(f"File {filename} not found.")
                         _second_order = shengbte_io.read_second_order_matrix(filename, supercell)
                         _second_order = _second_order.reshape((n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
-                        # must stay "F" together with the vasp-* case in ThirdOrder.load
-                        grid_type = "F"
+                        # the reader's replica axis is C-ordered, like the QE
+                        # case above; declared together with the vasp-* case in
+                        # ThirdOrder.load (see #272 for the QE analogue)
+                        grid_type = "C"
                 second_order = SecondOrder.from_supercell(
                     atoms=atoms,
                     grid_type=grid_type,
