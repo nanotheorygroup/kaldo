@@ -2,47 +2,43 @@
 
 kALDo supports Python version 3.10 or higher.
 
+Installations and package dependencies are handled by [uv](https://docs.astral.sh/uv/), please refer to the manual when needed.
+
 We recommend creating a new environment with Python 3.13.
 ```bash
-conda create -n kaldo python=3.13
+uv venv ~/kaldo --python 3.13
 ```
 and enable the environment
 ```bash
-conda activate kaldo
-conda install pip
-```
-
-kALDo installation can be done using `pip`
-```bash
-pip install kaldo
-```
-
-#### Using `pip` and `virtualenv`
-
-You can also install kALDo without using `conda`
-```bash
-pip3 install virtualenv
-virtualenv --system-site-packages -p python3 ~/kaldo
 source ~/kaldo/bin/activate
-pip3 install git+https://github.com/nanotheorygroup/kaldo
 ```
+
+kALDo installation can be done using `uv`
+```bash
+uv pip install kaldo
+```
+
+#### Installing directly from GitHub
+
+You can also install the latest version of kALDo directly from the repository
+```bash
+uv venv ~/kaldo --python 3.13
+source ~/kaldo/bin/activate
+uv pip install git+https://github.com/nanotheorygroup/kaldo
+```
+
 #### Development mode
 
 The best way to run examples, tests and to develop kaldo is to follow the quick install procedure, and add the following extra steps.
 ```bash
-pip uninstall kaldo
-mkdir ~/develoment
+uv pip uninstall kaldo
+mkdir ~/development
 cd ~/development
 git clone https://github.com/nanotheorygroup/kaldo
-export PYTHONPATH=~/development/kaldo:$PYTHONPATH
+uv pip install -e ~/development/kaldo
 ```
 If you followed the steps in the quickstart and then uninstall kaldo, you will have all the dependencies correctly installed.
-The next lines are pulling the repo from Github and adding it to the `PYTHONPATH`.
-
-If you want to make the last change in the `PYTHONPATH` permanent, you can also run
-```bash
-echo "export PYTHONPATH=~/development/kaldo:$PYTHONPATH" >> ~/.bashrc
-```
+The next lines are pulling the repo from Github and installing it in editable mode, so any changes you make to the source code take effect immediately without needing to modify the `PYTHONPATH`.
 
 ### Examples Repository
 
