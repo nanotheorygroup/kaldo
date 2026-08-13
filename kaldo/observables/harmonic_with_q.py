@@ -695,14 +695,13 @@ class HarmonicWithQ(Observable, Storable):
         # Diagonalize
         if only_eigenvals:
             omega2, eigenvect, info = zheev(dyn_s, compute_v=False)
-            frequency = np.sign(omega2) * np.sqrt(np.abs(omega2))
-            frequency = frequency[:] / np.pi / 2
-            esystem = (frequency[:] * np.pi * 2) ** 2
+            # ``omega2`` is already the signed eigenspectrum.  Converting it
+            # to a signed square root and squaring again destroys the sign of
+            # unstable (imaginary-frequency) modes.
+            esystem = omega2
         else:
             omega2, eigenvect, info = zheev(dyn_s)
-            frequency = np.sign(omega2) * np.sqrt(np.abs(omega2))
-            frequency = frequency[:] / np.pi / 2
-            esystem = np.vstack(((frequency[:] * np.pi * 2) ** 2, eigenvect))
+            esystem = np.vstack((omega2[np.newaxis, :], eigenvect))
         return esystem
 
     def calculate_dynmat_derivatives_unfolded(self, direction):
