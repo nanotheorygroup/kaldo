@@ -7,10 +7,9 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+import phonopy
+import yaml
 from ase import Atoms, units
-
-phonopy = pytest.importorskip("phonopy")
-yaml = pytest.importorskip("yaml")
 
 from kaldo.controllers import nac
 
