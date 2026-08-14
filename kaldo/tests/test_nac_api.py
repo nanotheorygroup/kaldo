@@ -216,15 +216,43 @@ def test_dipole_subtracted_constants_use_qe_rigid_ion_nac(mgo_second):
         storage="memory",
         is_unfolding=True,
     )
-    frequency = phonon.frequency
-    assert frequency.shape == (1, 6)
-    assert np.isfinite(frequency).all()
+    frequency_cm = phonon.frequency[0] * 33.3564095198152
+    assert frequency_cm.shape == (6,)
+    assert np.isfinite(frequency_cm).all()
+    # QE matdyn.x with asr='simple' at q=(0.3, 0, 0.3). These replace the
+    # previous branch-generated values, which used the plain replica transform
+    # and split both symmetry-required pairs away from the q2r mesh.
     np.testing.assert_allclose(
-        frequency[0],
-        [7.12165876, 7.20271069, 10.98283990,
-         12.70586773, 12.73608931, 17.50462043],
-        rtol=2e-7,
-        atol=2e-7,
+        frequency_cm,
+        [239.7640, 239.7640, 367.6916, 422.9322, 422.9322, 582.6500],
+        rtol=0.0,
+        atol=1.0e-2,
+    )
+    np.testing.assert_allclose(
+        frequency_cm[[0, 3]],
+        frequency_cm[[1, 4]],
+        rtol=0.0,
+        atol=5.0e-6,
+    )
+
+
+def test_qe_nac_velocity_uses_the_corrected_dispersion_gradient(mgo_second):
+    """Keep the QE velocity correction without relaxing the legacy tolerance."""
+    phonon = HarmonicWithQ(
+        q_point=np.array([0.3, 0.0, 0.3], dtype=np.float64),
+        second=mgo_second,
+        storage="memory",
+        is_unfolding=True,
+    )
+    velocity_norm = np.linalg.norm(np.asarray(phonon.velocity), axis=-1).reshape(-1)
+    # The removed reference [33.906, 33.906, 32.844, 8.682, 8.682, 21.596]
+    # came from a velocity operator that was not the gradient of the dynamical
+    # matrix. Central finite differences give the corrected values below.
+    np.testing.assert_allclose(
+        velocity_norm,
+        [29.512, 29.512, 46.846, 9.993, 9.993, 32.476],
+        rtol=0.0,
+        atol=5.0e-3,
     )
 
 

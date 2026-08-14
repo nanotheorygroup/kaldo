@@ -117,7 +117,7 @@ def test_nac_velocity_matches_dispersion_slope(gan_second, axis):
     usable = np.abs(slope) > 0.05
     assert np.any(usable), f"no dispersive modes found along Cartesian axis {axis}"
     ratio = velocity[usable, axis] / slope[usable]
-    np.testing.assert_allclose(ratio, 2 * np.pi, rtol=1e-2)
+    np.testing.assert_allclose(ratio, 2 * np.pi, rtol=1e-2, atol=0.0)
 
 
 def test_nac_sij_diagonal_matches_velocity(gan_second):

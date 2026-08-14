@@ -234,10 +234,6 @@ class HarmonicWithQ(Observable, Storable):
     def _ensure_nac_runtime_data(self, static_data, mapping):
         """Attach only the runtime caches required by the selected convention."""
         static_data, mapping = ensure_kernel_cache(static_data, mapping)
-        if static_data.get("convention") == "qe_q2r":
-            # QE evaluates the stored q2r IFC body through SecondOrder's native
-            # Fourier transform. No Gonze short-range FC or mapping is needed.
-            return static_data, mapping
         effective_matrix = self._resolve_nac_bvk_supercell_matrix()
         current_getter = self.second.get_nac_short_range_force_constants
         getter_identity = getattr(current_getter, "__func__", current_getter)
@@ -363,7 +359,7 @@ class HarmonicWithQ(Observable, Storable):
         return data
 
     def _build_nac_mapping_runtime(self, static_data):
-        """Return the Gonze mapping, or ``None`` for native-grid QE q2r IFCs."""
+        """Return the cached Wigner--Seitz map for the defining IFC grid."""
         if self._nac_precomputed is not None:
             return self._nac_precomputed["mapping"]
         self._nac_precomputed = self.second.get_nac_precomputed(

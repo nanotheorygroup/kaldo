@@ -1,4 +1,4 @@
-from kaldo.observables.forceconstant import ForceConstant, chi
+from kaldo.observables.forceconstant import ForceConstant
 from ase import Atoms
 import math
 import os
@@ -22,7 +22,6 @@ from kaldo.helpers.logger import get_logger, log_size
 from kaldo.storable import Storable, lazy_property
 from kaldo.grid import Grid
 import kaldo.controllers.nac as nac
-from opt_einsum import contract
 
 logging = get_logger()
 
@@ -37,44 +36,6 @@ logging = get_logger()
 # ---------------------------------------------------------------------------
 # Utility functions (public)
 # ---------------------------------------------------------------------------
-
-# ---------------------------------------------------------------------------
-# Workflow helpers (private module-level)
-# ---------------------------------------------------------------------------
-
-
-def _dynamical_matrix_from_second_order(second_order, q_red, include_pair_phase=True):
-    """Fourier-transform native replica IFCs at one reduced q point.
-
-    ``include_pair_phase`` selects the phonopy pair gauge used by the Gonze
-    reconstruction. QE's ``rgd_blk`` tensor is written in kALDo's original
-    replica gauge, so its already-short-range q2r IFCs deliberately set this
-    to ``False`` before the two matrices are added.
-    """
-    n_atom = len(second_order.atoms)
-    dynmat = second_order.dynmat
-    dyn_s = contract(
-        "ialjb,l->iajb",
-        dynmat.numpy()[0].astype(np.complex128),
-        chi(
-            np.asarray(q_red, dtype=float),
-            second_order.list_of_replicas,
-            second_order.cell_inv,
-        ).flatten(),
-        backend="numpy",
-    )
-    if include_pair_phase:
-        scaled_positions = second_order.atoms.get_scaled_positions(wrap=False)
-        for i_atom in range(n_atom):
-            for j_atom in range(n_atom):
-                phase = np.exp(
-                    2j
-                    * np.pi
-                    * np.dot(q_red, scaled_positions[j_atom] - scaled_positions[i_atom])
-                )
-                dyn_s[i_atom, :, j_atom, :] *= phase
-    return dyn_s.reshape(n_atom * 3, n_atom * 3)
-
 
 def acoustic_sum_rule(dynmat):
     """Apply kALDo's onsite translational sum-rule correction in place."""
@@ -187,7 +148,7 @@ class SecondOrder(ForceConstant, Storable):
         return nac.build_static_data(self, matrix)
 
     def _build_nac_mapping(self, matrix=None):
-        """Build the Gonze Wigner--Seitz map for this IFC supercell."""
+        """Build the Wigner--Seitz map for this IFC supercell."""
         return nac.build_mapping(self, matrix)
 
     def get_nac_precomputed(self, nac_bvk_supercell_matrix=None):
@@ -197,11 +158,11 @@ class SecondOrder(ForceConstant, Storable):
         if key not in self._nac_precomputed_cache:
             static_data = self._build_nac_static_data(matrix)
             if static_data.get("convention") == "qe_q2r":
-                # QE q2r IFCs already live on their defining FFT grid and use
-                # the original kALDo replica Fourier transform. A different
-                # BvK lattice would require resampling those IFCs, which is not
-                # implemented; the equivalent diagonal matrix is accepted for
-                # compatibility with HarmonicWithQ's normalized default.
+                # QE q2r IFCs are already short range, but matdyn.x still uses
+                # Wigner--Seitz shortest-vector weighting to interpolate their
+                # finite-supercell images away from the commensurate mesh. A
+                # different BvK lattice would require resampling those IFCs;
+                # the defining diagonal matrix is the only supported mapping.
                 expected = np.diag(np.asarray(self.supercell, dtype=int))
                 if matrix is not None and not np.array_equal(matrix, expected):
                     raise NotImplementedError(
@@ -209,7 +170,7 @@ class SecondOrder(ForceConstant, Storable):
                         f"constants; expected diag(supercell)={expected.tolist()}, "
                         f"got {matrix.tolist()}"
                     )
-                mapping = None
+                mapping = self._build_nac_mapping(matrix)
             else:
                 mapping = self._build_nac_mapping(matrix)
             static_data, mapping = nac.ensure_kernel_cache(static_data, mapping)

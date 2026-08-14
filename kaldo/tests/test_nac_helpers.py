@@ -12,7 +12,6 @@ from kaldo.interfaces import qe_io
 from kaldo.observables import harmonic_with_q as hwq
 from kaldo.observables.harmonic_with_q import HarmonicWithQ
 import kaldo.controllers.nac as so
-from kaldo.observables.secondorder import _dynamical_matrix_from_second_order
 from kaldo.controllers.nac import (
     _short_range_dynamical_matrix,
     _mass_weight,
@@ -24,6 +23,22 @@ from kaldo.controllers.nac import (
 
 def format_tensor_diff(name, label, actual, expected):
     return f"{name} mismatch at {label}"
+
+
+def _native_pair_gauge_dynamical_matrix(second_order, q_red):
+    """Return the ordinary IFC transform in the WS atom-pair phase gauge."""
+    harmonic = HarmonicWithQ(q_point=q_red, second=second_order, storage="memory")
+    native = np.asarray(harmonic.calculate_dynmat_fourier())
+    atom_count = len(second_order.atoms)
+    blocks = native.reshape(atom_count, 3, atom_count, 3)
+    scaled_positions = second_order.atoms.get_scaled_positions(wrap=False)
+    pair_displacements = (
+        scaled_positions[np.newaxis, :, :] - scaled_positions[:, np.newaxis, :]
+    )
+    phases = np.exp(2j * np.pi * np.einsum("a,ija->ij", q_red, pair_displacements))
+    return (blocks * phases[:, np.newaxis, :, np.newaxis]).reshape(
+        3 * atom_count, 3 * atom_count
+    )
 
 
 
@@ -197,7 +212,7 @@ def test_matrix_specific_total_dynamical_matrix_matches_input_force_constants_fo
     second_order = load_att3_v2_second_order_with_reference_nac(tmp_path)
     matrix = nacl_phonopy_debug_supercell_matrix_att3()
     mapping = second_order._build_nac_mapping(matrix)
-    actual = _dynamical_matrix_from_second_order(second_order, q_red)
+    actual = _native_pair_gauge_dynamical_matrix(second_order, q_red)
     expected = _short_range_dynamical_matrix(
         _build_interleaved_fc(second_order)
         * (ase_units.mol / (10 * ase_units.J)),

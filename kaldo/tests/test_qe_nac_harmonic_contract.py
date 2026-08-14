@@ -23,32 +23,26 @@ def _load_mgo_second(tmp_path):
     return forceconstants.second
 
 
-def test_qe_precomputation_owns_a_kernel_and_skips_gonze_mapping(tmp_path, monkeypatch) -> None:
-    """q2r provenance must select its native kernel before Gonze preparation."""
+def test_qe_precomputation_owns_a_kernel_and_ws_mapping(tmp_path) -> None:
+    """q2r provenance selects QE electrostatics and shared WS interpolation."""
     second = _load_mgo_second(tmp_path)
-
-    def fail_if_gonze_mapping_is_built(*args, **kwargs):
-        raise AssertionError("QE q2r must not construct a Gonze BvK mapping")
-
-    monkeypatch.setattr(nac, "build_mapping", fail_if_gonze_mapping_is_built)
     bundle = second.get_nac_precomputed()
 
-    assert bundle["mapping"] is None
+    assert bundle["mapping"] is not None
+    assert "phase_weights" in bundle["mapping"]
     assert isinstance(bundle["static_data"]["qe_kernel"], nac._QERigidIonKernel)
 
 
-def test_qe_harmonic_path_does_not_request_gonze_short_range_ifcs(tmp_path, monkeypatch) -> None:
-    """The loaded q2r body is Fourier transformed directly and restored once."""
+def test_qe_harmonic_path_does_not_run_gonze_dipole_subtraction(
+    tmp_path, monkeypatch
+) -> None:
+    """The loaded q2r body is WS interpolated and restored exactly once."""
     second = _load_mgo_second(tmp_path)
 
-    def fail_if_gonze_subtraction_is_requested(*args, **kwargs):
+    def fail_if_gonze_dipole_is_requested(*args, **kwargs):
         raise AssertionError("QE q2r must not run the Gonze IFC subtraction")
 
-    monkeypatch.setattr(
-        second,
-        "get_nac_short_range_force_constants",
-        fail_if_gonze_subtraction_is_requested,
-    )
+    monkeypatch.setattr(nac, "_dipole_dipole_dynamical_matrix", fail_if_gonze_dipole_is_requested)
     phonon = HarmonicWithQ(
         q_point=np.array([0.3, 0.0, 0.3]),
         second=second,

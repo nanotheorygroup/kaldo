@@ -38,11 +38,12 @@ provenance rather than from the chemical species or a numerical fallback:
 
 ``qe_q2r``
     A polar QE q2r file already contains the analytical, dipole-subtracted IFC
-    body produced by ``do_q2r`` calling ``rgd_blk(..., sign=-1)``. Its native
-    replica Fourier transform is therefore combined directly with the same QE
-    rigid-ion term using ``sign=+1`` and, at Gamma, the directional ``nonanal``
-    limit. Running the Gonze subtraction here would remove the dipole term
-    twice and mix incompatible lattice gauges.
+    body produced by ``do_q2r`` calling ``rgd_blk(..., sign=-1)``. Matdyn's
+    shortest-vector weighting interpolates that body away from its defining
+    mesh; the same QE rigid-ion term is then restored using ``sign=+1`` and, at
+    Gamma, the directional ``nonanal`` limit. Running the Gonze subtraction
+    here would remove the dipole term twice. A unitary pair-phase transform
+    merely places both terms in the same interpolation gauge before addition.
 
 The invariant is exactly one dipole removal and one matching restoration.
 Both paths require a 3x3 electronic dielectric tensor and one 3x3 Born
@@ -772,6 +773,34 @@ def _mass_weight_many(fc_terms, masses, mass_matrix=None):
     return out.reshape(len(out), len(masses) * 3, len(masses) * 3)
 
 
+def _qe_corrections_to_ws_gauge(corrections, q_reds, scaled_positions):
+    """Express QE rigid-ion matrices in the short-range WS pair gauge.
+
+    QE ``rgd_blk`` returns atom-pair blocks with the native q2r basis phase.
+    :func:`_short_range_dynamical_matrix_many` includes the opposite basis
+    phase through its atom-pair shortest vectors. Before adding the two terms,
+    each correction block ``(i,j)`` must therefore be multiplied by
+    ``exp(2*pi*i*q.(r_j-r_i))``. This is a unitary change of dynamical-matrix
+    gauge, not another physical correction; omitting it breaks off-mesh
+    degeneracies even though each term is individually Hermitian.
+    """
+    corrections = np.asarray(corrections, dtype=np.complex128)
+    q_reds = np.atleast_2d(np.asarray(q_reds, dtype=np.float64))
+    scaled_positions = np.asarray(scaled_positions, dtype=np.float64)
+    atom_count = len(scaled_positions)
+    blocks = corrections.reshape(len(q_reds), atom_count, 3, atom_count, 3)
+    pair_displacements = (
+        scaled_positions[np.newaxis, :, :] - scaled_positions[:, np.newaxis, :]
+    )
+    phases = np.exp(
+        2j
+        * np.pi
+        * np.einsum("qa,ija->qij", q_reds, pair_displacements, optimize=True)
+    )
+    transformed = blocks * phases[:, :, np.newaxis, :, np.newaxis]
+    return transformed.reshape(len(q_reds), 3 * atom_count, 3 * atom_count)
+
+
 def _build_segment_phase_weights(multi, n_svec):
     """Assign equal Fourier weight to symmetry-tied shortest vectors.
 
@@ -1097,45 +1126,54 @@ def dynamical_matrices(q_reds, static_data, mapping, q_direction_carts, fc=None)
 
     For ``gonze_total``, ``fc`` contains the once-subtracted short-range IFCs;
     their Wigner--Seitz transform is combined with the Gonze dipole tensor. For
-    ``qe_q2r``, the stored q2r body is already short range, so its native
-    replica transform is combined with :class:`_QERigidIonKernel`. In both
-    cases the returned matrices use kALDo units and are explicitly Hermitian.
+    ``qe_q2r``, the stored q2r body is already short range, so it is
+    Wigner--Seitz interpolated without another dipole subtraction and combined
+    with :class:`_QERigidIonKernel`. In both cases the returned matrices use
+    kALDo units and are explicitly Hermitian.
 
     ``q_reds`` and ``q_direction_carts`` have shape ``(n_q, 3)``. ``mapping``
-    and ``fc`` are required only for ``gonze_total``; the ``qe_q2r`` branch
-    deliberately uses the native replica transform stored on ``SecondOrder``.
-    The return shape is ``(n_q, 3*n_atom, 3*n_atom)``.
+    and ``fc`` provide the same geometric interpolation boundary for both input
+    conventions. The return shape is ``(n_q, 3*n_atom, 3*n_atom)``.
     """
     q_reds = np.atleast_2d(np.asarray(q_reds, dtype=float))
     q_direction_carts = np.atleast_2d(np.asarray(q_direction_carts, dtype=float))
     convention = static_data.get("convention")
 
     if convention == _QE_Q2R:
-        # q2r's body is already the short-range IFC on kALDo's native replica
-        # grid. Preserve the original, format-independent Fourier transform;
-        # the Phonopy/Gonze Wigner-Seitz reconstruction above is specifically
-        # the total-IFC subtraction strategy and is not an interchangeable
-        # representation of this q2r body.
-        from kaldo.observables.secondorder import _dynamical_matrix_from_second_order
-
         # QE representation:
-        #   D_QE(q) = FT_q2r[Phi_short](q) + D_rigid(q)
+        #   D_QE(q) = FT_WS[Phi_q2r_short](q) + D_rigid(q)
         #             + delta(q,Gamma) D_directional(q_hat).
-        # include_pair_phase=False keeps the established q2r replica gauge;
-        # the rigid-ion kernel supplies QE's own basis phase.
-        dm_short = np.asarray(
-            [
-                _dynamical_matrix_from_second_order(
-                    static_data["qe_second_order"], q_red, include_pair_phase=False
-                )
-                for q_red in q_reds
-            ]
+        # q2r has already removed D_rigid on its commensurate mesh. The stored
+        # body therefore needs no Gonze subtraction, but its finite-supercell
+        # images still require the shortest-vector averaging used by matdyn.x.
+        if mapping is None or fc is None:
+            raise ValueError(
+                "QE q2r dynamical matrices require the defining Wigner--Seitz "
+                "mapping and the already-short-range q2r force constants"
+            )
+        phase_svecs = mapping.get("phase_svecs", mapping["svecs"])
+        dm_short = _short_range_dynamical_matrix_many(
+            fc,
+            q_reds,
+            phase_svecs,
+            mapping["multi"],
+            static_data["masses"],
+            mapping["s2p_map"],
+            mapping["p2s_map"],
+            phase_weights=mapping["phase_weights"],
+            target_mask=mapping["target_mask"],
+            mass_matrix=static_data["sqrt_mass_matrix"],
         )
         corrections = np.asarray(
             [
                 static_data["qe_kernel"].correction(q_red, q_direction_cart)
                 for q_red, q_direction_cart in zip(q_reds, q_direction_carts)
             ]
+        )
+        corrections = _qe_corrections_to_ws_gauge(
+            corrections,
+            q_reds,
+            static_data["primitive_scaled_positions"],
         )
         # Addition happens only after both terms are in the same mass-weighted
         # kALDo units. Hermitian projection removes reciprocal-cutoff roundoff.
@@ -1511,21 +1549,17 @@ def _build_supercell_matrix_mapping(
 def ensure_kernel_cache(static_data, mapping):
     """Populate reusable arrays required by the selected NAC convention.
 
-    The QE kernel owns its own reciprocal and onsite caches and has no Gonze
-    mapping. The generic path caches atom-pair phases, mass factors, and
-    Wigner--Seitz phase weights in the existing controller dictionaries. Both
+    The QE kernel owns its reciprocal and onsite Ewald caches. Both conventions
+    share mass factors and Wigner--Seitz phase weights for interpolation of
+    their short-range IFC body; only the generic path additionally caches the
+    atom-pair phases used by the Gonze reciprocal dipole tensor. Both
     dictionaries are updated in place and returned for the caller's cache.
     """
     convention = static_data.get("convention")
-    if convention == _QE_Q2R:
-        # The q2r body stays on SecondOrder's native replica grid. Its QE
-        # kernel owns every Ewald cache, so the Gonze Wigner--Seitz mapping is
-        # intentionally absent.
-        return static_data, mapping
-    if convention != _GONZE_TOTAL:
+    if convention not in {_QE_Q2R, _GONZE_TOTAL}:
         raise ValueError(f"unknown NAC data convention {convention!r}")
 
-    if "pair_phase" not in static_data:
+    if convention == _GONZE_TOTAL and "pair_phase" not in static_data:
         # Reciprocal Ewald basis phases exp(2*pi*i*G.(r_i-r_j)) depend on the
         # structure and G list but not on q, so they can be reused for every
         # harmonic query on this SecondOrder object.
@@ -1553,6 +1587,8 @@ def ensure_kernel_cache(static_data, mapping):
         # Convert force-constant-like eV/angstrom² blocks to the energy-per-mole
         # convention expected by kALDo's mass-weighted harmonic matrices.
         static_data["nac_conversion"] = units.mol / (10 * units.J)
+    if mapping is None:
+        raise ValueError(f"{convention} requires a Wigner--Seitz supercell mapping")
     if "phase_weights" not in mapping:
         # Equal weights implement the Wigner--Seitz average over all periodic
         # images tied for the shortest distance of a given atom pair.
@@ -1595,13 +1631,16 @@ def build_static_data(second, matrix=None):
         return {
             "convention": _QE_Q2R,
             "qe_kernel": qe_kernel,
-            "qe_second_order": second,
             "primitive_cell": np.array(atoms.cell.array, dtype=float, copy=True),
+            "primitive_scaled_positions": np.array(
+                atoms.get_scaled_positions(wrap=False), dtype=float, copy=True
+            ),
             # Store the column-action reciprocal transform: ``B @ q_red``.
             # ASE exposes reciprocal basis vectors as rows, whose transpose is
             # required by the controller's matrix-vector convention.
             "reciprocal_lattice": np.linalg.inv(np.array(atoms.cell.array, dtype=float, copy=True)),
             "supercell_cell": np.array(second.replicated_atoms.cell.array, dtype=float, copy=True),
+            "masses": np.array(qe_kernel.masses_amu, dtype=float, copy=True),
             "q_direction_tolerance": np.array(QE_GAMMA_TOLERANCE),
         }
 
@@ -1671,12 +1710,14 @@ def build_static_data(second, matrix=None):
 
 
 def build_mapping(second, matrix=None):
-    """Build the Gonze Wigner--Seitz mapping for the IFC supercell.
+    """Build the Wigner--Seitz mapping for the defining IFC supercell.
 
     The current short-range reconstruction is valid only on the defining
     force-constant grid. Resampling onto a different BvK lattice is rejected
     explicitly rather than risking a misordered or silently incorrect tensor.
-    QE q2r evaluation bypasses this function entirely.
+    Generic total IFCs and already-short-range QE q2r IFCs share this geometric
+    interpolation map; their dipole subtraction/restoration logic remains
+    convention specific.
     """
     matrix = normalize_bvk_supercell_matrix(matrix)
     fc_diagonal = np.diag(np.asarray(second.supercell, dtype=int))
