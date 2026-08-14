@@ -89,22 +89,34 @@ def test_nac_gamma_lo_to_splitting(gan_second):
     assert actual[-1] > 690.0
 
 
-def test_nac_velocity_matches_dispersion_slope(gan_second):
+@pytest.mark.parametrize("axis", range(3), ids=("x", "y", "z"))
+def test_nac_velocity_matches_dispersion_slope(gan_second, axis):
+    """The public velocity follows the dispersion along each Cartesian axis.
+
+    The x and y cases are the regression for ASE's row-vector cell convention:
+    on this non-orthogonal cell, using ``cell.T`` maps the finite-difference
+    stencil onto the wrong Cartesian direction.  The z case retains the
+    original velocity-versus-dispersion coverage.
+    """
     q0 = np.array([0.1, 0.1, 0.1])
     hwq = HarmonicWithQ(q_point=q0, second=gan_second, storage="memory")
     order = np.argsort(np.array(hwq.frequency).flatten())
     velocity = np.array(hwq.velocity)[0][order]
 
     cell = gan_second.atoms.cell.array
-    reciprocal = 2 * np.pi * np.linalg.inv(cell).T
     delta = 1e-3
-    step = np.linalg.solve(reciprocal, np.array([0.0, 0.0, delta]))
+    direction = np.eye(3)[axis]
+    # With direct lattice vectors stored as rows, the physical wavevector is
+    # k_cart = 2*pi*inv(cell) @ q_red.  Inverting that map gives this reduced
+    # step along the requested Cartesian direction.
+    step = cell @ direction * delta / (2 * np.pi)
     plus = _nac_frequencies_cm(gan_second, q0 + step) / THZ_TO_CM
     minus = _nac_frequencies_cm(gan_second, q0 - step) / THZ_TO_CM
     slope = (plus - minus) / (2 * delta)
 
     usable = np.abs(slope) > 0.05
-    ratio = velocity[usable, 2] / slope[usable]
+    assert np.any(usable), f"no dispersive modes found along Cartesian axis {axis}"
+    ratio = velocity[usable, axis] / slope[usable]
     np.testing.assert_allclose(ratio, 2 * np.pi, rtol=1e-2)
 
 

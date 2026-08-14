@@ -218,7 +218,8 @@ class HarmonicWithQ(Observable, Storable):
             NAC_VELOCITY_DIRECTIONS_CART[direction_index], dtype=float, copy=True
         )
         dq_cart = direction_cart / np.linalg.norm(direction_cart) * NAC_VELOCITY_Q_LENGTH
-        dq_red = static_data["primitive_cell"].T @ dq_cart / units.Bohr
+        # The cell is row-vector, so the forward map is inv(C) and the inverse is C.
+        dq_red = static_data["primitive_cell"] @ dq_cart / units.Bohr
         q_red = np.array(self.q_point, dtype=float, copy=True)
         dm_minus = _to_phonopy_dm(
             self._calculate_nac_dynamical_matrix_for_q(q_red - dq_red, static_data, _mapping)
@@ -335,7 +336,8 @@ class HarmonicWithQ(Observable, Storable):
         q_samples = [q_red]
         for direction_cart in NAC_VELOCITY_DIRECTIONS_CART:
             dq_cart = direction_cart / np.linalg.norm(direction_cart) * NAC_VELOCITY_Q_LENGTH
-            dq_red = static_data["primitive_cell"].T @ dq_cart / units.Bohr
+            # The cell is row-vector, so the forward map is inv(C) and the inverse is C.
+            dq_red = static_data["primitive_cell"] @ dq_cart / units.Bohr
             q_samples.extend((q_red - dq_red, q_red + dq_red))
         q_samples = np.array(q_samples, dtype=float)
         dm_all = self._calculate_nac_dynamical_matrices_for_qs(q_samples, static_data, mapping)
