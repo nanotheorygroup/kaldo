@@ -209,9 +209,41 @@ def test_embedded_charges_mark_the_convention(mgo_second):
     assert "charges" in mgo_second.atoms.arrays
 
 
-def test_dipole_subtracted_constants_use_qe_rigid_ion_nac(mgo_second):
+@pytest.mark.parametrize(
+    "q_point, expected_frequency_cm, degenerate_pairs",
+    [
+        pytest.param(
+            [0.3, 0.0, 0.3],
+            [239.7640, 239.7640, 367.6916, 422.9322, 422.9322, 582.6500],
+            ((0, 1), (3, 4)),
+            id="q-0.3-0-0.3",
+        ),
+        pytest.param(
+            [0.1, 0.0, 0.0],
+            [77.0501, 77.0501, 135.2487, 389.4064, 389.4064, 691.1982],
+            ((0, 1), (3, 4)),
+            id="q-0.1-0-0",
+        ),
+        pytest.param(
+            [0.15, 0.15, 0.15],
+            [113.7407, 113.7407, 200.8237, 387.8639, 387.8639, 684.7630],
+            ((0, 1), (3, 4)),
+            id="q-0.15-0.15-0.15",
+        ),
+        pytest.param(
+            [0.3, 0.1, 0.0],
+            [203.9083, 210.4709, 344.9263, 386.7525, 394.9880, 643.5431],
+            (),
+            id="q-0.3-0.1-0",
+        ),
+    ],
+)
+def test_qe_q2r_frequencies_match_matdyn_off_gamma(
+    mgo_second, q_point, expected_frequency_cm, degenerate_pairs
+):
+    """Match all four QE matdyn.x controls retained by the legacy-bug branch."""
     phonon = HarmonicWithQ(
-        q_point=np.array([0.3, 0.0, 0.3]),
+        q_point=np.asarray(q_point, dtype=np.float64),
         second=mgo_second,
         storage="memory",
         is_unfolding=True,
@@ -219,21 +251,22 @@ def test_dipole_subtracted_constants_use_qe_rigid_ion_nac(mgo_second):
     frequency_cm = phonon.frequency[0] * 33.3564095198152
     assert frequency_cm.shape == (6,)
     assert np.isfinite(frequency_cm).all()
-    # QE matdyn.x with asr='simple' at q=(0.3, 0, 0.3). These replace the
-    # previous branch-generated values, which used the plain replica transform
-    # and split both symmetry-required pairs away from the q2r mesh.
+    # QE 7.6 matdyn.x with asr='simple'. These replace branch-generated values
+    # from the plain replica transform and cover several directions away from
+    # the defining q2r mesh without relaxing the former single-point tolerance.
     np.testing.assert_allclose(
         frequency_cm,
-        [239.7640, 239.7640, 367.6916, 422.9322, 422.9322, 582.6500],
+        expected_frequency_cm,
         rtol=0.0,
         atol=1.0e-2,
     )
-    np.testing.assert_allclose(
-        frequency_cm[[0, 3]],
-        frequency_cm[[1, 4]],
-        rtol=0.0,
-        atol=5.0e-6,
-    )
+    for left, right in degenerate_pairs:
+        np.testing.assert_allclose(
+            frequency_cm[left],
+            frequency_cm[right],
+            rtol=0.0,
+            atol=5.0e-6,
+        )
 
 
 def test_qe_nac_velocity_uses_the_corrected_dispersion_gradient(mgo_second):
