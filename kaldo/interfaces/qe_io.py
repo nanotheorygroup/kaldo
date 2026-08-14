@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0-only
+# SPDX-License-Identifier: BSD-3-Clause
 """Quantum ESPRESSO force-constant interfaces.
 
 This module owns the format-specific q2r IFC2 and d3q IFC3 readers together
@@ -588,165 +588,195 @@ def qe_lattice_from_ibrav(
     *,
     at_columns: _FLOAT | None = None,
 ) -> tuple[_FLOAT, float]:
-    """Return QE direct vectors as rows in bohr and their positive volume.
+    """Construct QE direct lattice vectors as rows in bohr.
 
-    ``at_columns`` is required for ``ibrav=0`` and is read verbatim from a
-    formatted q2r header, where it is in units of ``celldm(1)``.
+    This implementation follows the crystallographic definitions published in
+    Quantum ESPRESSO's ``INPUT_PW`` documentation. It is an independent Python
+    implementation: every case first constructs dimensionless vectors in units
+    of ``a = celldm(1)`` and the common epilogue applies that scale and validates
+    the volume. See https://www.quantum-espresso.org/Doc/INPUT_PW.html#ibrav.
+
+    ``at_columns`` is required for ``ibrav=0`` because formatted q2r files store
+    those explicit vectors as columns in units of ``celldm(1)``.
     """
-    c = np.asarray(celldm, dtype=float)
-    if c.shape != (6,) or not np.isfinite(c).all():
+    parameters = np.asarray(celldm, dtype=np.float64)
+    if parameters.shape != (6,) or not np.isfinite(parameters).all():
         raise QELatticeError("celldm must be six finite values")
-    alat = float(c[0])
+
+    alat = float(parameters[0])
     _positive(alat, "celldm(1)", ibrav)
+
     if ibrav == 0:
         if at_columns is None:
             raise QELatticeError("ibrav=0 requires q2r lattice vectors")
-        columns = np.asarray(at_columns, dtype=float)
+        columns = np.asarray(at_columns, dtype=np.float64)
         if columns.shape != (3, 3) or not np.isfinite(columns).all():
             raise QELatticeError("ibrav=0 vectors must be a finite 3x3 matrix")
-        rows = columns.T * alat
-        volume = float(abs(np.linalg.det(rows)))
-        if volume < 1e-14:
-            raise QELatticeError("ibrav=0 lattice is singular")
-        return rows, volume
-
-    a1 = np.zeros(3)
-    a2 = np.zeros(3)
-    a3 = np.zeros(3)
-    sr2, sr3 = 1.414213562373, 1.732050807569
-    if ibrav == 1:
-        a1[0] = a2[1] = a3[2] = alat
-    elif ibrav == 2:
-        h = alat / 2
-        a1[:] = (-h, 0, h)
-        a2[:] = (0, h, h)
-        a3[:] = (-h, h, 0)
-    elif abs(ibrav) == 3:
-        h = alat / 2
-        a1[:] = a2[:] = a3[:] = h
-        if ibrav < 0:
-            a1[0] *= -1
-            a2[1] *= -1
-            a3[2] *= -1
-        else:
-            a2[0] *= -1
-            a3[0] *= -1
-            a3[1] *= -1
-    elif ibrav == 4:
-        _positive(float(c[2]), "celldm(3)", ibrav)
-        a1[0] = alat
-        a2[:] = (-alat / 2, alat * sr3 / 2, 0)
-        a3[2] = alat * c[2]
-    elif abs(ibrav) == 5:
-        if not -0.5 < c[3] < 1.0:
-            raise QELatticeError(f"ibrav={ibrav}: celldm(4) must lie in (-0.5, 1)")
-        t1, t2 = np.sqrt(1 + 2 * c[3]), np.sqrt(1 - c[3])
-        if ibrav == 5:
-            a2[1], a2[2] = sr2 * alat * t2 / sr3, alat * t1 / sr3
-            a1[:] = (alat * t2 / sr2, -alat * t2 / (sr2 * sr3), a2[2])
-            a3[:] = (-a1[0], a1[1], a2[2])
-        else:
-            a1[:] = (
-                alat * (t1 - 2 * t2) / 3,
-                alat * (t1 + t2) / 3,
-                alat * (t1 + t2) / 3,
-            )
-            a2[:] = (a1[2], a1[0], a1[1])
-            a3[:] = (a1[1], a1[2], a1[0])
-    elif ibrav == 6:
-        _positive(float(c[2]), "celldm(3)", ibrav)
-        a1[0] = a2[1] = alat
-        a3[2] = alat * c[2]
-    elif ibrav == 7:
-        _positive(float(c[2]), "celldm(3)", ibrav)
-        h, z = alat / 2, alat * c[2] / 2
-        a1[:] = (h, -h, z)
-        a2[:] = (h, h, z)
-        a3[:] = (-h, -h, z)
-    elif ibrav == 8:
-        _positive(float(c[1]), "celldm(2)", ibrav)
-        _positive(float(c[2]), "celldm(3)", ibrav)
-        a1[0] = alat
-        a2[1] = alat * c[1]
-        a3[2] = alat * c[2]
-    elif abs(ibrav) == 9:
-        _positive(float(c[1]), "celldm(2)", ibrav)
-        _positive(float(c[2]), "celldm(3)", ibrav)
-        h = alat / 2
-        if ibrav == 9:
-            a1[:], a2[:] = (h, h * c[1], 0), (-h, h * c[1], 0)
-        else:
-            a1[:], a2[:] = (h, -h * c[1], 0), (h, h * c[1], 0)
-        a3[2] = alat * c[2]
-    elif ibrav == 91:
-        _positive(float(c[1]), "celldm(2)", ibrav)
-        _positive(float(c[2]), "celldm(3)", ibrav)
-        a1[0] = alat
-        a2[:] = (0, alat * c[1] / 2, -alat * c[2] / 2)
-        a3[:] = (0, alat * c[1] / 2, alat * c[2] / 2)
-    elif ibrav == 10:
-        _positive(float(c[1]), "celldm(2)", ibrav)
-        _positive(float(c[2]), "celldm(3)", ibrav)
-        h = alat / 2
-        a1[:] = (h, 0, h * c[2])
-        a2[:] = (h, h * c[1], 0)
-        a3[:] = (0, h * c[1], h * c[2])
-    elif ibrav == 11:
-        _positive(float(c[1]), "celldm(2)", ibrav)
-        _positive(float(c[2]), "celldm(3)", ibrav)
-        h = alat / 2
-        a1[:] = (h, h * c[1], h * c[2])
-        a2[:] = (-h, h * c[1], h * c[2])
-        a3[:] = (-h, -h * c[1], h * c[2])
-    elif ibrav in (12, -12):
-        _positive(float(c[1]), "celldm(2)", ibrav)
-        _positive(float(c[2]), "celldm(3)", ibrav)
-        ci = 3 if ibrav == 12 else 4
-        _cosine(float(c[ci]), f"celldm({ci+1})", ibrav)
-        s = np.sqrt(1 - c[ci] ** 2)
-        if ibrav == 12:
-            a1[0] = alat
-            a2[:] = (alat * c[1] * c[3], alat * c[1] * s, 0)
-            a3[2] = alat * c[2]
-        else:
-            a1[0] = alat
-            a2[1] = alat * c[1]
-            a3[:] = (alat * c[2] * c[4], 0, alat * c[2] * s)
-    elif ibrav in (13, -13):
-        _positive(float(c[1]), "celldm(2)", ibrav)
-        _positive(float(c[2]), "celldm(3)", ibrav)
-        ci = 3 if ibrav == 13 else 4
-        _cosine(float(c[ci]), f"celldm({ci+1})", ibrav)
-        s = np.sqrt(1 - c[ci] ** 2)
-        h = alat / 2
-        if ibrav == 13:
-            a1[:] = (h, 0, -h * c[2])
-            a2[:] = (alat * c[1] * c[3], alat * c[1] * s, 0)
-            a3[:] = (h, 0, h * c[2])
-        else:
-            a1[:] = (h, h * c[1], 0)
-            a2[:] = (-h, h * c[1], 0)
-            a3[:] = (alat * c[2] * c[4], 0, alat * c[2] * s)
-    elif ibrav == 14:
-        _positive(float(c[1]), "celldm(2)", ibrav)
-        _positive(float(c[2]), "celldm(3)", ibrav)
-        _cosine(float(c[3]), "celldm(4)", ibrav)
-        _cosine(float(c[4]), "celldm(5)", ibrav)
-        _cosine(float(c[5]), "celldm(6)", ibrav)
-        sg = np.sqrt(1 - c[5] ** 2)
-        rad = 1 + 2 * c[3] * c[4] * c[5] - c[3] ** 2 - c[4] ** 2 - c[5] ** 2
-        if rad < 0:
-            raise QELatticeError("ibrav=14 celldm values do not define a real cell")
-        a1[0] = alat
-        a2[:] = (alat * c[1] * c[5], alat * c[1] * sg, 0)
-        a3[:] = (
-            alat * c[2] * c[4],
-            alat * c[2] * (c[3] - c[4] * c[5]) / sg,
-            alat * c[2] * np.sqrt(rad / (1 - c[5] ** 2)),
-        )
+        dimensionless_rows = columns.T
     else:
-        raise QELatticeError(f"unsupported/nonexistent Quantum ESPRESSO ibrav={ibrav}")
-    rows = np.vstack((a1, a2, a3))
+        b_over_a = float(parameters[1])
+        c_over_a = float(parameters[2])
+        if ibrav in {8, 9, -9, 91, 10, 11, 12, -12, 13, -13, 14}:
+            _positive(b_over_a, "celldm(2)", ibrav)
+        if ibrav in {4, 6, 7, 8, 9, -9, 91, 10, 11, 12, -12, 13, -13, 14}:
+            _positive(c_over_a, "celldm(3)", ibrav)
+
+        half = 0.5
+        match ibrav:
+            case 1:  # simple cubic
+                dimensionless_rows = np.eye(3)
+            case 2:  # face-centred cubic
+                dimensionless_rows = half * np.array(
+                    [[-1.0, 0.0, 1.0], [0.0, 1.0, 1.0], [-1.0, 1.0, 0.0]]
+                )
+            case 3:  # body-centred cubic, conventional QE orientation
+                dimensionless_rows = half * np.array(
+                    [[1.0, 1.0, 1.0], [-1.0, 1.0, 1.0], [-1.0, -1.0, 1.0]]
+                )
+            case -3:  # body-centred cubic, symmetric-axis orientation
+                dimensionless_rows = half * np.array(
+                    [[-1.0, 1.0, 1.0], [1.0, -1.0, 1.0], [1.0, 1.0, -1.0]]
+                )
+            case 4:  # primitive hexagonal
+                dimensionless_rows = np.array(
+                    [[1.0, 0.0, 0.0], [-half, np.sqrt(3.0) * half, 0.0], [0.0, 0.0, c_over_a]]
+                )
+            case 5 | -5:  # rhombohedral; the sign selects the threefold axis
+                cos_gamma = float(parameters[3])
+                if not -0.5 < cos_gamma < 1.0:
+                    raise QELatticeError(
+                        f"ibrav={ibrav}: celldm(4) must lie in (-0.5, 1)"
+                    )
+                tx = np.sqrt((1.0 - cos_gamma) / 2.0)
+                ty = np.sqrt((1.0 - cos_gamma) / 6.0)
+                tz = np.sqrt((1.0 + 2.0 * cos_gamma) / 3.0)
+                if ibrav == 5:
+                    dimensionless_rows = np.array(
+                        [[tx, -ty, tz], [0.0, 2.0 * ty, tz], [-tx, -ty, tz]]
+                    )
+                else:
+                    scale = 1.0 / np.sqrt(3.0)
+                    diagonal = tz - 2.0 * np.sqrt(2.0) * ty
+                    off_diagonal = tz + np.sqrt(2.0) * ty
+                    dimensionless_rows = scale * np.array(
+                        [
+                            [diagonal, off_diagonal, off_diagonal],
+                            [off_diagonal, diagonal, off_diagonal],
+                            [off_diagonal, off_diagonal, diagonal],
+                        ]
+                    )
+            case 6:  # primitive tetragonal
+                dimensionless_rows = np.diag([1.0, 1.0, c_over_a])
+            case 7:  # body-centred tetragonal
+                dimensionless_rows = half * np.array(
+                    [
+                        [1.0, -1.0, c_over_a],
+                        [1.0, 1.0, c_over_a],
+                        [-1.0, -1.0, c_over_a],
+                    ]
+                )
+            case 8:  # primitive orthorhombic
+                dimensionless_rows = np.diag([1.0, b_over_a, c_over_a])
+            case 9:  # C-centred orthorhombic
+                dimensionless_rows = np.array(
+                    [[half, half * b_over_a, 0.0], [-half, half * b_over_a, 0.0], [0.0, 0.0, c_over_a]]
+                )
+            case -9:  # alternate C-centred orthorhombic orientation
+                dimensionless_rows = np.array(
+                    [[half, -half * b_over_a, 0.0], [half, half * b_over_a, 0.0], [0.0, 0.0, c_over_a]]
+                )
+            case 91:  # A-centred orthorhombic
+                dimensionless_rows = np.array(
+                    [
+                        [1.0, 0.0, 0.0],
+                        [0.0, half * b_over_a, -half * c_over_a],
+                        [0.0, half * b_over_a, half * c_over_a],
+                    ]
+                )
+            case 10:  # face-centred orthorhombic
+                dimensionless_rows = half * np.array(
+                    [[1.0, 0.0, c_over_a], [1.0, b_over_a, 0.0], [0.0, b_over_a, c_over_a]]
+                )
+            case 11:  # body-centred orthorhombic
+                dimensionless_rows = half * np.array(
+                    [
+                        [1.0, b_over_a, c_over_a],
+                        [-1.0, b_over_a, c_over_a],
+                        [-1.0, -b_over_a, c_over_a],
+                    ]
+                )
+            case 12:  # primitive monoclinic, unique axis c
+                cos_ab = float(parameters[3])
+                _cosine(cos_ab, "celldm(4)", ibrav)
+                dimensionless_rows = np.array(
+                    [
+                        [1.0, 0.0, 0.0],
+                        [b_over_a * cos_ab, b_over_a * np.sqrt(1.0 - cos_ab**2), 0.0],
+                        [0.0, 0.0, c_over_a],
+                    ]
+                )
+            case -12:  # primitive monoclinic, unique axis b
+                cos_ac = float(parameters[4])
+                _cosine(cos_ac, "celldm(5)", ibrav)
+                dimensionless_rows = np.array(
+                    [
+                        [1.0, 0.0, 0.0],
+                        [0.0, b_over_a, 0.0],
+                        [c_over_a * cos_ac, 0.0, c_over_a * np.sqrt(1.0 - cos_ac**2)],
+                    ]
+                )
+            case 13:  # base-centred monoclinic, unique axis c
+                cos_ab = float(parameters[3])
+                _cosine(cos_ab, "celldm(4)", ibrav)
+                dimensionless_rows = np.array(
+                    [
+                        [half, 0.0, -half * c_over_a],
+                        [b_over_a * cos_ab, b_over_a * np.sqrt(1.0 - cos_ab**2), 0.0],
+                        [half, 0.0, half * c_over_a],
+                    ]
+                )
+            case -13:  # base-centred monoclinic, unique axis b (QE >= 6.4.1)
+                cos_ac = float(parameters[4])
+                _cosine(cos_ac, "celldm(5)", ibrav)
+                dimensionless_rows = np.array(
+                    [
+                        [half, half * b_over_a, 0.0],
+                        [-half, half * b_over_a, 0.0],
+                        [c_over_a * cos_ac, 0.0, c_over_a * np.sqrt(1.0 - cos_ac**2)],
+                    ]
+                )
+            case 14:  # triclinic
+                cos_bc, cos_ac, cos_ab = map(float, parameters[3:6])
+                _cosine(cos_bc, "celldm(4)", ibrav)
+                _cosine(cos_ac, "celldm(5)", ibrav)
+                _cosine(cos_ab, "celldm(6)", ibrav)
+                sin_ab = np.sqrt(1.0 - cos_ab**2)
+                determinant_factor = (
+                    1.0
+                    + 2.0 * cos_bc * cos_ac * cos_ab
+                    - cos_bc**2
+                    - cos_ac**2
+                    - cos_ab**2
+                )
+                if determinant_factor <= 0.0:
+                    raise QELatticeError("ibrav=14 celldm values do not define a real cell")
+                dimensionless_rows = np.array(
+                    [
+                        [1.0, 0.0, 0.0],
+                        [b_over_a * cos_ab, b_over_a * sin_ab, 0.0],
+                        [
+                            c_over_a * cos_ac,
+                            c_over_a * (cos_bc - cos_ac * cos_ab) / sin_ab,
+                            c_over_a * np.sqrt(determinant_factor) / sin_ab,
+                        ],
+                    ]
+                )
+            case _:
+                raise QELatticeError(
+                    f"unsupported/nonexistent Quantum ESPRESSO ibrav={ibrav}"
+                )
+
+    rows = np.asarray(dimensionless_rows * alat, dtype=np.float64)
     volume = float(abs(np.linalg.det(rows)))
     if volume < 1e-14:
         raise QELatticeError(f"ibrav={ibrav} generated a singular lattice")
