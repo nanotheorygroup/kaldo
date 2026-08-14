@@ -64,8 +64,11 @@ def gan_second(tmp_path_factory):
 
 
 def _nac_frequencies_cm(second, q_point):
-    hwq = HarmonicWithQ(q_point=np.array(q_point, dtype=float), second=second,
-                        storage="memory")
+    hwq = HarmonicWithQ(
+        q_point=np.array(q_point, dtype=np.float64),
+        second=second,
+        storage="memory",
+    )
     return np.sort(np.array(hwq.frequency).flatten()) * THZ_TO_CM
 
 
@@ -79,8 +82,8 @@ def test_nac_frequencies_match_phonopy(gan_second, q_point):
 
 def test_nac_gamma_A_transverse_degeneracy(gan_second):
     actual = _nac_frequencies_cm(gan_second, (0.0, 0.0, 0.25))
-    assert abs(actual[0] - actual[1]) < 0.1
-    assert abs(actual[6] - actual[7]) < 0.1
+    np.testing.assert_allclose(actual[0], actual[1], rtol=0.0, atol=0.1)
+    np.testing.assert_allclose(actual[6], actual[7], rtol=0.0, atol=0.1)
 
 
 def test_nac_gamma_lo_to_splitting(gan_second):

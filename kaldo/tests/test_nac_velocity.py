@@ -91,7 +91,7 @@ def _sorted_frequencies(second, q_point, nac_bvk_supercell_matrix=NAC_BVK_MATRIX
     if nac_bvk_supercell_matrix is not None:
         nac_options["nac_bvk_supercell_matrix"] = nac_bvk_supercell_matrix
     harmonic = HarmonicWithQ(
-        q_point=np.asarray(q_point, dtype=float),
+        q_point=np.asarray(q_point, dtype=np.float64),
         second=second,
         storage="memory",
         **nac_options,
