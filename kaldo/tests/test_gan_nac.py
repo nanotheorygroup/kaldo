@@ -12,8 +12,8 @@ values (BORN file, phonopy conventions). Frequency references were generated
 with phonopy 3.5.1 driven through its python API on the same force constants
 (built with _build_interleaved_fc) and the same NAC parameters, with
 nac_q_direction=[1, 0, 0] at Gamma. Tolerances reflect the current
-kaldo-phonopy parity: a few cm^-1 away from Gamma from independent Ewald
-parameter choices, essentially exact at Gamma and along Gamma-A.
+kALDo--Phonopy parity: the largest error in the pinned spectrum is about
+0.0101 cm^-1.
 
 The velocity test is referee-free: analytic group velocities must equal
 2 pi times the slope of the code's own dispersion (dOmega/dq in A/ps).
@@ -72,9 +72,9 @@ def _nac_frequencies_cm(second, q_point):
 @pytest.mark.parametrize("q_point", list(PHONOPY_REFERENCE))
 def test_nac_frequencies_match_phonopy(gan_second, q_point):
     actual = _nac_frequencies_cm(gan_second, q_point)
-    # atol covers the kaldo-phonopy Ewald-parameter parity band (worst ~13
-    # cm^-1 off Gamma); rtol pinned to zero so the bound is absolute.
-    np.testing.assert_allclose(actual, PHONOPY_REFERENCE[q_point], rtol=0.0, atol=15.0)
+    # The references are printed to 1e-4 cm^-1; the observed worst case is
+    # about 0.0101 cm^-1. Keep a small absolute margin without relative slack.
+    np.testing.assert_allclose(actual, PHONOPY_REFERENCE[q_point], rtol=0.0, atol=0.02)
 
 
 def test_nac_gamma_A_transverse_degeneracy(gan_second):
