@@ -1,4 +1,3 @@
-# SPDX-License-Identifier: BSD-3-Clause
 """Quantum ESPRESSO force-constant interfaces.
 
 This module owns the format-specific q2r IFC2 and d3q IFC3 readers together
