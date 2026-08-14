@@ -82,8 +82,11 @@ conventions are not user-selectable methods or interchangeable fallbacks.
 ``is_unfolding`` is unrelated to NAC and does not enable it. Once NAC is
 active, the provenance-aware NAC controller supplies its own Wigner--Seitz
 interpolation, so changing ``is_unfolding`` has no effect on that harmonic
-path. With ``is_nac=False``, ``is_unfolding`` again controls the ordinary IFC
-interpolation. The optional
+path. In particular, ``is_unfolding=False`` does not disable the
+Wigner--Seitz interpolation required to reconstruct a polar QE q2r dynamical
+matrix; doing so would no longer reproduce ``matdyn.x`` away from Gamma. With
+``is_nac=False``, ``is_unfolding`` again controls the ordinary IFC
+interpolation of the short-range diagnostic model. The optional
 ``nac_bvk_supercell_matrix`` identifies the Born--von Karman cell that defines
 the force constants when it cannot be inferred as
 ``diag(forceconstants.second.supercell)``. It is not a remeshing request and

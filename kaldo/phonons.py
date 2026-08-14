@@ -417,7 +417,10 @@ class Phonons(Storable):
         Default: False
     is_unfolding : bool
         If the second order force constants need to be unfolded like in P. B. Allen
-        et al., Phys. Rev. B 87, 085322 (2013) set this to True.
+        et al., Phys. Rev. B 87, 085322 (2013) set this to True. This selects
+        the ordinary NAC-off interpolation only. An active NAC controller uses
+        the Wigner--Seitz interpolation required by its input provenance for
+        either value of this flag.
         Default: False
     is_nac : bool or None, optional
         Controls the harmonic long-range correction. ``None`` automatically
