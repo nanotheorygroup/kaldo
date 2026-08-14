@@ -1,5 +1,6 @@
 from kaldo.observables.forceconstant import ForceConstant
 from ase import Atoms
+import math
 import os
 import tensorflow as tf
 import ase.io
@@ -7,16 +8,29 @@ import numpy as np
 from numpy.typing import ArrayLike
 from kaldo.interfaces.eskm_io import import_from_files
 import kaldo.interfaces.shengbte_io as shengbte_io
+import kaldo.interfaces.vasp_io as vasp_io
+import kaldo.interfaces.qe_io as qe_io
 from kaldo.interfaces.tdep_io import parse_tdep_forceconstant
 from kaldo.controllers.displacement import calculate_second, try_symmetrize_ifc
-from kaldo.parallel import is_parallel, validate_parallel_calculator, maybe_warn_ml_delta_shift
+from kaldo.parallel import (
+    is_parallel,
+    validate_parallel_calculator,
+    maybe_warn_ml_delta_shift,
+)
 import ase.units as units
 from kaldo.helpers.logger import get_logger, log_size
+from kaldo.storable import Storable, lazy_property
+from kaldo.grid import Grid
+import kaldo.controllers.nac as nac
 
 logging = get_logger()
 
+# ---------------------------------------------------------------------------
+# Utility functions (public)
+# ---------------------------------------------------------------------------
 
 def acoustic_sum_rule(dynmat):
+    """Apply kALDo's onsite translational sum-rule correction in place."""
     n_unit = dynmat[0].shape[0]
     sumrulecorr = 0.0
     for i in range(n_unit):
@@ -27,8 +41,17 @@ def acoustic_sum_rule(dynmat):
     return dynmat
 
 
-class SecondOrder(ForceConstant):
-    def __init__(self, value: ArrayLike | None, is_acoustic_sum: bool = False, *kargs, **kwargs):
+class SecondOrder(ForceConstant, Storable):
+    """Second-order IFC observable with format-aware NAC preparation caches."""
+
+    _store_formats = {
+        "nac_short_range_force_constants": "numpy",
+    }
+
+    def __init__(
+        self, value: ArrayLike | None, is_acoustic_sum: bool = False, *kargs, **kwargs
+    ):
+        """Initialize IFCs and optionally enforce the translational sum rule."""
         # apply acoustic sum rule before initialize in forceconstnat
         # (value is None for the empty object used to compute force constants
         # later; calculate() applies the sum rule itself in that case)
@@ -40,16 +63,180 @@ class SecondOrder(ForceConstant):
 
         self.n_modes = self.atoms.positions.shape[0] * 3
         self._list_of_replicas = None  # TODO: why overwrite _list_of_replicas here?
+        self._nac_precomputed_cache = {}
+        self._nac_short_range_force_constants_cache = {}
         self.storage = "numpy"
 
+    @lazy_property(label="", format="numpy")
+    def nac_short_range_force_constants(self):
+        """Return cached Gonze short-range IFCs for the default BvK grid."""
+        return self.calculate_nac_short_range_force_constants()
+
+    def _refuse_dipole_subtracted_fc(self):
+        """Reject short-range IFCs whose matching restoration is unavailable.
+
+        Exactly one dipole term must be removed and restored. A parsed q2r
+        header supplies the QE restoration convention; a bare legacy marker
+        proves subtraction occurred but does not contain enough native data to
+        reconstruct it safely.
+        """
+        if (
+            self.atoms.info.get("dipole_subtracted_fc", False)
+            and getattr(self, "_qe_q2r_header", None) is None
+        ):
+            raise NotImplementedError(
+                "These force constants are marked as QE dipole-subtracted, but "
+                "their native q2r lattice, q-grid, and Ewald metadata are missing. "
+                "The QE rigid-ion term cannot be reconstructed safely, while the "
+                "generic Gonze path would subtract the dipole part a second time. "
+                "Reload the original .fc file through a QE interface, or re-run "
+                "q2r.x without epsil and provide dielectric/Born tensors separately "
+                "with total force constants."
+            )
+
+    def get_nac_short_range_force_constants(self, nac_bvk_supercell_matrix=None):
+        """Return convention-correct short-range IFCs for harmonic NAC.
+
+        QE q2r IFCs are already short range, so they are converted only to the
+        controller's compact atom-major ordering without another subtraction.
+        Total-IFC inputs are converted once through the Gonze
+        commensurate-mesh subtraction and cached by BvK matrix.
+        """
+        self._refuse_dipole_subtracted_fc()
+        matrix = nac.normalize_bvk_supercell_matrix(nac_bvk_supercell_matrix)
+        if getattr(self, "_qe_q2r_header", None) is not None:
+            # A q2r file written with epsil=.true. already contains QE's
+            # short-range IFCs. Do not run Gonze subtraction or share its cache.
+            return nac._build_interleaved_fc(self)
+        if matrix is None:
+            return self.nac_short_range_force_constants
+
+        key = nac.bvk_supercell_matrix_key(matrix)
+        if key in self._nac_short_range_force_constants_cache:
+            return self._nac_short_range_force_constants_cache[key]
+
+        property_name = "nac_short_range_force_constants_" + key
+        folder = self.get_folder_from_label("")
+        try:
+            loaded = self._load_property(property_name, folder, format="numpy")
+            logging.info("Loading " + folder + "/" + property_name)
+            self._nac_short_range_force_constants_cache[key] = loaded
+            return loaded
+        except (FileNotFoundError, OSError, KeyError):
+            logging.info(
+                folder
+                + "/"
+                + property_name
+                + " not found in numpy format, calculating "
+                + property_name
+            )
+            force_constants = self.calculate_nac_short_range_force_constants(matrix)
+            self._save_property(property_name, folder, force_constants, format="numpy")
+            self._nac_short_range_force_constants_cache[key] = force_constants
+            return force_constants
+
+    def _build_nac_static_data(self, matrix=None):
+        """Delegate construction of q-independent NAC physics to the controller."""
+        return nac.build_static_data(self, matrix)
+
+    def _build_nac_mapping(self, matrix=None):
+        """Build the Wigner--Seitz map for this IFC supercell."""
+        return nac.build_mapping(self, matrix)
+
+    def get_nac_precomputed(self, nac_bvk_supercell_matrix=None):
+        """Return cached NAC kernel data and any convention-required mapping."""
+        matrix = nac.normalize_bvk_supercell_matrix(nac_bvk_supercell_matrix)
+        key = nac.bvk_supercell_matrix_key(matrix) if matrix is not None else "default"
+        if key not in self._nac_precomputed_cache:
+            static_data = self._build_nac_static_data(matrix)
+            if static_data.get("convention") == "qe_q2r":
+                # QE q2r IFCs are already short range, but matdyn.x still uses
+                # Wigner--Seitz shortest-vector weighting to interpolate their
+                # finite-supercell images away from the commensurate mesh. A
+                # different BvK lattice would require resampling those IFCs;
+                # the defining diagonal matrix is the only supported mapping.
+                expected = np.diag(np.asarray(self.supercell, dtype=int))
+                if matrix is not None and not np.array_equal(matrix, expected):
+                    raise NotImplementedError(
+                        "nac_bvk_supercell_matrix cannot remesh QE q2r force "
+                        f"constants; expected diag(supercell)={expected.tolist()}, "
+                        f"got {matrix.tolist()}"
+                    )
+                mapping = self._build_nac_mapping(matrix)
+            else:
+                mapping = self._build_nac_mapping(matrix)
+            static_data, mapping = nac.ensure_kernel_cache(static_data, mapping)
+            self._nac_precomputed_cache[key] = {
+                "static_data": static_data,
+                "mapping": mapping,
+            }
+        return self._nac_precomputed_cache[key]
+
+    def calculate_nac_short_range_force_constants(self, nac_bvk_supercell_matrix=None):
+        """Remove the Gonze dipole term once and inverse-transform the remainder.
+
+        Polar q2r inputs bypass this operation because q2r already performed
+        the corresponding QE subtraction before writing the IFC body.
+        """
+        self._refuse_dipole_subtracted_fc()
+        if getattr(self, "_qe_q2r_header", None) is not None:
+            return nac._build_interleaved_fc(self)
+        if "dielectric" not in self.atoms.info or "charges" not in self.atoms.arrays:
+            raise ValueError(
+                "NAC short-range force constants require atoms.info['dielectric'] "
+                "and atoms.arrays['charges']."
+            )
+        matrix = nac.normalize_bvk_supercell_matrix(nac_bvk_supercell_matrix)
+        supercell = self.supercell if matrix is None else matrix
+        bundle = self.get_nac_precomputed(matrix)
+        static_data = bundle["static_data"]
+        mapping = bundle["mapping"]
+        qpoints = nac._commensurate_points(supercell, static_data["reciprocal_lattice"])
+        dynmats = np.zeros(
+            (len(qpoints), len(self.atoms) * 3, len(self.atoms) * 3),
+            dtype=np.complex128,
+        )
+        logging.info(
+            "Calculating NAC short-range force constants from "
+            + str(len(qpoints))
+            + " commensurate q-points."
+        )
+        fc_full = nac._build_interleaved_fc(self)
+        conversion = units.mol / (10 * units.J)
+        svecs = mapping.get("phase_svecs", mapping["svecs"])
+        fc_full_converted = fc_full * conversion
+        for i_q, q_point in enumerate(qpoints):
+            dynmat = nac._short_range_dynamical_matrix(
+                fc_full_converted,
+                q_point,
+                svecs,
+                mapping["multi"],
+                static_data["masses"],
+                mapping["s2p_map"],
+                mapping["p2s_map"],
+                phase_weights=mapping["phase_weights"],
+                target_mask=mapping["target_mask"],
+            )
+            dynmat -= nac._dipole_dipole_dynamical_matrix(
+                q_point,
+                static_data,
+                mapping,
+            )
+            dynmats[i_q] = (dynmat + dynmat.conj().T) / 2
+        return nac._inverse_transform_dynmats_to_force_constants(
+            dynmats, qpoints, mapping, static_data["masses"]
+        )
+
     @classmethod
-    def from_supercell(cls,
-                       atoms: Atoms,
-                       grid_type: str,
-                       supercell: tuple[int, int, int] = None,
-                       value: ArrayLike | None = None,
-                       is_acoustic_sum: bool = False,
-                       folder: str = "kALDo"):
+    def from_supercell(
+        cls,
+        atoms: Atoms,
+        grid_type: str,
+        supercell: tuple[int, int, int] = None,
+        value: ArrayLike | None = None,
+        is_acoustic_sum: bool = False,
+        folder: str = "kALDo",
+    ):
         # acoustic sum rule will be applied later in SecondOrder.__init__ if applicable
         ifc = super().from_supercell(
             atoms=atoms,
@@ -57,16 +244,19 @@ class SecondOrder(ForceConstant):
             grid_type=grid_type,
             value=value,
             is_acoustic_sum=is_acoustic_sum,
-            folder=folder)
+            folder=folder,
+        )
         return ifc
 
     @classmethod
-    def load(cls,
-             folder: str,
-             supercell: tuple[int, int, int] = (1, 1, 1),
-             format: str = "numpy",
-             is_acoustic_sum: bool = False,
-             supercell_matrix: np.ndarray | None = None):
+    def load(
+        cls,
+        folder: str,
+        supercell: tuple[int, int, int] = (1, 1, 1),
+        format: str = "numpy",
+        is_acoustic_sum: bool = False,
+        supercell_matrix: np.ndarray | None = None,
+    ):
         """
         Load second order force constants from a folder in the given format, used for library internally.
 
@@ -114,9 +304,16 @@ class SecondOrder(ForceConstant):
                     unit_positions.append(replicated_atoms.positions[i])
                 unit_cell = replicated_atoms.cell / supercell
 
-                atoms = Atoms(unit_symbols, positions=unit_positions, cell=unit_cell, pbc=[1, 1, 1])
+                atoms = Atoms(
+                    unit_symbols,
+                    positions=unit_positions,
+                    cell=unit_cell,
+                    pbc=[1, 1, 1],
+                )
 
-                _second_order = np.load(os.path.join(folder, "second.npy"), allow_pickle=True)
+                _second_order = np.load(
+                    os.path.join(folder, "second.npy"), allow_pickle=True
+                )
                 second_order = SecondOrder(
                     atoms=atoms,
                     replicated_positions=replicated_atoms.positions,
@@ -144,10 +341,17 @@ class SecondOrder(ForceConstant):
                     unit_positions.append(replicated_atoms.positions[i])
                 unit_cell = replicated_atoms.cell / supercell
 
-                atoms = Atoms(unit_symbols, positions=unit_positions, cell=unit_cell, pbc=[1, 1, 1])
+                atoms = Atoms(
+                    unit_symbols,
+                    positions=unit_positions,
+                    cell=unit_cell,
+                    pbc=[1, 1, 1],
+                )
 
                 _second_order, _ = import_from_files(
-                    replicated_atoms=replicated_atoms, dynmat_file=dynmat_file, supercell=supercell
+                    replicated_atoms=replicated_atoms,
+                    dynmat_file=dynmat_file,
+                    supercell=supercell,
                 )
                 second_order = SecondOrder(
                     atoms=atoms,
@@ -158,13 +362,20 @@ class SecondOrder(ForceConstant):
                     folder=folder,
                 )
 
-            case ("vasp-sheng" | "shengbte") | ("qe-sheng" | "shengbte-qe") | ("qe-d3q" | "shengbte-d3q") | "vasp-d3q":
+            case (
+                ("vasp-sheng" | "shengbte")
+                | ("qe-sheng" | "shengbte-qe")
+                | ("qe-d3q" | "shengbte-d3q")
+                | "vasp-d3q"
+            ):
                 config_file = os.path.join(folder, "CONTROL")
                 try:
-                    atoms, supercell, charges = shengbte_io.import_control_file(config_file)
+                    atoms, supercell, charges = shengbte_io.import_control_file(
+                        config_file
+                    )
                     if charges is not None:
-                        atoms.info['dielectric'] = charges[0, :, :]
-                        atoms.set_array('charges', charges[1:, :, :], shape=(3, 3))
+                        atoms.info["dielectric"] = charges[0, :, :]
+                        atoms.set_array("charges", charges[1:, :, :], shape=(3, 3))
                 except FileNotFoundError:
                     config_file = os.path.join(folder, "POSCAR")
                     logging.info("Trying to open POSCAR")
@@ -174,17 +385,28 @@ class SecondOrder(ForceConstant):
                 # TODO: we need to read the grid type here
                 n_replicas = np.prod(supercell)
                 n_unit_atoms = atoms.positions.shape[0]
+                qe_header = None
                 match format:
                     case ("qe-sheng" | "shengbte-qe") | ("qe-d3q" | "shengbte-d3q"):
                         # load QE second order force constant
                         filename = os.path.join(folder, "espresso.ifc2")
                         if not os.path.isfile(filename):
                             raise FileNotFoundError(f"File {filename} not found.")
-                        _second_order, supercell, charges = shengbte_io.read_second_order_qe_matrix(filename)
-                        if (not charges is None):
-                            atoms.info['dielectric'] = charges[0, :, :]
-                            atoms.set_array('charges', charges[1:, :, :], shape=(3, 3))
-                        _second_order = _second_order.reshape((n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
+                        qe_header = qe_io.read_q2r_header(filename)
+                        _second_order, supercell, charges = qe_io.read_second_order_qe_matrix(
+                            filename
+                        )
+                        n_replicas = np.prod(supercell)
+                        if not charges is None:
+                            atoms.info["dielectric"] = charges[0, :, :]
+                            atoms.set_array("charges", charges[1:, :, :], shape=(3, 3))
+                            # q2r subtracts the dipole-dipole part before the back
+                            # transform when the file carries Born charges, so these
+                            # force constants are already short-range.
+                            atoms.info["dipole_subtracted_fc"] = True
+                        _second_order = _second_order.reshape(
+                            (n_unit_atoms, 3, n_replicas, n_unit_atoms, 3)
+                        )
                         _second_order = _second_order.transpose(3, 4, 2, 0, 1)
                         # must match the C-order flattening of (t1, t2, t3) in the reshape above
                         grid_type = "C"
@@ -195,8 +417,12 @@ class SecondOrder(ForceConstant):
                             filename = os.path.join(folder, "FORCE_CONSTANTS")
                         if not os.path.isfile(filename):
                             raise FileNotFoundError(f"File {filename} not found.")
-                        _second_order = shengbte_io.read_second_order_matrix(filename, supercell)
-                        _second_order = _second_order.reshape((n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
+                        _second_order = vasp_io.read_second_order_matrix(
+                            filename, supercell
+                        )
+                        _second_order = _second_order.reshape(
+                            (n_unit_atoms, 3, n_replicas, n_unit_atoms, 3)
+                        )
                         # the reader's replica axis is C-ordered, like the QE
                         # case above; declared together with the vasp-* case in
                         # ThirdOrder.load (see #272 for the QE analogue)
@@ -206,9 +432,14 @@ class SecondOrder(ForceConstant):
                     grid_type=grid_type,
                     supercell=supercell,
                     value=_second_order[np.newaxis, ...],
+                    # Preserve the established ShengBTE/d3q loader behavior.
+                    # Changing this default repins every existing QE workflow;
+                    # q2r provenance affects NAC restoration, not this API contract.
                     is_acoustic_sum=True,
                     folder=folder,
                 )
+                if qe_header is not None and qe_header.has_zstar:
+                    second_order._qe_q2r_header = qe_header
 
             case "hiphive":
                 filename = "atom_prim.xyz"
@@ -233,7 +464,12 @@ class SecondOrder(ForceConstant):
                     logging.warning(
                         "Replicated atoms file not found. Please check if the file exists. Using the unit cell atoms instead."
                     )
-                    replicated_atoms = atoms * (supercell[0], 1, 1) * (1, supercell[1], 1) * (1, 1, supercell[2])
+                    replicated_atoms = (
+                        atoms
+                        * (supercell[0], 1, 1)
+                        * (1, supercell[1], 1)
+                        * (1, 1, supercell[2])
+                    )
                 # Create a finite difference object
                 if "model2.fcs" in os.listdir(folder):
                     _second_order = hiphive_io.import_second_from_hiphive(
@@ -255,25 +491,38 @@ class SecondOrder(ForceConstant):
                 )
                 from kaldo.grid import Grid
 
-                uc, sc, diagonal_supercell = resolve_tdep_supercell(folder, supercell, supercell_matrix)
+                uc, sc, diagonal_supercell = resolve_tdep_supercell(
+                    folder, supercell, supercell_matrix
+                )
                 fc_file = os.path.join(folder, "infile.forceconstant")
 
                 if diagonal_supercell is None:
                     kw = build_nondiag_observable_kwargs(uc, sc)
                     mapping = kw.pop("_mapping")
-                    d2 = parse_tdep_forceconstant(fc_file=fc_file, primitive=uc, grid=kw["grid"])
-                    second_order = SecondOrder(value=d2, is_acoustic_sum=is_acoustic_sum, folder=folder, **kw)
+                    d2 = parse_tdep_forceconstant(
+                        fc_file=fc_file, primitive=uc, grid=kw["grid"]
+                    )
+                    second_order = SecondOrder(
+                        value=d2, is_acoustic_sum=is_acoustic_sum, folder=folder, **kw
+                    )
                     return attach_snf_metadata(second_order, mapping)
 
                 supercell = diagonal_supercell
-                d2 = parse_tdep_forceconstant(fc_file=fc_file, primitive=uc, grid=Grid(supercell, order="C"))
+                d2 = parse_tdep_forceconstant(
+                    fc_file=fc_file, primitive=uc, grid=Grid(supercell, order="C")
+                )
                 second_order = SecondOrder(
-                    atoms=uc, replicated_positions=sc.positions, supercell=supercell, value=d2,
-                    is_acoustic_sum=is_acoustic_sum, folder=folder
+                    atoms=uc,
+                    replicated_positions=sc.positions,
+                    supercell=supercell,
+                    value=d2,
+                    is_acoustic_sum=is_acoustic_sum,
+                    folder=folder,
                 )
 
             case "gpumd":
                 from kaldo.interfaces import gpumd_io
+
                 meta = gpumd_io.read_gpumd_fc(folder)
                 apply_asr = is_acoustic_sum and not meta["acoustic_sum_applied"]
                 second_order = SecondOrder.from_supercell(
@@ -314,8 +563,19 @@ class SecondOrder(ForceConstant):
             self._dynmat = self.calculate_dynmat()
             return self._dynmat
 
-    def calculate(self, calculator=None, delta_shift=1e-3, is_storing=True, is_verbose=False, n_workers=1,
-                  scratch_dir=None, keep_scratch=False, use_symmetry=False, symprec=1e-5, symmetrize=True):
+    def calculate(
+        self,
+        calculator=None,
+        delta_shift=1e-3,
+        is_storing=True,
+        is_verbose=False,
+        n_workers=1,
+        scratch_dir=None,
+        keep_scratch=False,
+        use_symmetry=False,
+        symprec=1e-5,
+        symmetrize=True,
+    ):
         """
         Calculate second-order force constants with finite differences.
 
@@ -401,8 +661,10 @@ class SecondOrder(ForceConstant):
             re-projected. Default: True
         """
         if is_parallel(n_workers):
-            validate_parallel_calculator(calculator, method='SecondOrder.calculate')
-        maybe_warn_ml_delta_shift(calculator, delta_shift, method='SecondOrder.calculate')
+            validate_parallel_calculator(calculator, method="SecondOrder.calculate")
+        maybe_warn_ml_delta_shift(
+            calculator, delta_shift, method="SecondOrder.calculate"
+        )
         atoms = self.atoms
         replicated_atoms = self.replicated_atoms
         # Attach the calculator instance to replicated_atoms once and skip the
@@ -417,16 +679,23 @@ class SecondOrder(ForceConstant):
         # serial stays in memory to avoid creating unexpected directories.
         # use_symmetry is incompatible with scratch_dir (calculate_second
         # raises ValueError on the combo), so don't auto-assign in that case.
-        if (scratch_dir is None and self.folder and is_parallel(n_workers)
-                and not use_symmetry):
-            scratch_dir = os.path.join(self.folder, 'second_order')
-        elif scratch_dir == '':
+        if (
+            scratch_dir is None
+            and self.folder
+            and is_parallel(n_workers)
+            and not use_symmetry
+        ):
+            scratch_dir = os.path.join(self.folder, "second_order")
+        elif scratch_dir == "":
             scratch_dir = None
 
         if is_storing:
             try:
                 self.value = SecondOrder.load(
-                    folder=self.folder, supercell=self.supercell, format="numpy", is_acoustic_sum=self.is_acoustic_sum
+                    folder=self.folder,
+                    supercell=self.supercell,
+                    format="numpy",
+                    is_acoustic_sum=self.is_acoustic_sum,
                 ).value
 
             except FileNotFoundError:
@@ -444,12 +713,20 @@ class SecondOrder(ForceConstant):
                     symprec=symprec,
                 )
                 if symmetrize:
-                    self.value = try_symmetrize_ifc(2, self.value, atoms, self.supercell, symprec)
+                    self.value = try_symmetrize_ifc(
+                        2, self.value, atoms, self.supercell, symprec
+                    )
                 self.save("second")
                 if calculator is not None:
-                    self.replicated_atoms.calc = calculator() if callable(calculator) else calculator
+                    self.replicated_atoms.calc = (
+                        calculator() if callable(calculator) else calculator
+                    )
                 self.replicated_atoms.get_forces()
-                ase.io.write(self.folder + "/replicated_atoms.xyz", self.replicated_atoms, "extxyz")
+                ase.io.write(
+                    self.folder + "/replicated_atoms.xyz",
+                    self.replicated_atoms,
+                    "extxyz",
+                )
             else:
                 logging.info("Reading stored second")
         else:
@@ -466,7 +743,9 @@ class SecondOrder(ForceConstant):
                 symprec=symprec,
             )
             if symmetrize:
-                self.value = try_symmetrize_ifc(2, self.value, atoms, self.supercell, symprec)
+                self.value = try_symmetrize_ifc(
+                    2, self.value, atoms, self.supercell, symprec
+                )
         if self.is_acoustic_sum:
             self.value = acoustic_sum_rule(self.value)
 
@@ -477,15 +756,18 @@ class SecondOrder(ForceConstant):
         the cached dynamical matrix. Diagonal supercells only.
         """
         from kaldo.controllers.displacement import symmetrize_ifc_second
-        if getattr(self, '_snf_mapping', None) is not None:
+
+        if getattr(self, "_snf_mapping", None) is not None:
             # The projector interprets self.supercell as an (nx, ny, nz) grid;
             # the SNF-linearized (n_rep, 1, 1) form would silently symmetrize
             # against the wrong replica lattice.
             raise NotImplementedError(
-                'symmetrize() supports diagonal supercells only; this observable '
-                'was loaded on a non-diagonal (SNF) replica mapping.'
+                "symmetrize() supports diagonal supercells only; this observable "
+                "was loaded on a non-diagonal (SNF) replica mapping."
             )
-        self.value = symmetrize_ifc_second(self.value, self.atoms, self.supercell, symprec)
+        self.value = symmetrize_ifc_second(
+            self.value, self.atoms, self.supercell, symprec
+        )
         try:
             del self._dynmat
         except AttributeError:
@@ -496,8 +778,16 @@ class SecondOrder(ForceConstant):
         mass = self.atoms.get_masses()
         shape = self.value.shape
         log_size(shape, float, name="dynmat")
-        dynmat = self.value * 1 / np.sqrt(mass[np.newaxis, :, np.newaxis, np.newaxis, np.newaxis, np.newaxis])
-        dynmat /= np.sqrt(mass[np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis])
+        dynmat = (
+            self.value
+            * 1
+            / np.sqrt(
+                mass[np.newaxis, :, np.newaxis, np.newaxis, np.newaxis, np.newaxis]
+            )
+        )
+        dynmat /= np.sqrt(
+            mass[np.newaxis, np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
+        )
         return tf.convert_to_tensor(dynmat * evtotenjovermol)
 
     def calculate_super_replicas(self):
@@ -506,11 +796,13 @@ class SecondOrder(ForceConstant):
         atoms = self.atoms
         cell = atoms.cell
         n_unit_cell = atoms.positions.shape[0]
-        replicated_positions = self.replicated_atoms.positions.reshape((n_replicas, n_unit_cell, 3))
-
-        list_of_index = np.round((replicated_positions - self.atoms.positions).dot(np.linalg.inv(atoms.cell))).astype(
-            int
+        replicated_positions = self.replicated_atoms.positions.reshape(
+            (n_replicas, n_unit_cell, 3)
         )
+
+        list_of_index = np.round(
+            (replicated_positions - self.atoms.positions).dot(np.linalg.inv(atoms.cell))
+        ).astype(int)
         list_of_index = list_of_index[:, 0, :]
 
         tt = []
@@ -519,7 +811,9 @@ class SecondOrder(ForceConstant):
             for iy2 in [-1, 0, 1]:
                 for iz2 in [-1, 0, 1]:
                     for f in range(list_of_index.shape[0]):
-                        scell_id = np.array([ix2 * scell[0], iy2 * scell[1], iz2 * scell[2]])
+                        scell_id = np.array(
+                            [ix2 * scell[0], iy2 * scell[1], iz2 * scell[2]]
+                        )
                         replica_id = list_of_index[f]
                         t = replica_id + scell_id
                         replica_position = np.tensordot(t, cell, (-1, 0))
@@ -540,6 +834,8 @@ class SecondOrder(ForceConstant):
             for iy2 in [-1, 0, 1]:
                 for iz2 in [-1, 0, 1]:
                     for i in np.arange(3):
-                        sc_r_pos[ir, i] = np.dot(replicated_cell[:, i], np.array([ix2, iy2, iz2]))
+                        sc_r_pos[ir, i] = np.dot(
+                            replicated_cell[:, i], np.array([ix2, iy2, iz2])
+                        )
                     ir = ir + 1
         return sc_r_pos

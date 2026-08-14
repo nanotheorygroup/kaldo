@@ -46,6 +46,55 @@ out-of-plane direction to 1, and for nanowires use a value greater than 1 for di
 .. hint::
    Kaldo assumes a q-grid that goes from 0 to :math:`\frac{2\pi}{a}` and will output with that convention.
 
+***************************************
+Polar crystals and non-analytic effects
+***************************************
+
+``is_nac`` is an explicit three-state control. Its default, ``None``, selects
+automatic behavior: kALDo uses the harmonic non-analytic correction when the
+loaded structure has both ``atoms.info['dielectric']`` and nonzero Born
+effective charges in ``atoms.arrays['charges']``. ``is_nac=True`` requires
+that complete polar input, while ``is_nac=False`` deliberately disables the
+correction for debugging or comparison with a short-range theoretical model.
+Unknown constructor keywords are rejected, so a misspelled NAC option cannot
+silently fall back to automatic behavior.
+
+For example, the following evaluates the NAC-off spectrum of a polar input:
+
+.. code-block:: python
+
+   phonons_without_nac = Phonons(
+       forceconstants=forceconstants,
+       kpts=(5, 5, 5),
+       is_nac=False,
+       storage="memory",
+   )
+
+The force-constant provenance determines the numerical convention. Total
+finite-supercell IFCs use the generic Gonze construction: kALDo removes the
+long-range dipole term on the commensurate q mesh and restores the matching
+term after short-range interpolation. A polar QE ``espresso.ifc2`` file is
+different because q2r has already removed its rigid-ion term. The QE loader
+preserves that fact and kALDo restores QE's matching term without performing a
+second subtraction. The input provenance selects the path; the two
+conventions are not user-selectable methods or interchangeable fallbacks.
+
+``is_unfolding`` is unrelated to NAC and does not enable it. Once NAC is
+active, the provenance-aware NAC controller supplies its own Wigner--Seitz
+interpolation, so changing ``is_unfolding`` has no effect on that harmonic
+path. In particular, ``is_unfolding=False`` does not disable the
+Wigner--Seitz interpolation required to reconstruct a polar QE q2r dynamical
+matrix; doing so would no longer reproduce ``matdyn.x`` away from Gamma. With
+``is_nac=False``, ``is_unfolding`` again controls the ordinary IFC
+interpolation of the short-range diagnostic model. The optional
+``nac_bvk_supercell_matrix`` identifies the Born--von Karman cell that defines
+the force constants when it cannot be inferred as
+``diag(forceconstants.second.supercell)``. It is not a remeshing request and
+should normally be omitted. A different matrix is rejected for QE q2r data.
+For a directional Gamma calculation, construct
+``HarmonicWithQ(..., nac_q_direction=(h, k, l))``; a ``Phonons`` grid uses the
+default reduced reciprocal direction ``(1, 0, 0)`` at exact Gamma.
+
 ***************
 Classical Limit
 ***************
@@ -87,12 +136,22 @@ cases the :doc:`Introduction <introduction>` section.
      - max_frequency
      - is_symmetrizing_frequency
      - is_antisymmetrizing_velocity
-     - is_balanced
-   * - is_unfolding
+   * - is_balanced
+     - is_unfolding
+     - is_nac
      - is_nw
-     - g_factor
+   * - g_factor
      - include_isotopes
      - iso_speed_up
+     - broadening_kernel
+   * - smearing_prefactor
+     - n_workers
+     - projection_output_dir
+     - use_q_symmetry
+   * - nac_bvk_supercell_matrix
+     -
+     -
+     -
 
 .. _phonons-api:
 

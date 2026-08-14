@@ -6,6 +6,7 @@ identical sparse_phase and sparse_potential tensors as the serial path.
 
 import numpy as np
 import pytest
+import tensorflow as tf
 from kaldo.forceconstants import ForceConstants
 from kaldo.phonons import Phonons
 
@@ -17,26 +18,71 @@ def si_forceconstants():
 
 
 @pytest.fixture(scope="module")
-def serial_phonons(si_forceconstants):
+def serial_phonons(si_forceconstants, tmp_path_factory):
     """Compute projection serially (baseline)."""
     return Phonons(
         forceconstants=si_forceconstants,
         kpts=(3, 3, 3),
         temperature=300,
         is_classic=True,
-        folder="test_serial_projection",
+        folder=str(tmp_path_factory.mktemp("serial_projection")),
         n_workers=1,
     )
 
 
-def test_parallel_projection_matches_serial(si_forceconstants, serial_phonons):
+def test_sparse_worker_and_storage_payload_round_trip():
+    """Workers and NumPy persistence share one lossless sparse boundary."""
+    phase = tf.SparseTensor(
+        indices=[[0, 1], [2, 0]],
+        values=[1.25, -0.5],
+        dense_shape=[3, 2],
+    )
+    potential = tf.SparseTensor(
+        indices=phase.indices,
+        values=[0.75, 2.5],
+        dense_shape=phase.dense_shape,
+    )
+    payload = Phonons._sparse_tensor_to_numpy(phase)
+    restored = Phonons._numpy_to_sparse_tensor(payload)
+
+    np.testing.assert_array_equal(restored.indices.numpy(), phase.indices.numpy())
+    np.testing.assert_allclose(restored.values.numpy(), phase.values.numpy())
+    np.testing.assert_array_equal(
+        restored.dense_shape.numpy(), phase.dense_shape.numpy()
+    )
+
+    phonons = object.__new__(Phonons)
+    stored = phonons._convert_sparse_tensors_to_per_mu_arrays(
+        [[phase, None]], [[potential, None]]
+    )
+    restored_phase, restored_potential = phonons._convert_per_mu_arrays_to_sparse_tensors(
+        stored
+    )
+    np.testing.assert_array_equal(
+        restored_phase[0][0].indices.numpy(), phase.indices.numpy()
+    )
+    np.testing.assert_allclose(
+        restored_phase[0][0].values.numpy(), phase.values.numpy()
+    )
+    np.testing.assert_allclose(
+        restored_potential[0][0].values.numpy(), potential.values.numpy()
+    )
+    assert restored_phase[0][1] is None
+    assert restored_potential[0][1] is None
+    assert Phonons._sparse_tensor_to_numpy(None) is None
+    assert Phonons._numpy_to_sparse_tensor(None) is None
+
+
+def test_parallel_projection_matches_serial(
+    si_forceconstants, serial_phonons, tmp_path
+):
     """Parallel projection (2 workers) must match serial at rtol=1e-7."""
     parallel = Phonons(
         forceconstants=si_forceconstants,
         kpts=(3, 3, 3),
         temperature=300,
         is_classic=True,
-        folder="test_parallel_projection",
+        folder=str(tmp_path / "parallel_projection"),
         n_workers=2,
     )
 
@@ -53,15 +99,24 @@ def test_parallel_projection_matches_serial(si_forceconstants, serial_phonons):
             ps = phase_s[nu][ip]
             pp = phase_p[nu][ip]
             if ps is None:
-                assert pp is None, f"Phase mismatch at nu={nu}, is_plus={ip}: serial is None, parallel is not"
+                assert pp is None, (
+                    f"Phase mismatch at nu={nu}, is_plus={ip}: "
+                    "serial is None, parallel is not"
+                )
                 continue
-            assert pp is not None, f"Phase mismatch at nu={nu}, is_plus={ip}: serial has data, parallel is None"
+            assert pp is not None, (
+                f"Phase mismatch at nu={nu}, is_plus={ip}: "
+                "serial has data, parallel is None"
+            )
             np.testing.assert_allclose(
-                ps.values.numpy(), pp.values.numpy(), rtol=1e-7,
+                ps.values.numpy(),
+                pp.values.numpy(),
+                rtol=1e-7,
                 err_msg=f"Phase values differ at nu={nu}, is_plus={ip}",
             )
             np.testing.assert_array_equal(
-                ps.indices.numpy(), pp.indices.numpy(),
+                ps.indices.numpy(),
+                pp.indices.numpy(),
                 err_msg=f"Phase indices differ at nu={nu}, is_plus={ip}",
             )
 
@@ -72,7 +127,9 @@ def test_parallel_projection_matches_serial(si_forceconstants, serial_phonons):
                 assert sp is None
                 continue
             np.testing.assert_allclose(
-                ss.values.numpy(), sp.values.numpy(), rtol=1e-7,
+                ss.values.numpy(),
+                sp.values.numpy(),
+                rtol=1e-7,
                 err_msg=f"Potential values differ at nu={nu}, is_plus={ip}",
             )
 
@@ -87,7 +144,7 @@ def test_projection_output_dir_with_resume(si_forceconstants, serial_phonons, tm
         kpts=(3, 3, 3),
         temperature=300,
         is_classic=True,
-        folder="test_output_dir_proj",
+        folder=str(tmp_path / "output_dir_projection"),
         n_workers=2,
         projection_output_dir=output_dir,
     )
@@ -103,7 +160,9 @@ def test_projection_output_dir_with_resume(si_forceconstants, serial_phonons, tm
                 assert pd is None
                 continue
             np.testing.assert_allclose(
-                ps.values.numpy(), pd.values.numpy(), rtol=1e-7,
+                ps.values.numpy(),
+                pd.values.numpy(),
+                rtol=1e-7,
                 err_msg=f"Disk phase values differ at nu={nu}, is_plus={ip}",
             )
 

@@ -1,0 +1,5 @@
+&INPUTPH
+  prefix='oC-mp-717', outdir='./out', fildyn='oC-mp-717.gamma', tr2_ph=1.0d-14,
+  epsil=.true., ldisp=.false.
+/
+0.0 0.0 0.0

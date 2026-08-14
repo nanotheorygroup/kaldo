@@ -192,21 +192,6 @@ def _get_ir_kgrid_data(atoms, kpts, grid_type='C'):
 
     return ir_mapping, krot_perm, ibz_indices, krot_cart
 
-def _sparse_tensor_to_numpy(st):
-    """Convert a tf.SparseTensor to a picklable (indices, values, dense_shape) tuple."""
-    if st is None:
-        return None
-    return (st.indices.numpy(), st.values.numpy(), tuple(st.dense_shape.numpy()))
-
-
-def _numpy_to_sparse_tensor(data):
-    """Reconstruct a tf.SparseTensor from a (indices, values, dense_shape) tuple."""
-    if data is None:
-        return None
-    indices, values, dense_shape = data
-    return tf.SparseTensor(indices=indices, values=values, dense_shape=dense_shape)
-
-
 def _compute_kpoint_projection(index_k, n_modes, n_k_points, omega, physical_mode,
                                 evect_np, third_sparse_data, chi_k_np, velocity_np,
                                 cell_inv, kpts, broadening_shape, broadening_kernel,
@@ -277,8 +262,11 @@ def _compute_kpoint_projection(index_k, n_modes, n_k_points, omega, physical_mod
                 _chi_k, second_minus, second_minus_chi, third_tf,
                 n_replicas, omega, hbar,
             )
-            phase_list.append(_sparse_tensor_to_numpy(dirac_delta_result))
-            potential_list.append(_sparse_tensor_to_numpy(potential_result))
+            # TensorFlow objects do not cross the process boundary. Reuse
+            # Phonons' persistence payload so workers and storage agree on one
+            # sparse representation.
+            phase_list.append(Phonons._sparse_tensor_to_numpy(dirac_delta_result))
+            potential_list.append(Phonons._sparse_tensor_to_numpy(potential_result))
 
         results.append((phase_list, potential_list))
     return results
@@ -368,7 +356,7 @@ class Phonons(Storable):
     min_frequency : float
         Ignores all phonons with frequency below ``min_frequency``
         Units: Thz
-        Default: None
+        Default: 0.
     max_frequency : float
         Ignores all phonons with frequency above ``max_frequency``
         Units: THz
@@ -429,8 +417,17 @@ class Phonons(Storable):
         Default: False
     is_unfolding : bool
         If the second order force constants need to be unfolded like in P. B. Allen
-        et al., Phys. Rev. B 87, 085322 (2013) set this to True.
+        et al., Phys. Rev. B 87, 085322 (2013) set this to True. This selects
+        the ordinary NAC-off interpolation only. An active NAC controller uses
+        the Wigner--Seitz interpolation required by its input provenance for
+        either value of this flag.
         Default: False
+    is_nac : bool or None, optional
+        Controls the harmonic long-range correction. ``None`` automatically
+        activates it when the loaded atoms have a dielectric tensor and
+        nonzero Born effective charges. ``False`` explicitly evaluates the
+        NAC-off model; ``True`` requires complete polar metadata.
+        Default: None
     g_factor : (n_atoms) array , optional
         It contains the isotopic g factor for each atom of the unit cell. 
         g factor is the natural isotopic distributions of each element. 
@@ -451,6 +448,22 @@ class Phonons(Storable):
     is_nw: bool, optional
         Defines if you would like to assume the system is a nanowire.
         Default: False
+    n_workers : int, optional
+        Number of worker processes used for per-q projection calculations.
+        Set to 1 for serial execution.
+        Default: 1
+    projection_output_dir : str, optional
+        Directory used for restartable per-q projection checkpoints. If it is
+        omitted, completed per-q results are retained in memory instead.
+        Default: None
+    nac_bvk_supercell_matrix : array-like (3, 3), optional
+        Born--von Karman grid used by the harmonic long-range correction.
+        It must describe the defining force-constant supercell because NAC
+        remeshing is not implemented. The same value is propagated to
+        frequencies, eigenvectors, thermodynamics, and transport. NAC is active
+        when the loaded atoms contain both a dielectric tensor and nonzero Born
+        effective charges; this argument does not enable it.
+        Default: None
     use_q_symmetry : bool, optional
         Reduce the per-k-point projection cost by computing only the
         irreducible Brillouin zone (IBZ) representatives via spglib and
@@ -516,6 +529,7 @@ class Phonons(Storable):
                  grid_type: str = "C",
                  is_balanced: bool = False,
                  is_unfolding: bool = False,
+                 is_nac: bool | None = None,
                  g_factor: ArrayLike = None,
                  is_symmetrizing_frequency: bool = False, 
                  is_antisymmetrizing_velocity: bool = False,
@@ -524,8 +538,8 @@ class Phonons(Storable):
                  is_nw: bool = False,
                  n_workers: int = 1,
                  projection_output_dir: str | None = None,
-                 use_q_symmetry: bool = False,
-                 **kwargs):
+                 nac_bvk_supercell_matrix=None,
+                 use_q_symmetry: bool = False):
         self.forceconstants = forceconstants
         if n_workers is not None and n_workers < 1:
             raise ValueError(f"n_workers must be >= 1 or None, got {n_workers}")
@@ -539,6 +553,10 @@ class Phonons(Storable):
         self._grid_type = grid_type
         self._reciprocal_grid = Grid(self.kpts, order=self._grid_type)
         self.is_unfolding = is_unfolding
+        if is_nac is not None and not isinstance(is_nac, (bool, np.bool_)):
+            raise TypeError("is_nac must be True, False, or None for automatic detection")
+        self.is_nac = None if is_nac is None else bool(is_nac)
+        self._nac_requested = self.is_nac
         if self.is_unfolding:
             logging.info('Using unfolding.')
         self.min_frequency = min_frequency
@@ -557,6 +575,7 @@ class Phonons(Storable):
         self.is_symmetrizing_frequency = is_symmetrizing_frequency
         self.is_antisymmetrizing_velocity = is_antisymmetrizing_velocity
         self.is_balanced = is_balanced
+        self.nac_bvk_supercell_matrix = nac_bvk_supercell_matrix
         self.atoms = self.forceconstants.atoms
         self.supercell = np.array(self.forceconstants.supercell)
         self.n_k_points = int(np.prod(self.kpts))
@@ -677,7 +696,9 @@ class Phonons(Storable):
                                    storage=self.storage,
                                    is_nw=self.is_nw,
                                    is_unfolding=self.is_unfolding,
-                                   is_amorphous=self._is_amorphous)
+                                   is_amorphous=self._is_amorphous,
+                                   is_nac=self.is_nac,
+                                   nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix)
 
             physical_mode[ik] = phonon.physical_mode
         if self.min_frequency is not None:
@@ -698,7 +719,6 @@ class Phonons(Storable):
         """
         q_points = self._reciprocal_grid.unitary_grid(is_wrapping=False)
         frequency = np.zeros((self.n_k_points, self.n_modes))
-
         for ik in range(len(q_points)):
             q_point = q_points[ik]
             phonon = HarmonicWithQ(q_point=q_point,
@@ -708,7 +728,10 @@ class Phonons(Storable):
                                    storage=self.storage,
                                    is_nw=self.is_nw,
                                    is_unfolding=self.is_unfolding,
-                                   is_amorphous=self._is_amorphous)
+                                   is_amorphous=self._is_amorphous,
+                                   is_nac=self.is_nac,
+                                   nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix)
+
             frequency[ik] = phonon.frequency
 
         return frequency
@@ -737,7 +760,9 @@ class Phonons(Storable):
                                    storage=self.storage,
                                    is_nw=self.is_nw,
                                    is_unfolding=self.is_unfolding,
-                                   is_amorphous=self._is_amorphous)
+                                   is_amorphous=self._is_amorphous,
+                                   is_nac=self.is_nac,
+                                   nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix)
 
             participation_ratio[ik] = phonon.participation_ratio
 
@@ -757,7 +782,6 @@ class Phonons(Storable):
 
         q_points = self._reciprocal_grid.unitary_grid(is_wrapping=False)
         velocity = np.zeros((self.n_k_points, self.n_modes, 3))
-
         for ik in range(len(q_points)):
             q_point = q_points[ik]
             phonon = HarmonicWithQ(q_point=q_point,
@@ -767,7 +791,10 @@ class Phonons(Storable):
                                    storage=self.storage,
                                    is_nw=self.is_nw,
                                    is_unfolding=self.is_unfolding,
-                                   is_amorphous=self._is_amorphous)
+                                   is_amorphous=self._is_amorphous,
+                                   is_nac=self.is_nac,
+                                   nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix)
+
             velocity[ik] = phonon.velocity
 
         return velocity
@@ -800,7 +827,9 @@ class Phonons(Storable):
                                    storage=self.storage,
                                    is_nw=self.is_nw,
                                    is_unfolding=self.is_unfolding,
-                                   is_amorphous=self._is_amorphous)
+                                   is_amorphous=self._is_amorphous,
+                                   is_nac=self.is_nac,
+                                   nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix)
 
             eigensystem[ik] = phonon._eigensystem
 
@@ -825,16 +854,20 @@ class Phonons(Storable):
         c_v = np.zeros((self.n_k_points, self.n_modes))
         for ik in range(len(q_points)):
             q_point = q_points[ik]
-            phonon = HarmonicWithQTemp(q_point=q_point,
-                                       second=self.forceconstants.second,
-                                       distance_threshold=self.forceconstants.distance_threshold,
-                                       folder=self.folder,
-                                       storage=self.storage,
-                                       temperature=self.temperature,
-                                       is_classic=self.is_classic,
-                                       is_nw=self.is_nw,
-                                       is_unfolding=self.is_unfolding,
-                                       is_amorphous=self._is_amorphous)
+            phonon = HarmonicWithQTemp(
+                q_point=q_point,
+                second=self.forceconstants.second,
+                distance_threshold=self.forceconstants.distance_threshold,
+                folder=self.folder,
+                storage=self.storage,
+                temperature=self.temperature,
+                is_classic=self.is_classic,
+                is_nw=self.is_nw,
+                is_unfolding=self.is_unfolding,
+                is_amorphous=self._is_amorphous,
+                is_nac=self.is_nac,
+                nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix,
+            )
             c_v[ik] = phonon.heat_capacity
         return c_v
 
@@ -856,16 +889,20 @@ class Phonons(Storable):
         heat_capacity_2d = np.zeros(shape)
         for ik in range(len(q_points)):
             q_point = q_points[ik]
-            phonon = HarmonicWithQTemp(q_point=q_point,
-                                       second=self.forceconstants.second,
-                                       distance_threshold=self.forceconstants.distance_threshold,
-                                       folder=self.folder,
-                                       storage=self.storage,
-                                       temperature=self.temperature,
-                                       is_classic=self.is_classic,
-                                       is_nw=self.is_nw,
-                                       is_unfolding=self.is_unfolding,
-                                       is_amorphous=self._is_amorphous)
+            phonon = HarmonicWithQTemp(
+                q_point=q_point,
+                second=self.forceconstants.second,
+                distance_threshold=self.forceconstants.distance_threshold,
+                folder=self.folder,
+                storage=self.storage,
+                temperature=self.temperature,
+                is_classic=self.is_classic,
+                is_nw=self.is_nw,
+                is_unfolding=self.is_unfolding,
+                is_amorphous=self._is_amorphous,
+                is_nac=self.is_nac,
+                nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix,
+            )
 
             heat_capacity_2d[ik] = phonon.heat_capacity_2d
         return heat_capacity_2d
@@ -891,47 +928,52 @@ class Phonons(Storable):
         population = np.zeros((self.n_k_points, self.n_modes))
         for ik in range(len(q_points)):
             q_point = q_points[ik]
-            phonon = HarmonicWithQTemp(q_point=q_point,
-                                       second=self.forceconstants.second,
-                                       distance_threshold=self.forceconstants.distance_threshold,
-                                       folder=self.folder,
-                                       storage=self.storage,
-                                       temperature=self.temperature,
-                                       is_classic=self.is_classic,
-                                       is_nw=self.is_nw,
-                                       is_unfolding=self.is_unfolding,
-                                       is_amorphous=self._is_amorphous)
+            phonon = HarmonicWithQTemp(
+                q_point=q_point,
+                second=self.forceconstants.second,
+                distance_threshold=self.forceconstants.distance_threshold,
+                folder=self.folder,
+                storage=self.storage,
+                temperature=self.temperature,
+                is_classic=self.is_classic,
+                is_nw=self.is_nw,
+                is_unfolding=self.is_unfolding,
+                is_amorphous=self._is_amorphous,
+                is_nac=self.is_nac,
+                nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix,
+            )
 
             population[ik] = phonon.population
         return population
 
     @lazy_property(label='<temperature>/<statistics>')
     def free_energy(self):
-        """
-        Harmonic free energy, already Brillouin-zone averaged,
-        returned in eV per mode.
+        """Return Brillouin-zone-weighted harmonic free-energy contributions.
 
-        Quantum: F = k_B * T * ln(1 - exp(-x)) + hbar*omega/2, with
-        x = hbar*omega/(k_B*T), including zero-point energy.
+        Each array element is one mode's contribution in eV divided by
+        ``n_k_points``. Therefore ``phonons.free_energy.sum()`` is the harmonic
+        free energy per primitive cell for the sampled Brillouin zone; an
+        individual element is not a separate thermodynamic free energy.
 
-        Classical (``is_classic=True``): F = k_B * T * ln(x), the x -> 0
-        limit of the quantum expression (the zero-point term cancels
-        against the expansion of the logarithm). It uses the physical hbar
-        as the phase-space measure and contains no zero-point energy.
+        For a positive mode frequency ``nu`` in THz, ``omega = 2*pi*nu`` and
+        ``x = hbar*omega/(k_B*T)``. Quantum statistics use
+        ``F = k_B*T*ln(1-exp(-x)) + hbar*omega/2``. Classical statistics use
+        ``F = k_B*T*ln(x)``, where the zero-point term cancels. The physical
+        ``hbar`` remains the phase-space measure; ``CLASSICAL_HBAR_SCALE`` is
+        not used here.
 
         Returns
         -------
         ndarray
-            Free energy array with shape matching frequency array. Non-physical modes
-            (including acoustic modes at Gamma point and modes with imaginary frequencies)
-            have zero free energy in the returned array.
+            BZ-weighted contributions with the same shape as ``frequency``.
+            Non-physical modes, Gamma translations, zero modes, and imaginary
+            modes contribute zero.
 
         Notes
         -----
-        - At T=0, the quantum result reduces to the zero-point energy; the
-          classical result reduces to its T -> 0 limit, zero
-        - Modes with imaginary frequencies (negative frequency values) are automatically
-          excluded and will trigger a warning, as they may indicate structural instability
+        At zero temperature the quantum result is the zero-point energy and
+        the classical result is zero. Imaginary modes are excluded with a
+        warning: no metastable harmonic free energy is assigned to them.
         """
         # atol: any temperature below 1e-12 K is physically zero
         if np.isclose(self.temperature, 0.0, rtol=0.0, atol=1e-12):
@@ -949,11 +991,19 @@ class Phonons(Storable):
                 f"This may indicate structural instability."
             )
 
-        x_vals = units._hbar * self.frequency * 2.0 * np.pi * 1.0e12 / (units._k * self.temperature)
+        x_vals = (
+            units._hbar
+            * self.frequency
+            * 2.0
+            * np.pi
+            * 1.0e12
+            / (units._k * self.temperature)
+        )
         ln_term = np.zeros_like(x_vals)
 
-        # Only calculate for physical modes with positive frequencies
-        # This avoids both log(0) for low frequencies and log(negative) for imaginary frequencies
+        # Restrict the logarithm to stable physical modes. This avoids both
+        # log(0) at zero frequency and a real-valued "free energy" for an
+        # imaginary mode, for which the harmonic partition function is invalid.
         valid_modes = self._thermodynamic_modes
 
         if self.is_classic:
@@ -975,10 +1025,11 @@ class Phonons(Storable):
 
     @property
     def _thermodynamic_modes(self):
-        """Boolean mask of modes that enter the thermodynamic sums:
-        physical modes with positive (real) frequencies. Shared by
-        free_energy and zero_point_harmonic_energy so their exclusions
-        cannot diverge."""
+        """Mask physical, positive-frequency modes used by thermodynamics.
+
+        Sharing the mask between free energy and zero-point energy prevents
+        their treatment of Gamma translations and imaginary modes diverging.
+        """
         return self.physical_mode.reshape(self.frequency.shape) & (self.frequency > 0)
 
     @lazy_property(label='')
@@ -998,7 +1049,15 @@ class Phonons(Storable):
         """
         zpe_cell = np.zeros_like(self.frequency)
         valid = self._thermodynamic_modes
-        zpe_cell[valid] = 0.5 * units._hbar * self.frequency[valid] * 2.0 * np.pi * 1.0e12 / units._e
+        zpe_cell[valid] = (
+            0.5
+            * units._hbar
+            * self.frequency[valid]
+            * 2.0
+            * np.pi
+            * 1.0e12
+            / units._e
+        )
         return zpe_cell / self.n_k_points
 
 
@@ -1139,92 +1198,113 @@ class Phonons(Storable):
         else:
             return self._project_crystal()
 
-    def _convert_sparse_tensors_to_per_mu_arrays(self, sparse_phase, sparse_potential):
+    @staticmethod
+    def _sparse_tensor_to_numpy(sparse_tensor):
+        """Convert one TensorFlow sparse tensor to a picklable payload.
+
+        Parallel projection workers and NumPy persistence share this
+        ``(indices, values, dense_shape)`` boundary. Keeping it on
+        :class:`Phonons` makes serialization part of the high-level phonon
+        storage workflow rather than the anharmonic physics controller.
         """
-        Convert sparse tensors to per-mu arrays for numpy storage.
-        
-        Returns a list where each element contains the data for one mu (phonon mode).
-        Each mu can have 0, 1, or 2 non-None tensors (for is_plus=0,1).
-        
+        if sparse_tensor is None:
+            return None
+        return (
+            sparse_tensor.indices.numpy(),
+            sparse_tensor.values.numpy(),
+            tuple(sparse_tensor.dense_shape.numpy()),
+        )
+
+    @staticmethod
+    def _numpy_to_sparse_tensor(data):
+        """Reconstruct one TensorFlow sparse tensor from a worker payload."""
+        if data is None:
+            return None
+        indices, values, dense_shape = data
+        return tf.SparseTensor(
+            indices=indices,
+            values=values,
+            dense_shape=dense_shape,
+        )
+
+    def _convert_sparse_tensors_to_per_mu_arrays(self, sparse_phase, sparse_potential):
+        """Convert the phase/potential tensor collections for NumPy storage.
+
+        The two tensors for a process share sparse indices and shape, so each
+        stored record keeps those coordinates once and carries the two value
+        arrays separately.
+
+        Parameters
+        ----------
+        sparse_phase, sparse_potential : list
+            Per-mode pairs of TensorFlow sparse tensors for absorption and
+            emission processes.
+
         Returns
         -------
-        list : List of per-mu data dictionaries
+        list
+            One serializable dictionary per phonon mode.
         """
         per_mu_data = []
-        
-        for nu_single in range(len(sparse_phase)):
-            mu_data = {'exists': False, 'tensors': []}
-            
-            for is_plus in range(2):
-                if (nu_single < len(sparse_phase) and 
-                    is_plus < len(sparse_phase[nu_single]) and
-                    sparse_phase[nu_single][is_plus] is not None):
-                    
-                    phase_tensor = sparse_phase[nu_single][is_plus]
-                    potential_tensor = sparse_potential[nu_single][is_plus]
-                    
-                    # Get tensor components
-                    indices = phase_tensor.indices.numpy()
-                    phase_values = phase_tensor.values.numpy()  
-                    potential_values = potential_tensor.values.numpy()
-                    dense_shape = phase_tensor.dense_shape.numpy()
-                    
-                    tensor_data = {
-                        'is_plus': is_plus,
-                        'indices': indices,
-                        'phase_values': phase_values,
-                        'potential_values': potential_values,
-                        'dense_shape': dense_shape
+        for nu_single, phase_by_process in enumerate(sparse_phase):
+            mu_data = {"exists": False, "tensors": []}
+            for is_plus, phase_tensor in enumerate(phase_by_process):
+                if phase_tensor is None:
+                    continue
+                potential_tensor = sparse_potential[nu_single][is_plus]
+
+                # Use the worker payload boundary here as well, ensuring the
+                # in-memory and on-disk representations cannot drift.
+                indices, phase_values, dense_shape = self._sparse_tensor_to_numpy(
+                    phase_tensor
+                )
+                _, potential_values, _ = self._sparse_tensor_to_numpy(potential_tensor)
+                mu_data["tensors"].append(
+                    {
+                        "is_plus": is_plus,
+                        "indices": indices,
+                        "phase_values": phase_values,
+                        "potential_values": potential_values,
+                        "dense_shape": dense_shape,
                     }
-                    
-                    mu_data['tensors'].append(tensor_data)
-                    mu_data['exists'] = True
-            
+                )
+                mu_data["exists"] = True
             per_mu_data.append(mu_data)
-        
         return per_mu_data
-    
+
     def _convert_per_mu_arrays_to_sparse_tensors(self, per_mu_data):
-        """
-        Convert per-mu arrays back to sparse tensor format.
-        
+        """Reconstruct phase/potential tensor collections from NumPy records.
+
         Parameters
         ----------
         per_mu_data : list
-            List of per-mu data dictionaries
-            
+            Dictionaries produced by
+            :meth:`_convert_sparse_tensors_to_per_mu_arrays`.
+
         Returns
         -------
-        tuple : (sparse_phase, sparse_potential)
+        tuple
+            ``(sparse_phase, sparse_potential)`` with two process slots per
+            phonon mode.
         """
-        import tensorflow as tf
-        
         sparse_phase = []
         sparse_potential = []
-        
-        for nu_single, mu_data in enumerate(per_mu_data):
-            sparse_phase.append([None, None])  # Initialize with None for both is_plus
+        for mu_data in per_mu_data:
+            sparse_phase.append([None, None])
             sparse_potential.append([None, None])
-            
-            if mu_data['exists']:
-                for tensor_data in mu_data['tensors']:
-                    is_plus = tensor_data['is_plus']
-                    
-                    # Reconstruct sparse tensors
-                    phase_tensor = tf.SparseTensor(
-                        indices=tensor_data['indices'],
-                        values=tensor_data['phase_values'],
-                        dense_shape=tensor_data['dense_shape']
-                    )
-                    potential_tensor = tf.SparseTensor(
-                        indices=tensor_data['indices'],
-                        values=tensor_data['potential_values'],
-                        dense_shape=tensor_data['dense_shape']
-                    )
-                    
-                    sparse_phase[nu_single][is_plus] = phase_tensor
-                    sparse_potential[nu_single][is_plus] = potential_tensor
-        
+            if not mu_data["exists"]:
+                continue
+
+            for tensor_data in mu_data["tensors"]:
+                is_plus = tensor_data["is_plus"]
+                indices = tensor_data["indices"]
+                dense_shape = tensor_data["dense_shape"]
+                sparse_phase[-1][is_plus] = self._numpy_to_sparse_tensor(
+                    (indices, tensor_data["phase_values"], dense_shape)
+                )
+                sparse_potential[-1][is_plus] = self._numpy_to_sparse_tensor(
+                    (indices, tensor_data["potential_values"], dense_shape)
+                )
         return sparse_phase, sparse_potential
 
     def _load_property(self, property_name, folder, format='formatted'):
@@ -1703,12 +1783,12 @@ class Phonons(Storable):
             for mu in range(n_modes):
                 phase_list, pot_list = results[mu]
                 sparse_phase.append([
-                    _numpy_to_sparse_tensor(phase_list[0]),
-                    _numpy_to_sparse_tensor(phase_list[1]),
+                    self._numpy_to_sparse_tensor(phase_list[0]),
+                    self._numpy_to_sparse_tensor(phase_list[1]),
                 ])
                 sparse_potential.append([
-                    _numpy_to_sparse_tensor(pot_list[0]),
-                    _numpy_to_sparse_tensor(pot_list[1]),
+                    self._numpy_to_sparse_tensor(pot_list[0]),
+                    self._numpy_to_sparse_tensor(pot_list[1]),
                 ])
 
         return sparse_phase, sparse_potential

@@ -12,6 +12,7 @@ signature of a replica-ordering error.
 import numpy as np
 import pytest
 from kaldo.forceconstants import ForceConstants
+from kaldo.interfaces import qe_io
 from kaldo.observables.harmonic_with_q import HarmonicWithQ
 
 THZ_TO_CM = 33.3564095198152
@@ -62,3 +63,14 @@ def test_gamma_A_transverse_degeneracy(gan_second):
     # Along Gamma-A the two TA branches are symmetry-required to be degenerate.
     actual = _frequencies_cm(gan_second, (0.0, 0.0, 0.25))
     assert abs(actual[0] - actual[1]) < 0.1
+
+
+def test_missing_born_charges_warn(caplog):
+    import logging as _logging
+
+    with caplog.at_level(_logging.WARNING):
+        _, _, charges = qe_io.read_second_order_qe_matrix(
+            "kaldo/tests/gan/espresso.ifc2"
+        )
+    assert charges is None
+    assert any("non-analytic correction" in message for message in caplog.messages)
