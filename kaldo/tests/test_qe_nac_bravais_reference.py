@@ -11,7 +11,7 @@ import pytest
 from kaldo.controllers.nac import (
     _QERigidIonKernel,
 )
-from kaldo.interfaces.qe_io import read_q2r_header
+from kaldo.interfaces.qe_io import read_q2r_header, strip_q2r_nac
 
 DATA = Path(__file__).parent / "data" / "input" / "qe76-bravais-reference"
 CASES = tuple(case["id"] for case in json.loads((DATA / "manifest.json").read_text())["cases"])
@@ -46,10 +46,25 @@ def _read_matdyn_matrix(path: Path, natoms: int) -> tuple[np.ndarray, np.ndarray
 
 
 @pytest.mark.parametrize("case_id", CASES)
-def test_qe_rigid_ion_matches_matdyn_for_every_bravais_class(case_id: str) -> None:
+def test_qe_rigid_ion_matches_matdyn_for_every_bravais_class(
+    case_id: str, tmp_path: Path
+) -> None:
     """Match QE's directional-Gamma NAC-on/off difference for one case."""
     case = DATA / case_id
-    header = read_q2r_header(case / f"{case_id}.fc")
+    source = case / f"{case_id}.fc"
+    header = read_q2r_header(source)
+    # The NAC-off q2r file used by matdyn.x differs only in its macroscopic
+    # header. Generate that deterministic derivative in pytest rather than
+    # storing fourteen duplicate multi-megabyte IFC bodies in git.
+    stripped = strip_q2r_nac(source, tmp_path / f"{case_id}.without-nac.fc")
+    stripped_header = read_q2r_header(stripped)
+    assert stripped_header.has_zstar is False
+    assert stripped_header.q_grid == header.q_grid
+    source_lines = source.read_text(encoding="utf-8").splitlines(keepends=True)
+    stripped_lines = stripped.read_text(encoding="utf-8").splitlines(keepends=True)
+    assert stripped_lines[stripped_header.qgrid_line_index :] == source_lines[
+        header.qgrid_line_index :
+    ]
     q_on, matrix_on = _read_matdyn_matrix(case / f"{case_id}.on.dyn", header.natoms)
     q_off, matrix_off = _read_matdyn_matrix(case / f"{case_id}.off.dyn", header.natoms)
     np.testing.assert_allclose(q_on, np.zeros(3), rtol=0, atol=1e-12)
