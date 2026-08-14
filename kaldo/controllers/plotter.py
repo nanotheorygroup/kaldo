@@ -301,6 +301,7 @@ class _Plotter:
                                    storage='memory',
                                    is_nw=self.phonons.is_nw,
                                    is_unfolding=self.phonons.is_unfolding,
+                                   is_nac=getattr(self.phonons, "is_nac", None),
                                    nac_bvk_supercell_matrix=getattr(self.phonons, "nac_bvk_supercell_matrix", None))
             freqs_plot.append(phonon.frequency.flatten())
             vel_value = phonon.velocity[0]

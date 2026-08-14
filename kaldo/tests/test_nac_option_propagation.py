@@ -32,6 +32,7 @@ def nac_phonons(tmp_path):
         temperature=300,
         storage="memory",
         folder=str(tmp_path),
+        is_nac=False,
         nac_bvk_supercell_matrix=matrix,
     )
     return phonons, matrix
@@ -47,7 +48,9 @@ def test_temperature_observables_propagate_nac_bvk_matrix(
 
     class FakeHarmonicWithQTemp:
         def __init__(self, **kwargs):
-            observed.append(kwargs["nac_bvk_supercell_matrix"])
+            observed.append(
+                (kwargs["nac_bvk_supercell_matrix"], kwargs["is_nac"])
+            )
             n_modes = len(kwargs["second"].atoms) * 3
             self.heat_capacity = np.ones((1, n_modes))
             self.heat_capacity_2d = np.ones((n_modes, n_modes))
@@ -61,8 +64,9 @@ def test_temperature_observables_propagate_nac_bvk_matrix(
 
     getattr(phonons, property_name)
     assert observed
-    for propagated in observed:
-        np.testing.assert_array_equal(propagated, matrix)
+    for propagated_matrix, propagated_is_nac in observed:
+        np.testing.assert_array_equal(propagated_matrix, matrix)
+        assert propagated_is_nac is False
 
 
 def test_qhgk_propagates_nac_bvk_matrix(monkeypatch) -> None:
@@ -79,6 +83,7 @@ def test_qhgk_propagates_nac_bvk_matrix(monkeypatch) -> None:
         is_nw=False,
         is_unfolding=False,
         _is_amorphous=False,
+        is_nac=False,
         nac_bvk_supercell_matrix=matrix,
     )
     conductivity = object.__new__(Conductivity)
@@ -97,6 +102,7 @@ def test_qhgk_propagates_nac_bvk_matrix(monkeypatch) -> None:
 
     def inspect_harmonic_kwargs(**kwargs):
         np.testing.assert_array_equal(kwargs["nac_bvk_supercell_matrix"], matrix)
+        assert kwargs["is_nac"] is False
         raise ExpectedConstruction
 
     monkeypatch.setattr(

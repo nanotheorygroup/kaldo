@@ -62,6 +62,40 @@ def _warn_incommensurate_once(q_point, supercell):
     )
 
 
+def _resolve_nac_activation(atoms, requested):
+    """Resolve ``None``/``False``/``True`` to an active NAC boolean.
+
+    ``None`` is the normal automatic mode: complete dielectric and nonzero
+    Born-charge data activate NAC, while an entirely absent polar block does
+    not. ``False`` deliberately bypasses even incomplete polar metadata for
+    NAC-off diagnostics. ``True`` requires a complete, nonzero polar block so
+    an explicit request cannot silently evaluate the ordinary IFC path.
+    """
+    if requested is not None and not isinstance(requested, (bool, np.bool_)):
+        raise TypeError("is_nac must be True, False, or None for automatic detection")
+    if requested is False:
+        return False
+
+    has_dielectric = "dielectric" in atoms.info
+    has_charges = "charges" in atoms.arrays
+    if has_dielectric != has_charges:
+        missing = "atoms.arrays['charges']" if has_dielectric else "atoms.info['dielectric']"
+        raise ValueError(
+            f"{missing} is missing: the non-analytic correction needs both "
+            "a dielectric tensor and Born effective charges"
+        )
+
+    has_nonzero_charges = bool(
+        has_charges and np.max(np.abs(atoms.get_array("charges"))) > 1.0e-8
+    )
+    if requested is True and not (has_dielectric and has_nonzero_charges):
+        raise ValueError(
+            "is_nac=True requires a dielectric tensor and nonzero Born "
+            "effective charges on the loaded atoms"
+        )
+    return bool(has_dielectric and has_nonzero_charges)
+
+
 class HarmonicWithQ(Observable, Storable):
     """Harmonic observable at one q point, including provenance-aware NAC."""
 
@@ -89,6 +123,7 @@ class HarmonicWithQ(Observable, Storable):
         is_nw=False,
         is_unfolding=False,
         is_amorphous=False,
+        is_nac=None,
         nac_bvk_supercell_matrix=None,
         nac_q_direction=(1, 0, 0),
         *kargs,
@@ -96,11 +131,13 @@ class HarmonicWithQ(Observable, Storable):
     ):
         """Initialize a q-point calculation and its optional polar correction.
 
-        NAC is active when ``second.atoms`` contains a dielectric tensor and
-        nonzero Born effective charges. Input provenance
-        selects either the generic total-IFC Gonze convention or the native QE
-        q2r convention; there is no user-selectable NAC method. ``is_unfolding``
-        controls ordinary IFC interpolation and is not an NAC activation flag.
+        ``is_nac=None`` (the default) activates NAC when ``second.atoms`` has a
+        dielectric tensor and nonzero Born effective charges. ``False``
+        explicitly returns the NAC-off harmonic model for diagnostics, while
+        ``True`` requires complete polar metadata. Input provenance selects
+        either the generic total-IFC Gonze convention or the native QE q2r
+        convention; it is not a user-selectable method. Once NAC is active its
+        Wigner--Seitz controller is used regardless of ``is_unfolding``.
 
         ``nac_q_direction`` is a reduced reciprocal direction used only for
         the directional Gamma limit. ``nac_bvk_supercell_matrix`` identifies
@@ -125,18 +162,8 @@ class HarmonicWithQ(Observable, Storable):
             # is_unfolding is not supported on the SNF path anyway).
             if "dielectric" not in second.atoms.info:
                 _warn_incommensurate_once(q_point, self.supercell)
-        has_dielectric = "dielectric" in self.atoms.info
-        if has_dielectric and "charges" not in self.atoms.arrays:
-            raise ValueError(
-                "atoms.info['dielectric'] is set but atoms.arrays['charges'] is missing: "
-                "the non-analytic correction needs both."
-            )
-        # Nonpolar QE files can carry a dielectric block with strictly zero Born
-        # charges; the correction is identically zero there.
-        self.is_nac = bool(
-            has_dielectric
-            and np.abs(self.atoms.get_array("charges")).max() > 1e-8
-        )
+        self._nac_requested = is_nac
+        self.is_nac = _resolve_nac_activation(self.atoms, is_nac)
         self.nac_bvk_supercell_matrix = normalize_bvk_supercell_matrix(
             nac_bvk_supercell_matrix
         )

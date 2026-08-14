@@ -419,6 +419,12 @@ class Phonons(Storable):
         If the second order force constants need to be unfolded like in P. B. Allen
         et al., Phys. Rev. B 87, 085322 (2013) set this to True.
         Default: False
+    is_nac : bool or None, optional
+        Controls the harmonic long-range correction. ``None`` automatically
+        activates it when the loaded atoms have a dielectric tensor and
+        nonzero Born effective charges. ``False`` explicitly evaluates the
+        NAC-off model; ``True`` requires complete polar metadata.
+        Default: None
     g_factor : (n_atoms) array , optional
         It contains the isotopic g factor for each atom of the unit cell. 
         g factor is the natural isotopic distributions of each element. 
@@ -520,6 +526,7 @@ class Phonons(Storable):
                  grid_type: str = "C",
                  is_balanced: bool = False,
                  is_unfolding: bool = False,
+                 is_nac: bool | None = None,
                  g_factor: ArrayLike = None,
                  is_symmetrizing_frequency: bool = False, 
                  is_antisymmetrizing_velocity: bool = False,
@@ -529,8 +536,7 @@ class Phonons(Storable):
                  n_workers: int = 1,
                  projection_output_dir: str | None = None,
                  nac_bvk_supercell_matrix=None,
-                 use_q_symmetry: bool = False,
-                 **kwargs):
+                 use_q_symmetry: bool = False):
         self.forceconstants = forceconstants
         if n_workers is not None and n_workers < 1:
             raise ValueError(f"n_workers must be >= 1 or None, got {n_workers}")
@@ -544,6 +550,10 @@ class Phonons(Storable):
         self._grid_type = grid_type
         self._reciprocal_grid = Grid(self.kpts, order=self._grid_type)
         self.is_unfolding = is_unfolding
+        if is_nac is not None and not isinstance(is_nac, (bool, np.bool_)):
+            raise TypeError("is_nac must be True, False, or None for automatic detection")
+        self.is_nac = None if is_nac is None else bool(is_nac)
+        self._nac_requested = self.is_nac
         if self.is_unfolding:
             logging.info('Using unfolding.')
         self.min_frequency = min_frequency
@@ -684,6 +694,7 @@ class Phonons(Storable):
                                    is_nw=self.is_nw,
                                    is_unfolding=self.is_unfolding,
                                    is_amorphous=self._is_amorphous,
+                                   is_nac=self.is_nac,
                                    nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix)
 
             physical_mode[ik] = phonon.physical_mode
@@ -715,6 +726,7 @@ class Phonons(Storable):
                                    is_nw=self.is_nw,
                                    is_unfolding=self.is_unfolding,
                                    is_amorphous=self._is_amorphous,
+                                   is_nac=self.is_nac,
                                    nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix)
 
             frequency[ik] = phonon.frequency
@@ -746,6 +758,7 @@ class Phonons(Storable):
                                    is_nw=self.is_nw,
                                    is_unfolding=self.is_unfolding,
                                    is_amorphous=self._is_amorphous,
+                                   is_nac=self.is_nac,
                                    nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix)
 
             participation_ratio[ik] = phonon.participation_ratio
@@ -776,6 +789,7 @@ class Phonons(Storable):
                                    is_nw=self.is_nw,
                                    is_unfolding=self.is_unfolding,
                                    is_amorphous=self._is_amorphous,
+                                   is_nac=self.is_nac,
                                    nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix)
 
             velocity[ik] = phonon.velocity
@@ -811,6 +825,7 @@ class Phonons(Storable):
                                    is_nw=self.is_nw,
                                    is_unfolding=self.is_unfolding,
                                    is_amorphous=self._is_amorphous,
+                                   is_nac=self.is_nac,
                                    nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix)
 
             eigensystem[ik] = phonon._eigensystem
@@ -847,6 +862,7 @@ class Phonons(Storable):
                 is_nw=self.is_nw,
                 is_unfolding=self.is_unfolding,
                 is_amorphous=self._is_amorphous,
+                is_nac=self.is_nac,
                 nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix,
             )
             c_v[ik] = phonon.heat_capacity
@@ -881,6 +897,7 @@ class Phonons(Storable):
                 is_nw=self.is_nw,
                 is_unfolding=self.is_unfolding,
                 is_amorphous=self._is_amorphous,
+                is_nac=self.is_nac,
                 nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix,
             )
 
@@ -919,6 +936,7 @@ class Phonons(Storable):
                 is_nw=self.is_nw,
                 is_unfolding=self.is_unfolding,
                 is_amorphous=self._is_amorphous,
+                is_nac=self.is_nac,
                 nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix,
             )
 

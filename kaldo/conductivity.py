@@ -397,6 +397,7 @@ class Conductivity(Storable):
                 is_nw=phonons.is_nw,
                 is_unfolding=phonons.is_unfolding,
                 is_amorphous=phonons._is_amorphous,
+                is_nac=phonons.is_nac,
                 nac_bvk_supercell_matrix=phonons.nac_bvk_supercell_matrix,
             )
             heat_capacity_2d = phonon.heat_capacity_2d

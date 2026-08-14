@@ -337,9 +337,11 @@ Input Files and Formats
 Polar harmonic inputs
 =====================
 
-NAC is activated from the data loaded by ``ForceConstants.from_folder``; it
-is not enabled by an ``is_nac`` argument. Both a dielectric tensor and Born
-effective charges are required.
+By default, NAC is activated from the data loaded by
+``ForceConstants.from_folder``. Both a dielectric tensor and nonzero Born
+effective charges are required. Harmonic observables accept ``is_nac=None``
+for this automatic behavior, ``is_nac=False`` for an explicit NAC-off
+diagnostic calculation, and ``is_nac=True`` to require complete polar data.
 
 For ``qe-sheng`` and ``qe-d3q``, a polar ``espresso.ifc2`` retains the q2r
 macroscopic header. The loader records that its IFC body is already

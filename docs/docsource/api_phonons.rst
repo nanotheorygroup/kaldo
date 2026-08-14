@@ -50,11 +50,25 @@ out-of-plane direction to 1, and for nanowires use a value greater than 1 for di
 Polar crystals and non-analytic effects
 ***************************************
 
-There is no ``is_nac`` switch. For polar materials, kALDo uses the harmonic
-non-analytic correction when the loaded structure has both
-``atoms.info['dielectric']`` and nonzero Born effective charges in
-``atoms.arrays['charges']``. Supplying a dielectric tensor without Born
-charges is treated as an incomplete input and raises an error.
+``is_nac`` is an explicit three-state control. Its default, ``None``, selects
+automatic behavior: kALDo uses the harmonic non-analytic correction when the
+loaded structure has both ``atoms.info['dielectric']`` and nonzero Born
+effective charges in ``atoms.arrays['charges']``. ``is_nac=True`` requires
+that complete polar input, while ``is_nac=False`` deliberately disables the
+correction for debugging or comparison with a short-range theoretical model.
+Unknown constructor keywords are rejected, so a misspelled NAC option cannot
+silently fall back to automatic behavior.
+
+For example, the following evaluates the NAC-off spectrum of a polar input:
+
+.. code-block:: python
+
+   phonons_without_nac = Phonons(
+       forceconstants=forceconstants,
+       kpts=(5, 5, 5),
+       is_nac=False,
+       storage="memory",
+   )
 
 The force-constant provenance determines the numerical convention. Total
 finite-supercell IFCs use the generic Gonze construction: kALDo removes the
@@ -65,7 +79,11 @@ preserves that fact and kALDo restores QE's matching term without performing a
 second subtraction. The input provenance selects the path; the two
 conventions are not user-selectable methods or interchangeable fallbacks.
 
-``is_unfolding`` is unrelated to NAC and does not enable it. The optional
+``is_unfolding`` is unrelated to NAC and does not enable it. Once NAC is
+active, the provenance-aware NAC controller supplies its own Wigner--Seitz
+interpolation, so changing ``is_unfolding`` has no effect on that harmonic
+path. With ``is_nac=False``, ``is_unfolding`` again controls the ordinary IFC
+interpolation. The optional
 ``nac_bvk_supercell_matrix`` identifies the Born--von Karman cell that defines
 the force constants when it cannot be inferred as
 ``diag(forceconstants.second.supercell)``. It is not a remeshing request and
@@ -117,16 +135,20 @@ cases the :doc:`Introduction <introduction>` section.
      - is_antisymmetrizing_velocity
    * - is_balanced
      - is_unfolding
+     - is_nac
      - is_nw
-     - g_factor
-   * - include_isotopes
+   * - g_factor
+     - include_isotopes
      - iso_speed_up
      - broadening_kernel
-     - smearing_prefactor
-   * - n_workers
+   * - smearing_prefactor
+     - n_workers
      - projection_output_dir
      - use_q_symmetry
-     - nac_bvk_supercell_matrix
+   * - nac_bvk_supercell_matrix
+     -
+     -
+     -
 
 .. _phonons-api:
 

@@ -182,6 +182,18 @@ def test_dielectric_without_charges_raises():
     assert "dielectric" in second.atoms.info
     with pytest.raises(ValueError, match="charges"):
         HarmonicWithQ(q_point=np.zeros(3), second=second, storage="memory")
+    # Explicit NAC-off is a diagnostic model and therefore does not require a
+    # complete polar block that it has been instructed not to use.
+    harmonic = HarmonicWithQ(
+        q_point=np.zeros(3), second=second, storage="memory", is_nac=False
+    )
+    assert harmonic.is_nac is False
+
+
+def test_phonons_rejects_unknown_nac_keyword():
+    """A misspelled NAC control must fail at constructor argument binding."""
+    with pytest.raises(TypeError, match="unexpected keyword argument 'nac_methd'"):
+        Phonons(forceconstants=object(), nac_methd=False)
 
 
 # ---- QE q2r short-range convention ----
@@ -207,6 +219,44 @@ def test_embedded_charges_mark_the_convention(mgo_second):
     assert mgo_second.atoms.info.get("dipole_subtracted_fc") is True
     assert "dielectric" in mgo_second.atoms.info
     assert "charges" in mgo_second.atoms.arrays
+
+
+def test_explicit_nac_control_supports_auto_required_and_off_modes(mgo_second):
+    """NAC defaults to auto but can be required or disabled explicitly."""
+    q_point = np.array([0.3, 0.0, 0.3], dtype=np.float64)
+    automatic = HarmonicWithQ(
+        q_point=q_point,
+        second=mgo_second,
+        storage="memory",
+        is_unfolding=True,
+    )
+    required = HarmonicWithQ(
+        q_point=q_point,
+        second=mgo_second,
+        storage="memory",
+        is_unfolding=True,
+        is_nac=True,
+    )
+    disabled = HarmonicWithQ(
+        q_point=q_point,
+        second=mgo_second,
+        storage="memory",
+        is_unfolding=True,
+        is_nac=False,
+    )
+
+    assert automatic.is_nac is True
+    assert required.is_nac is True
+    assert disabled.is_nac is False
+    assert disabled.get_folder_from_label("").endswith("/nac_off")
+    assert disabled.get_folder_from_label("") != automatic.get_folder_from_label("")
+    np.testing.assert_allclose(
+        required.frequency,
+        automatic.frequency,
+        rtol=0.0,
+        atol=0.0,
+    )
+    assert np.max(np.abs(disabled.frequency - automatic.frequency)) > 0.1
 
 
 @pytest.mark.parametrize(
