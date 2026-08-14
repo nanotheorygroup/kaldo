@@ -73,20 +73,35 @@ def _resolve_nac_activation(atoms, requested):
 
     has_dielectric = "dielectric" in atoms.info
     has_charges = "charges" in atoms.arrays
+    has_nonzero_charges = bool(
+        has_charges
+        and atoms.get_array("charges").size
+        and np.max(np.abs(atoms.get_array("charges"))) > 1.0e-8
+    )
+
+    if requested is True and not (has_dielectric and has_nonzero_charges):
+        problems = []
+        if not has_dielectric:
+            problems.append("atoms.info['dielectric'] is missing")
+        if not has_charges:
+            problems.append("atoms.arrays['charges'] is missing")
+        elif not has_nonzero_charges:
+            problems.append(
+                "atoms.arrays['charges'] contains no nonzero Born charges"
+            )
+        problem_summary = " and ".join(problems)
+        raise ValueError(
+            f"is_nac=True was requested, but {problem_summary}. "
+            "NAC requires a dielectric tensor and nonzero Born effective "
+            "charges. Provide both polar-response tensors, use is_nac=None "
+            "for automatic detection, or use is_nac=False to disable NAC."
+        )
+
     if has_dielectric != has_charges:
         missing = "atoms.arrays['charges']" if has_dielectric else "atoms.info['dielectric']"
         raise ValueError(
             f"{missing} is missing: the non-analytic correction needs both "
             "a dielectric tensor and Born effective charges"
-        )
-
-    has_nonzero_charges = bool(
-        has_charges and np.max(np.abs(atoms.get_array("charges"))) > 1.0e-8
-    )
-    if requested is True and not (has_dielectric and has_nonzero_charges):
-        raise ValueError(
-            "is_nac=True requires a dielectric tensor and nonzero Born "
-            "effective charges on the loaded atoms"
         )
     return bool(has_dielectric and has_nonzero_charges)
 

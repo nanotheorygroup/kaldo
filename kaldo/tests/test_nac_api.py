@@ -190,6 +190,25 @@ def test_dielectric_without_charges_raises():
     assert harmonic.is_nac is False
 
 
+def test_required_nac_without_polar_metadata_has_actionable_error(nac_second_order):
+    """An explicit NAC request should identify missing data and alternatives."""
+    second = nac_second_order
+    second.atoms.info.pop("dielectric", None)
+    if "charges" in second.atoms.arrays:
+        del second.atoms.arrays["charges"]
+
+    with pytest.raises(ValueError) as error:
+        HarmonicWithQ(
+            q_point=np.zeros(3), second=second, storage="memory", is_nac=True
+        )
+
+    message = str(error.value)
+    assert "atoms.info['dielectric'] is missing" in message
+    assert "atoms.arrays['charges'] is missing" in message
+    assert "is_nac=None for automatic detection" in message
+    assert "is_nac=False to disable NAC" in message
+
+
 def test_phonons_rejects_unknown_nac_keyword():
     """A misspelled NAC control must fail at constructor argument binding."""
     with pytest.raises(TypeError, match="unexpected keyword argument 'nac_methd'"):
