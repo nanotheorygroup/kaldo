@@ -79,14 +79,33 @@ preserves that fact and kALDo restores QE's matching term without performing a
 second subtraction. The input provenance selects the path; the two
 conventions are not user-selectable methods or interchangeable fallbacks.
 
-``is_unfolding`` is unrelated to NAC and does not enable it. Once NAC is
-active, the provenance-aware NAC controller supplies its own Wigner--Seitz
-interpolation, so changing ``is_unfolding`` has no effect on that harmonic
-path. In particular, ``is_unfolding=False`` does not disable the
-Wigner--Seitz interpolation required to reconstruct a polar QE q2r dynamical
-matrix; doing so would no longer reproduce ``matdyn.x`` away from Gamma. With
-``is_nac=False``, ``is_unfolding`` again controls the ordinary IFC
-interpolation of the short-range diagnostic model. The optional
+``ifc_interpolation="auto"`` is the normal real-space setting. Compact IFC
+tensors from VASP, ShengBTE, numpy, and similar inputs store one representative
+of each periodic supercell class; ``auto`` partitions those blocks over the
+pair-dependent Wigner--Seitz shortest images. Formats such as TDEP can record
+actual lattice translations for individual IFC terms, which ``auto`` retains
+directly. A nonpolar QE q2r body follows the native direct-periodic convention
+validated against ``matdyn.x``. A polar QE q2r body instead remains on the
+matched Wigner--Seitz/NAC path described above. The explicit
+``"wigner-seitz"`` and
+``"periodic"`` values override this source-aware choice and are never
+silently ignored. ``"periodic"`` is primarily a legacy diagnostic: with
+active NAC it raises an error because the short-range subtraction and
+long-range restoration require matching Wigner--Seitz weights. Set
+``is_nac=False`` as well when deliberately comparing a polar input through
+the periodic diagnostic path.
+
+This operation is IFC interpolation, not phonon-band unfolding; the former
+``is_unfolding`` argument has therefore been removed. A periodically repeated
+amorphous simulation cell follows the same geometry without assuming any
+space-group symmetry: the entire disordered cell is the reference cell and
+atom pairs crossing its boundary receive their nearest periodic images.
+Wigner--Seitz interpolation currently requires periodic boundary conditions
+in all three lattice directions. For a slab or isolated cluster, choose the
+explicit ``"periodic"`` translation model; kALDo will not silently invent
+images through a nonperiodic direction.
+
+The optional
 ``nac_bvk_supercell_matrix`` identifies the Born--von Karman cell that defines
 the force constants when it cannot be inferred as
 ``diag(forceconstants.second.supercell)``. It is not a remeshing request and
@@ -137,7 +156,7 @@ cases the :doc:`Introduction <introduction>` section.
      - is_symmetrizing_frequency
      - is_antisymmetrizing_velocity
    * - is_balanced
-     - is_unfolding
+     - ifc_interpolation
      - is_nac
      - is_nw
    * - g_factor

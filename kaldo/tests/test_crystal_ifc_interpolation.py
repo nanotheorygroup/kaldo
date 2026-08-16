@@ -19,7 +19,7 @@ def phonons():
         kpts=[3, 3, 3],
         is_classic=False,
         temperature=300,
-        is_unfolding=True,
+        ifc_interpolation="wigner-seitz",
         third_bandwidth=0.5,  # fixed: gauge-invariant regression config (#290)
         storage="memory",
     )

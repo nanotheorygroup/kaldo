@@ -76,10 +76,14 @@ def _rank8_ifc3(value, n_atoms, n_translations):
 
 def _coalesced_coo(coords, data, shape, dtype):
     """Build a deterministic COO and sum entries mapped to the same slot."""
-    if data:
+    data = np.asarray(data, dtype=dtype)
+    if data.size:
+        coords = np.asarray(coords, dtype=np.int64)
+        if coords.shape[0] != len(shape):
+            coords = coords.T
         return COO(
-            np.asarray(coords, dtype=np.int64).T,
-            np.asarray(data, dtype=dtype),
+            coords,
+            data,
             shape=shape,
             has_duplicates=True,
             sorted=False,
@@ -179,27 +183,47 @@ class ThirdOrder(ForceConstant):
         return folded, periodic_support
 
     def _compile_wigner_seitz(self, folded, support):
-        """Partition each nonzero IFC3 block over pair-shortest images."""
+        """Partition nonzero IFC3 entries over pair-shortest images.
+
+        Pair geometry is evaluated once per distinct ``(R,i,j)`` leg, not
+        once per Cartesian tensor component.  Coordinate expansion is then
+        vectorized by tied-image index.  This keeps the cost proportional to
+        the sparse IFC support and avoids millions of Python list appends for
+        production IFC3 tensors.
+        """
         images = WignerSeitzImages.build(
-            support, np.asarray(self.atoms.positions), np.asarray(self.atoms.cell)
+            support,
+            np.asarray(self.atoms.positions),
+            np.asarray(self.atoms.cell),
+            pbc=self.atoms.pbc,
         )
+        coords = np.asarray(folded.coords, dtype=np.int64)
+        data = np.asarray(folded.data)
+
+        # The first three columns identify a reusable IFC leg: stored
+        # translation, central atom i, and partner atom j/k.  np.unique also
+        # gives a vectorized map from every scalar COO entry to that geometry.
+        pair_j = np.column_stack((coords[2], coords[0], coords[3]))
+        pair_k = np.column_stack((coords[5], coords[0], coords[6]))
+        pair_rows = np.concatenate((pair_j, pair_k), axis=0)
+        unique_pairs, pair_inverse = np.unique(
+            pair_rows, axis=0, return_inverse=True
+        )
+        pair_j_ids = pair_inverse[:data.size]
+        pair_k_ids = pair_inverse[data.size:]
+
+        pair_images = [
+            images.image(source_id, atom_i, atom_j)
+            for source_id, atom_i, atom_j in unique_pairs
+        ]
 
         # A shared, sorted axis is required because Rj and Rk occupy axes of
-        # one tensor.  Build it from precisely the images used by nonzero IFCs.
-        translations = set()
-        for coord in folded.coords.T:
-            i, source_j, j, source_k, k = (
-                int(coord[0]), int(coord[2]), int(coord[3]),
-                int(coord[5]), int(coord[6]),
-            )
-            translations.update(
-                tuple(int(x) for x in r)
-                for r in images.translations[source_j][i][j]
-            )
-            translations.update(
-                tuple(int(x) for x in r)
-                for r in images.translations[source_k][i][k]
-            )
+        # one tensor. Build it from precisely the images used by nonzero IFCs.
+        translations = {
+            tuple(int(x) for x in translation)
+            for image_translations, _, _ in pair_images
+            for translation in image_translations
+        }
         if not translations:
             translations.update(tuple(int(x) for x in r)
                                 for r in support.translations)
@@ -209,34 +233,52 @@ class ThirdOrder(ForceConstant):
         )
         translation_ids = {tuple(r): index for index, r in enumerate(ordered)}
 
-        output_coords, output_data = [], []
-        for coord, datum in zip(folded.coords.T, folded.data):
-            i, source_j, j, source_k, k = (
-                int(coord[0]), int(coord[2]), int(coord[3]),
-                int(coord[5]), int(coord[6]),
-            )
-            trans_j = images.translations[source_j][i][j]
-            weights_j = images.weights[source_j][i][j]
-            trans_k = images.translations[source_k][i][k]
-            weights_k = images.weights[source_k][i][k]
-            if not np.isclose(np.sum(weights_j), 1.0, rtol=0, atol=1e-14):
-                raise ValueError(
-                    "Wigner-Seitz weights for the (i,j) pair do not sum to one"
+        max_multiplicity = max((len(item[0]) for item in pair_images), default=1)
+        target_ids = np.full(
+            (len(pair_images), max_multiplicity), -1, dtype=np.int64
+        )
+        pair_weights = np.zeros(
+            (len(pair_images), max_multiplicity), dtype=float
+        )
+        for pair_id, (pair_translations, _, weights) in enumerate(pair_images):
+            if not np.isclose(np.sum(weights), 1.0, rtol=0, atol=1e-14):
+                raise ValueError("Wigner-Seitz weights for an IFC3 pair do not sum to one")
+            multiplicity = len(weights)
+            target_ids[pair_id, :multiplicity] = [
+                translation_ids[tuple(r)] for r in pair_translations
+            ]
+            pair_weights[pair_id, :multiplicity] = weights
+
+        # At most ``max_multiplicity**2`` vector operations are needed.  Each
+        # selects every COO scalar with the same tied-image indices at once.
+        output_coords = []
+        output_data = []
+        for image_j in range(max_multiplicity):
+            targets_j = target_ids[pair_j_ids, image_j]
+            weights_j = pair_weights[pair_j_ids, image_j]
+            for image_k in range(max_multiplicity):
+                targets_k = target_ids[pair_k_ids, image_k]
+                selected = (targets_j >= 0) & (targets_k >= 0)
+                if not np.any(selected):
+                    continue
+                target = np.array(coords[:, selected], copy=True)
+                target[2] = targets_j[selected]
+                target[5] = targets_k[selected]
+                output_coords.append(target)
+                output_data.append(
+                    data[selected]
+                    * weights_j[selected]
+                    * pair_weights[pair_k_ids[selected], image_k]
                 )
-            if not np.isclose(np.sum(weights_k), 1.0, rtol=0, atol=1e-14):
-                raise ValueError(
-                    "Wigner-Seitz weights for the (i,k) pair do not sum to one"
-                )
-            for rj, weight_j in zip(trans_j, weights_j):
-                for rk, weight_k in zip(trans_k, weights_k):
-                    target = np.array(coord, dtype=np.int64, copy=True)
-                    target[2] = translation_ids[tuple(rj)]
-                    target[5] = translation_ids[tuple(rk)]
-                    output_coords.append(target)
-                    output_data.append(datum * weight_j * weight_k)
 
         shape = list(folded.shape)
         shape[2] = shape[5] = compiled_support.size
+        if output_coords:
+            output_coords = np.concatenate(output_coords, axis=1)
+            output_data = np.concatenate(output_data)
+        else:
+            output_coords = np.empty((len(shape), 0), dtype=np.int64)
+            output_data = np.empty(0, dtype=folded.dtype)
         compiled = _coalesced_coo(
             output_coords, output_data, tuple(shape), folded.dtype
         )

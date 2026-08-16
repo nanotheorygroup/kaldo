@@ -23,6 +23,7 @@ class ForceConstant(Observable):
                  supercell_grid: SupercellGrid | None = None,
                  translation_support: TranslationSupport | None = None,
                  replica_translations: ArrayLike | None = None,
+                 ifc_interpolation_hint: str | None = None,
                  **kwargs):
         super().__init__(folder=folder, **kwargs)
         self.atoms = atoms
@@ -45,6 +46,12 @@ class ForceConstant(Observable):
             raise ValueError("translation_support must belong to supercell_grid")
         self.supercell_grid = supercell_grid
         self.translation_support = translation_support
+        if ifc_interpolation_hint not in (None, "periodic", "wigner-seitz"):
+            raise ValueError(
+                "ifc_interpolation_hint must be None, 'periodic', or "
+                "'wigner-seitz'"
+            )
+        self.ifc_interpolation_hint = ifc_interpolation_hint
         self.n_replicas = supercell_grid.size
         self.n_translations = translation_support.size
         if replica_translations is None:
@@ -103,7 +110,12 @@ class ForceConstant(Observable):
                        value: ArrayLike | None = None,
                        folder: str = 'kALDo',
                        **kwargs):
-        supercell_grid = SupercellGrid(np.diag(supercell), order=grid_type)
+        matrix = np.asarray(supercell)
+        if matrix.shape == (3,):
+            matrix = np.diag(matrix)
+        elif matrix.shape != (3, 3):
+            raise ValueError("supercell must be a length-3 vector or 3x3 matrix")
+        supercell_grid = SupercellGrid(matrix, order=grid_type)
         translation_support = kwargs.pop(
             "translation_support", TranslationSupport.periodic(supercell_grid)
         )

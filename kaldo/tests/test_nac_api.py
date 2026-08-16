@@ -247,27 +247,27 @@ def test_explicit_nac_control_supports_auto_required_and_off_modes(mgo_second):
         q_point=q_point,
         second=mgo_second,
         storage="memory",
-        is_unfolding=True,
+        ifc_interpolation="auto",
     )
     required = HarmonicWithQ(
         q_point=q_point,
         second=mgo_second,
         storage="memory",
-        is_unfolding=True,
+        ifc_interpolation="auto",
         is_nac=True,
     )
     disabled = HarmonicWithQ(
         q_point=q_point,
         second=mgo_second,
         storage="memory",
-        is_unfolding=True,
+        ifc_interpolation="auto",
         is_nac=False,
     )
 
     assert automatic.is_nac is True
     assert required.is_nac is True
     assert disabled.is_nac is False
-    assert disabled.get_folder_from_label("").endswith("/nac_off")
+    assert "/nac_off/" in disabled.get_folder_from_label("")
     assert disabled.get_folder_from_label("") != automatic.get_folder_from_label("")
     np.testing.assert_allclose(
         required.frequency,
@@ -315,7 +315,7 @@ def test_qe_q2r_frequencies_match_matdyn_off_gamma(
         q_point=np.asarray(q_point, dtype=np.float64),
         second=mgo_second,
         storage="memory",
-        is_unfolding=True,
+        ifc_interpolation="auto",
     )
     frequency_cm = phonon.frequency[0] * 33.3564095198152
     assert frequency_cm.shape == (6,)
@@ -344,7 +344,7 @@ def test_qe_nac_velocity_uses_the_corrected_dispersion_gradient(mgo_second):
         q_point=np.array([0.3, 0.0, 0.3], dtype=np.float64),
         second=mgo_second,
         storage="memory",
-        is_unfolding=True,
+        ifc_interpolation="auto",
     )
     velocity_norm = np.linalg.norm(np.asarray(phonon.velocity), axis=-1).reshape(-1)
     # The removed reference [33.906, 33.906, 32.844, 8.682, 8.682, 21.596]

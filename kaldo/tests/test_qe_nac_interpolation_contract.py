@@ -1,6 +1,6 @@
-"""Contract between QE NAC and the legacy ``is_unfolding`` option.
+"""Contract between QE NAC and IFC interpolation.
 
-For an ordinary NAC-off force-constant model, ``is_unfolding`` selects either
+For an ordinary NAC-off force-constant model, the public selector chooses
 the legacy periodic-replica Fourier sum or Wigner--Seitz shortest-vector
 interpolation.  A polar QE q2r file has a stronger convention: its IFC body is
 already short range, and reconstructing the QE dynamical matrix requires
@@ -8,11 +8,9 @@ already short range, and reconstructing the QE dynamical matrix requires
     D_QE(q) = FT_WS[Phi_q2r^SR](q) + D_QE^rigid(q).
 
 The provenance-aware QE NAC controller therefore owns the Wigner--Seitz step.
-The legacy flag must not disable it: doing so would restore the plain replica
-transform that splits symmetry degeneracies and disagrees with ``matdyn.x``
-away from Gamma.  Both flag values must consequently give the same NAC-on
-physics.  When NAC is explicitly disabled, the flag controls interpolation of
-the remaining short-range diagnostic model again.
+``auto`` and ``wigner-seitz`` give the same NAC-on physics; ``periodic`` is
+rejected instead of being silently ignored. With NAC explicitly disabled,
+``periodic`` remains available as a diagnostic model.
 """
 
 import numpy as np
@@ -44,26 +42,26 @@ def qe_mgo_second(tmp_path_factory):
     return second
 
 
-def _harmonic(second, *, is_unfolding, is_nac=None):
+def _harmonic(second, *, interpolation, is_nac=None):
     return HarmonicWithQ(
         q_point=Q_POINT,
         second=second,
         storage="memory",
-        is_unfolding=is_unfolding,
+        ifc_interpolation=interpolation,
         is_nac=is_nac,
     )
 
 
-@pytest.mark.parametrize("is_unfolding", [False, True])
-def test_qe_nac_matches_matdyn_for_both_legacy_flag_values(
-    qe_mgo_second, is_unfolding
+@pytest.mark.parametrize("interpolation", ["auto", "wigner-seitz"])
+def test_qe_nac_matches_matdyn_for_supported_interpolation_modes(
+    qe_mgo_second, interpolation
 ):
-    """The QE-owned WS path must remain active for either legacy flag value."""
-    harmonic = _harmonic(qe_mgo_second, is_unfolding=is_unfolding)
+    """The QE-owned WS path remains active for both supported selectors."""
+    harmonic = _harmonic(qe_mgo_second, interpolation=interpolation)
     frequency_cm = np.asarray(harmonic.frequency[0]) * THZ_TO_CM
 
     assert harmonic.is_nac is True
-    assert harmonic.is_unfolding is is_unfolding
+    assert harmonic.ifc_interpolation_resolved == "wigner-seitz"
     np.testing.assert_allclose(
         frequency_cm,
         QE_MATDYN_FREQUENCIES_CM,
@@ -79,30 +77,37 @@ def test_qe_nac_matches_matdyn_for_both_legacy_flag_values(
         )
 
 
-def test_qe_nac_observables_are_invariant_to_legacy_unfolding_flag(qe_mgo_second):
+def test_qe_nac_observables_are_invariant_between_auto_and_ws(qe_mgo_second):
     """Frequencies and their q-gradient must come from the same QE controller."""
-    periodic_requested = _harmonic(qe_mgo_second, is_unfolding=False)
-    unfolded_requested = _harmonic(qe_mgo_second, is_unfolding=True)
+    automatic = _harmonic(qe_mgo_second, interpolation="auto")
+    wigner_seitz = _harmonic(qe_mgo_second, interpolation="wigner-seitz")
 
     np.testing.assert_allclose(
-        periodic_requested.frequency,
-        unfolded_requested.frequency,
+        automatic.frequency,
+        wigner_seitz.frequency,
         rtol=0.0,
         atol=0.0,
     )
     np.testing.assert_allclose(
-        periodic_requested.velocity,
-        unfolded_requested.velocity,
+        automatic.velocity,
+        wigner_seitz.velocity,
         rtol=0.0,
         atol=0.0,
     )
 
 
-def test_qe_nac_off_restores_legacy_unfolding_control(qe_mgo_second):
-    """With restoration disabled, the flag again selects the ordinary IFC path."""
-    periodic = _harmonic(qe_mgo_second, is_unfolding=False, is_nac=False)
-    unfolded = _harmonic(qe_mgo_second, is_unfolding=True, is_nac=False)
+def test_qe_nac_off_allows_direct_periodic_diagnostic(qe_mgo_second):
+    """With restoration disabled, users may request the ordinary periodic path."""
+    periodic = _harmonic(qe_mgo_second, interpolation="periodic", is_nac=False)
+    wigner_seitz = _harmonic(
+        qe_mgo_second, interpolation="wigner-seitz", is_nac=False
+    )
 
     assert periodic.is_nac is False
-    assert unfolded.is_nac is False
-    assert np.max(np.abs(periodic.frequency - unfolded.frequency)) > 1.0e-3
+    assert wigner_seitz.is_nac is False
+    assert np.max(np.abs(periodic.frequency - wigner_seitz.frequency)) > 1.0e-3
+
+
+def test_qe_nac_rejects_periodic_override(qe_mgo_second):
+    with pytest.raises(ValueError, match="incompatible with active NAC"):
+        _harmonic(qe_mgo_second, interpolation="periodic")

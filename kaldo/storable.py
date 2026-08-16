@@ -211,6 +211,15 @@ class Storable:
         # cannot silently reuse polar frequencies, velocities, or flux data.
         if getattr(self, '_nac_requested', None) is False:
             base_folder += '/nac_off'
+        # IFC interpolation changes every downstream harmonic and anharmonic
+        # observable. Always use a versioned, support-specific namespace so
+        # pre-refactor periodic caches cannot be read as Wigner--Seitz data.
+        # Conductivity and other wrappers may have copied the key before a
+        # lazy IFC3 object was loaded.  Resolve it from their Phonons owner at
+        # path-construction time so literal third-order support is included.
+        cache_owner = getattr(self, 'phonons', self)
+        if hasattr(cache_owner, 'ifc_cache_key'):
+            base_folder += '/ifc_' + str(cache_owner.ifc_cache_key)
         return base_folder
     
     def _get_folder_path_components(self, label):

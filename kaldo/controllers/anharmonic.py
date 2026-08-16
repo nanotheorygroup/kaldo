@@ -73,8 +73,17 @@ def calculate_ps_and_gamma(sparse_phase, sparse_potential, population, is_balanc
 
 def sparse_potential_mu(
     nu_single, evect_tf, sparse_phase, index_k, mu, n_k_points, n_modes, is_plus, is_sparse,
-    index_kpp_full, _chi_k, second_minus, second_minus_chi, third_tf, n_replicas, omega, hbar
+    index_kpp_full, _chi_k, second_minus, second_minus_chi, third_tf,
+    n_translations, omega, hbar
 ):
+    """Project IFC3 using its translation support, not the physical cell count.
+
+    Wigner--Seitz interpolation and file-provided translations may require
+    more Fourier translations than the ``|det(M)|`` periodic classes of the
+    finite-displacement supercell.  The two IFC3 legs share an ordered support
+    of size ``n_translations``; only this dimension belongs in the phase and
+    tensor reshapes below.
+    """
     nup_vec, nupp_vec = tf.unstack(sparse_phase.indices, axis=1)
 
     index_kp_vec, mup_vec = tf.unravel_index(nup_vec, (n_k_points, n_modes))
@@ -85,17 +94,27 @@ def sparse_potential_mu(
     third_chi = tf.math.conj(tf.gather(_chi_k, index_kpp_full))
 
     chi_prod = tf.einsum("kt,kl->ktl", second_chi, third_chi)
-    chi_prod = tf.reshape(chi_prod, (n_k_points, n_replicas**2))
+    chi_prod = tf.reshape(chi_prod, (n_k_points, n_translations**2))
 
     if is_sparse:
         third_nu_tf = tf.sparse.sparse_dense_matmul(third_tf, evect_tf[index_k, :, mu, tf.newaxis])
     else:
         third_nu_tf = contract("ijk,i->jk", third_tf, evect_tf[index_k, :, mu], backend="tensorflow")
-        third_nu_tf = tf.reshape(third_nu_tf, (n_replicas * n_replicas, n_modes, n_modes))
+        third_nu_tf = tf.reshape(
+            third_nu_tf, (n_translations * n_translations, n_modes, n_modes)
+        )
 
-    third_nu_tf = tf.cast(tf.reshape(third_nu_tf, (n_replicas, n_modes, n_replicas, n_modes)), dtype=tf.complex128)
+    third_nu_tf = tf.cast(
+        tf.reshape(
+            third_nu_tf,
+            (n_translations, n_modes, n_translations, n_modes),
+        ),
+        dtype=tf.complex128,
+    )
     third_nu_tf = tf.transpose(third_nu_tf, (0, 2, 1, 3))
-    third_nu_tf = tf.reshape(third_nu_tf, (n_replicas * n_replicas, n_modes, n_modes))
+    third_nu_tf = tf.reshape(
+        third_nu_tf, (n_translations * n_translations, n_modes, n_modes)
+    )
 
     scaled_potential = tf.tensordot(chi_prod, third_nu_tf, (1, 0))
     scaled_potential = tf.einsum("kij,kim->kjm", scaled_potential, second)

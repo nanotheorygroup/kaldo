@@ -1,11 +1,12 @@
-"""Behavioral contract between NAC activation and ``is_unfolding``.
+"""Behavioral contract between NAC and IFC interpolation.
 
-The flag selects the ordinary harmonic interpolation only.  Without NAC, an
+Without NAC, an
 incommensurate q point may distinguish the legacy periodic-replica Fourier sum
 from Wigner--Seitz interpolation, while the two must coincide on the defining
-commensurate mesh.  With generic Gonze NAC active, the NAC controller owns the
-Wigner--Seitz short-range reconstruction, just as the QE controller does, so
-the legacy flag must become observationally inert.
+commensurate mesh. With generic Gonze NAC active, the NAC controller owns the
+Wigner--Seitz short-range reconstruction. ``auto`` and ``wigner-seitz`` must
+therefore agree, while an explicit ``periodic`` request is rejected rather
+than silently ignored.
 
 These tests use public frequencies and velocities rather than private mapping
 arrays.  This makes the contract sensitive both to eigensystem routing and to
@@ -73,12 +74,12 @@ def gonze_second(tmp_path_factory):
     return second
 
 
-def _harmonic(second, q_point, *, is_unfolding, is_nac=None, bvk_matrix=None):
+def _harmonic(second, q_point, *, interpolation, is_nac=None, bvk_matrix=None):
     return HarmonicWithQ(
         q_point=np.asarray(q_point, dtype=np.float64),
         second=second,
         storage="memory",
-        is_unfolding=is_unfolding,
+        ifc_interpolation=interpolation,
         is_nac=is_nac,
         nac_bvk_supercell_matrix=bvk_matrix,
     )
@@ -87,10 +88,10 @@ def _harmonic(second, q_point, *, is_unfolding, is_nac=None, bvk_matrix=None):
 def test_nonpolar_incommensurate_q_uses_the_requested_interpolation(nonpolar_second):
     """At incommensurate q, the flag must select observably different models."""
     periodic = _harmonic(
-        nonpolar_second, INCOMMENSURATE_Q, is_unfolding=False
+        nonpolar_second, INCOMMENSURATE_Q, interpolation="periodic"
     )
     unfolded = _harmonic(
-        nonpolar_second, INCOMMENSURATE_Q, is_unfolding=True
+        nonpolar_second, INCOMMENSURATE_Q, interpolation="wigner-seitz"
     )
 
     assert periodic.is_nac is False
@@ -106,8 +107,8 @@ def test_nonpolar_periodic_and_unfolded_agree_on_commensurate_mesh(
     worst_frequency_difference = 0.0
     for indices in product(range(2), repeat=3):
         q_point = np.asarray(indices, dtype=np.float64) / 2.0
-        periodic = _harmonic(nonpolar_second, q_point, is_unfolding=False)
-        unfolded = _harmonic(nonpolar_second, q_point, is_unfolding=True)
+        periodic = _harmonic(nonpolar_second, q_point, interpolation="periodic")
+        unfolded = _harmonic(nonpolar_second, q_point, interpolation="wigner-seitz")
         difference = np.max(
             np.abs(
                 np.sort(periodic.frequency.reshape(-1))
@@ -121,40 +122,50 @@ def test_nonpolar_periodic_and_unfolded_agree_on_commensurate_mesh(
     assert worst_frequency_difference < 1.0e-6
 
 
-def test_generic_gonze_nac_owns_interpolation_for_both_flag_values(gonze_second):
-    """Active Gonze NAC must route spectra and gradients through one WS kernel."""
-    periodic_requested = _harmonic(
+def test_generic_gonze_nac_auto_and_ws_use_one_kernel(gonze_second):
+    """Active Gonze NAC routes spectra and gradients through one WS kernel."""
+    automatic = _harmonic(
         gonze_second,
         GONZE_Q,
-        is_unfolding=False,
+        interpolation="auto",
         bvk_matrix=GONZE_BVK_MATRIX,
     )
-    unfolded_requested = _harmonic(
+    wigner_seitz = _harmonic(
         gonze_second,
         GONZE_Q,
-        is_unfolding=True,
+        interpolation="wigner-seitz",
         bvk_matrix=GONZE_BVK_MATRIX,
     )
 
-    assert periodic_requested.is_nac is True
-    assert unfolded_requested.is_nac is True
+    assert automatic.is_nac is True
+    assert wigner_seitz.is_nac is True
     assert (
-        periodic_requested._build_nac_static_data_runtime()["convention"]
+        automatic._build_nac_static_data_runtime()["convention"]
         == "gonze_total"
     )
     assert (
-        unfolded_requested._build_nac_static_data_runtime()["convention"]
+        wigner_seitz._build_nac_static_data_runtime()["convention"]
         == "gonze_total"
     )
     np.testing.assert_allclose(
-        periodic_requested.frequency,
-        unfolded_requested.frequency,
+        automatic.frequency,
+        wigner_seitz.frequency,
         rtol=0.0,
         atol=0.0,
     )
     np.testing.assert_allclose(
-        periodic_requested.velocity,
-        unfolded_requested.velocity,
+        automatic.velocity,
+        wigner_seitz.velocity,
         rtol=0.0,
         atol=0.0,
     )
+
+
+def test_generic_gonze_rejects_periodic_override(gonze_second):
+    with pytest.raises(ValueError, match="incompatible with active NAC"):
+        _harmonic(
+            gonze_second,
+            GONZE_Q,
+            interpolation="periodic",
+            bvk_matrix=GONZE_BVK_MATRIX,
+        )

@@ -62,7 +62,7 @@ import ase.units as units
 from numpy.typing import NDArray
 import spglib
 
-from kaldo.grid import Grid
+from kaldo.grid import QGrid, SupercellGrid
 from kaldo.interfaces.qe_io import Q2RHeader
 
 # ---------------------------------------------------------------------------
@@ -967,27 +967,13 @@ def _unique_supercell_translations(supercell_matrix, symprec=1e-8):
     coset, and ``abs(det(supercell_matrix))`` is the required number of unique
     primitive cells inside the supercell.
     """
-    supercell_matrix = np.array(supercell_matrix, dtype=int)
-    primitive_matrix = np.linalg.inv(supercell_matrix)
-    target_count = int(round(abs(np.linalg.det(supercell_matrix))))
-    search_radius = int(np.max(np.abs(supercell_matrix))) + 2
+    grid = SupercellGrid(np.asarray(supercell_matrix, dtype=int), order="C")
+    inverse = np.linalg.inv(grid.matrix)
     translations = []
-    seen = set()
-    for i in range(-search_radius, search_radius + 1):
-        for j in range(-search_radius, search_radius + 1):
-            for k in range(-search_radius, search_radius + 1):
-                shift = np.array([i, j, k], dtype=float)
-                supercell_scaled = (shift @ primitive_matrix) % 1.0
-                supercell_scaled[np.isclose(supercell_scaled, 1.0, atol=symprec)] = 0.0
-                key = tuple(np.round(supercell_scaled, 10))
-                if key not in seen:
-                    seen.add(key)
-                    translations.append((shift, supercell_scaled))
-    if len(translations) != target_count:
-        raise ValueError(
-            "Could not construct the expected number of supercell translations: "
-            f"expected {target_count}, found {len(translations)}."
-        )
+    for representative in grid.representatives:
+        fractional = np.mod(representative @ inverse, 1.0)
+        fractional[np.isclose(fractional, 1.0, atol=symprec)] = 0.0
+        translations.append((representative.astype(float), fractional))
     return translations
 
 
@@ -1062,8 +1048,11 @@ def _commensurate_points(supercell, reciprocal_lattice=None):
     """
     supercell = np.array(supercell)
     if supercell.shape == (3,):
-        grid = Grid(supercell, order="C").grid(is_wrapping=False)
-        qpoints = np.array(grid / np.array(supercell, dtype=float), dtype="double", order="C")
+        qpoints = np.array(
+            QGrid(tuple(supercell), order="C").fractional_points,
+            dtype="double",
+            order="C",
+        )
         if reciprocal_lattice is not None:
             return _fold_points_to_first_bz(qpoints, reciprocal_lattice)
         return qpoints
@@ -1341,20 +1330,34 @@ def _build_interleaved_fc(second_order):
 
     The result has shape ``(n_atom, n_atom*n_replicas, 3, 3)`` in eV/angstrom².
     """
-    native_fc = second_order.value[0]
+    native_fc = np.asarray(second_order.value[0])
     n_atom = len(second_order.atoms)
-    n1, n2, n3 = second_order.supercell
-    n_replicas = n1 * n2 * n3
-    replica_indices = np.arange(n_replicas)
-    translation_1 = replica_indices // (n2 * n3)
-    translation_2 = (replica_indices // n3) % n2
-    translation_3 = replica_indices % n3
+    support = second_order.translation_support
+    supercell_grid = second_order.supercell_grid
+    n_replicas = supercell_grid.size
+    if native_fc.shape[2] != support.size:
+        raise ValueError(
+            "second-order IFC translation axis does not match its support"
+        )
+
+    # NAC operates on the periodic Born--von Karman classes. Literal file
+    # translations are first combined class by class; their distinction is
+    # meaningful for an ordinary direct Fourier sum, but the Gonze subtraction
+    # and QE restoration both require the defining commensurate grid.
+    folded_fc = np.zeros(
+        (n_atom, 3, n_replicas, n_atom, 3), dtype=native_fc.dtype
+    )
+    for source_id, class_id in enumerate(support.class_ids):
+        folded_fc[:, :, class_id, :, :] += native_fc[:, :, source_id, :, :]
+
     # Negate each periodic translation because kALDo labels the cell of the
     # force atom whereas the Gonze/Phonopy transform labels the displaced atom.
-    reversed_replica_indices = (
-        (-translation_1 % n1)
-        + (-translation_2 % n2) * n1
-        + (-translation_3 % n3) * (n1 * n2)
+    reversed_replica_indices = np.array(
+        [
+            supercell_grid.class_id(-translation)
+            for translation in supercell_grid.representatives
+        ],
+        dtype=int,
     )
     fc = np.zeros((n_atom, n_atom * n_replicas, 3, 3), dtype=float)
     for displaced_atom in range(n_atom):
@@ -1366,7 +1369,7 @@ def _build_interleaved_fc(second_order):
                 # Transpose beta/alpha because the native tensor stores
                 # displacement before force component; compact FC uses force
                 # component before displacement component.
-                fc[force_atom, compact_index] = native_fc[
+                fc[force_atom, compact_index] = folded_fc[
                     displaced_atom, :, replica_index, force_atom, :
                 ].T
     return fc

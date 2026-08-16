@@ -8,8 +8,9 @@ from kaldo.grid import SupercellGrid, TranslationSupport
 from kaldo.observables.thirdorder import ThirdOrder
 
 
-def _third(value, support, positions=((0.0, 0.0, 0.0),)):
-    atoms = Atoms("H" * len(positions), positions=positions, cell=np.eye(3), pbc=True)
+def _third(value, support, positions=((0.0, 0.0, 0.0),), cell=None):
+    cell = np.eye(3) if cell is None else np.asarray(cell, dtype=float)
+    atoms = Atoms("H" * len(positions), positions=positions, cell=cell, pbc=True)
     replicated = (
         support.supercell.representatives[:, None, :] @ np.asarray(atoms.cell)
         + np.asarray(atoms.positions)[None, :, :]
@@ -156,3 +157,50 @@ def test_invalid_mode_and_mismatched_axes_are_rejected():
         assert "ifc_interpolation" in str(error)
     else:
         raise AssertionError("invalid interpolation mode was accepted")
+
+
+def test_pair_gauge_tracks_independent_basis_images_in_skew_cell():
+    """Each IFC3 leg must follow the periodic image of its own atom pair.
+
+    Moving basis atom ``i`` by integer lattice vector ``s_i`` changes the
+    integer Fourier translations as ``R_ij -> R_ij + s_i - s_j`` and
+    independently for ``R_ik``.  The corresponding phase is a basis-gauge
+    factor, not a change in the physical three-phonon matrix element.
+    """
+    cell = np.array([[3.0, 0.0, 0.0], [1.5, 2.598, 0.0], [0.2, 0.1, 4.0]])
+    scaled = np.array([
+        [0.05, 0.08, 0.11],
+        [0.42, 0.31, 0.17],
+        [0.19, 0.73, 0.29],
+    ])
+    shifts = np.array([[1, 0, 0], [0, -1, 0], [1, 1, 0]], dtype=int)
+    grid = SupercellGrid(np.eye(3, dtype=int))
+    support = TranslationSupport.periodic(grid)
+    shape = (3, 3, 1, 3, 3, 1, 3, 3)
+    coordinate = np.array([[0], [1], [0], [1], [2], [0], [2], [0]])
+    value = COO(coordinate, np.array([2.75]), shape=shape)
+
+    reference = _third(value, support, scaled @ cell, cell).get_interpolation(
+        "wigner-seitz"
+    )
+    translated = _third(
+        value, support, (scaled + shifts) @ cell, cell
+    ).get_interpolation("wigner-seitz")
+
+    qj = np.array([0.13, 0.27, 0.19])
+    qk = np.array([0.21, -0.16, 0.07])
+    reference_fourier = _fourier_value(reference, qj, qk)
+    translated_fourier = _fourier_value(translated, qj, qk)
+    expected_gauge = np.exp(
+        2j * np.pi * (
+            qj @ (shifts[0] - shifts[1])
+            + qk @ (shifts[0] - shifts[2])
+        )
+    )
+
+    np.testing.assert_allclose(
+        translated_fourier,
+        expected_gauge * reference_fourier,
+        rtol=2e-14,
+        atol=2e-14,
+    )

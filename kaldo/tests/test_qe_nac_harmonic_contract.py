@@ -47,7 +47,7 @@ def test_qe_harmonic_path_does_not_run_gonze_dipole_subtraction(
         q_point=np.array([0.3, 0.0, 0.3]),
         second=second,
         storage="memory",
-        is_unfolding=True,
+        ifc_interpolation="auto",
     )
 
     assert np.isfinite(phonon.frequency).all()

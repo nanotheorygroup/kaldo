@@ -3,13 +3,15 @@ kaldo
 Anharmonic Lattice Dynamics
 """
 import numpy as np
-from sparse import COO
-from kaldo.grid import wrap_coordinates
+from kaldo.grid import SupercellGrid
 from kaldo.observables.secondorder import SecondOrder
 from kaldo.observables.thirdorder import ThirdOrder
 from kaldo.observables.fourthorder import FourthOrder
 from kaldo.helpers.logger import get_logger
-from kaldo.observables.harmonic_with_q import HarmonicWithQ
+from kaldo.observables.harmonic_with_q import (
+    HarmonicWithQ,
+    _HarmonicIFCInterpolation,
+)
 import ase.units as units
 logging = get_logger()
 
@@ -19,7 +21,15 @@ MAIN_FOLDER = 'displacement'
 def _normalize_supercell(supercell: tuple[int, int, int] | np.ndarray | None):
     if supercell is None:
         return None
-    return tuple(int(value) for value in supercell)
+    array = np.asarray(supercell)
+    if array.shape == (3,):
+        return tuple(int(value) for value in array)
+    if array.shape == (3, 3):
+        rounded = np.rint(array).astype(int)
+        if not np.allclose(array, rounded):
+            raise ValueError("supercell matrix must be integer-valued")
+        return rounded
+    raise ValueError("supercell must be a length-3 diagonal or integer 3x3 matrix")
 
 
 class ForceConstants:
@@ -72,9 +82,11 @@ class ForceConstants:
         The number of possible vibrational modes in the system from a lattice dynamics perspective. Equivalent to
         3*n_atoms where the factor of 3 comes from the 3 Cartesian directions.
     n_replicas: int
-        The number of repeated unit cells represented in the system. Equivalent to ``np.prod(supercell)``.
+        Number of periodic supercell classes, ``abs(det(supercell_matrix))``.
+        For a diagonal three-vector this is ``np.prod(supercell)``.
     n_replicated_atoms: int
-        The number of atoms represented in the system. Equivalent to ``n_atoms * np.prod(supercell)``
+        Number of atoms in the physical replicated structure,
+        ``n_atoms * n_replicas``.
     cell_inv: np.array(3, 3)
         A 3x3 matrix which satisfies AB=I where A is the matrix of cell vectors, I is the identity matrix, and B is the
         cell_inv matrix.
@@ -95,10 +107,18 @@ class ForceConstants:
         # Store the user defined information to the object
         self.atoms = atoms
         self.supercell = _normalize_supercell(supercell)
-        self.third_supercell = _normalize_supercell(third_supercell) or self.supercell
+        normalized_third = _normalize_supercell(third_supercell)
+        self.third_supercell = self.supercell if normalized_third is None else normalized_third
         self.n_atoms = atoms.positions.shape[0]
         self.n_modes = self.n_atoms * 3
-        self.n_replicas = np.prod(self.supercell)
+        if second_order is not None:
+            self.supercell_grid = second_order.supercell_grid
+        else:
+            matrix = np.asarray(self.supercell)
+            if matrix.shape == (3,):
+                matrix = np.diag(matrix)
+            self.supercell_grid = SupercellGrid(matrix)
+        self.n_replicas = self.supercell_grid.size
         self.n_replicated_atoms = self.n_replicas * self.n_atoms
         self.cell_inv = np.linalg.inv(atoms.cell)
         self.folder = folder
@@ -231,7 +251,9 @@ class ForceConstants:
         resolved_supercell = _normalize_supercell(second_order.supercell)
 
         third_order = None
-        target_third_supercell = third_supercell or resolved_supercell
+        target_third_supercell = (
+            resolved_supercell if third_supercell is None else third_supercell
+        )
 
         if not only_second:
             third_order = ThirdOrder.load(folder=folder,
@@ -262,72 +284,6 @@ class ForceConstants:
                    fourth_order=fourth_order,
                    is_acoustic_sum=is_acoustic_sum)
 
-    def unfold_third_order(self, reduced_third=None, distance_threshold=None):
-        """
-        This method extrapolates a third order force constant matrix from a unit
-        cell into a matrix for a larger supercell.
-
-        Parameters
-        ----------
-        reduced_third : array, optional
-            The third order force constant matrix.
-            Default is ``self.third``
-        distance_threshold : float, optional
-            When calculating force constants, contributions from atoms further than
-            the distance threshold will be ignored.
-            Default is ``self.distance_threshold``
-        """
-        logging.info('Unfolding third order matrix')
-        if distance_threshold is None:
-            if self.distance_threshold is not None:
-                distance_threshold = self.distance_threshold
-            else:
-                raise ValueError('Please specify a distance threshold in Angstrom')
-
-        logging.info('Distance threshold: ' + str(distance_threshold) + ' A')
-        if (self.atoms.cell[0, 0] / 2 < distance_threshold) | \
-                (self.atoms.cell[1, 1] / 2 < distance_threshold) | \
-                (self.atoms.cell[2, 2] / 2 < distance_threshold):
-            logging.warning('The cell size should be at least twice the distance threshold')
-        if reduced_third is None:
-            reduced_third = self.third.value
-        n_unit_atoms = self.n_atoms
-        atoms = self.atoms
-        n_replicas = self.n_replicas
-        replicated_cell_inv = np.linalg.inv(self.third.replicated_atoms.cell)
-
-        reduced_third = reduced_third.reshape(
-            (n_unit_atoms, 3, n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
-        replicated_positions = self.third.replicated_atoms.positions.reshape((n_replicas, n_unit_atoms, 3))
-        dxij_reduced = wrap_coordinates(atoms.positions[:, np.newaxis, np.newaxis, :]
-                                        - replicated_positions[np.newaxis, :, :, :], self.third.replicated_atoms.cell,
-                                        replicated_cell_inv)
-        indices = np.argwhere(np.linalg.norm(dxij_reduced, axis=-1) < distance_threshold)
-
-        coords = []
-        values = []
-        for index in indices:
-            for l in range(n_replicas):
-                for j in range(n_unit_atoms):
-                    dx2 = dxij_reduced[index[0], l, j]
-
-                    is_storing = (np.linalg.norm(dx2) < distance_threshold)
-                    if is_storing:
-                        for alpha in range(3):
-                            for beta in range(3):
-                                for gamma in range(3):
-                                    coords.append([index[0], alpha, index[1], index[2], beta, l, j, gamma])
-                                    values.append(reduced_third[index[0], alpha, 0, index[2], beta, 0, j, gamma])
-
-        logging.info('Created unfolded third order')
-
-        shape = (n_unit_atoms, 3, n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3)
-        expanded_third = COO(np.array(coords).T, np.array(values), shape)
-        expanded_third = expanded_third.reshape(
-            (n_unit_atoms * 3, n_replicas * n_unit_atoms * 3, n_replicas * n_unit_atoms * 3))
-        return expanded_third
-
-
     def elastic_prop(self):
         """
         Return the stiffness tensor (aka elastic modulus tensor) of the system in GPa.
@@ -350,38 +306,13 @@ class ForceConstants:
         atoms = self.atoms
         masses = atoms.get_masses()
         volume = atoms.get_volume()
-        # The dynmat replica axis and list_of_replicas both follow the grid
-        # declared by the loader, so they pair directly. A former
-        # unconditional C-override here compensated for loaders that
-        # declared F over C-ordered data (QE fixed in #272, VASP alongside
-        # this change); on self-consistent F loads such as hiphive it
-        # mispaired the vectors and corrupted the tensor.
-        list_of_replicas = self.second.list_of_replicas
-
-        dynmat = self.second.dynmat[0]  # units THz^2
-        positions = self.atoms.positions
         n_unit = atoms.positions.shape[0]
-
-        distance = (
-            positions[:, np.newaxis, np.newaxis, :] -
-            (positions[np.newaxis, np.newaxis, :, :] +
-             list_of_replicas[np.newaxis, :, np.newaxis, :])
-        )
-
-        # First order term of the expansion of dynamical matrix
-        d1 = np.einsum(
-            'iljx,ibljc->ibjcx',
-            distance.astype(complex),
-            dynmat.numpy().astype(complex)
-        )
-
-        # Second order term of the expansion of dynamical matrix
-        d2 = -np.einsum(
-            'iljx,iljy,ibljc->ibjcxy',
-            distance.astype(complex),
-            distance.astype(complex),
-            dynmat.numpy().astype(complex)
-        )
+        # Elasticity is the q->0 expansion of the same interpolated harmonic
+        # matrix used for frequencies and velocities. Reuse its pair-specific
+        # Wigner--Seitz geometry so a skew cell cannot pair one raw replica
+        # representative with every basis-atom pair.
+        interpolation = _HarmonicIFCInterpolation.build(self.second, "auto")
+        d1, d2 = interpolation.real_space_moments(self.distance_threshold)
 
         # Compute Gamma tensor as eq.6
         h0 = HarmonicWithQ(np.array([0, 0, 0]), self.second, storage='numpy')

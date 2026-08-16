@@ -433,10 +433,15 @@ class SecondOrder(ForceConstant, Storable):
                     grid_type=grid_type,
                     supercell=supercell,
                     value=_second_order[np.newaxis, ...],
-                    # Preserve the established ShengBTE/d3q loader behavior.
-                    # Changing this default repins every existing QE workflow;
-                    # q2r provenance affects NAC restoration, not this API contract.
+                    # Nonpolar q2r is validated against matdyn.x's direct
+                    # periodic transform. Polar q2r deliberately has no hint:
+                    # its subtracted body and restoration use matched WS/NAC.
                     is_acoustic_sum=True,
+                    ifc_interpolation_hint=(
+                        "periodic"
+                        if qe_header is not None and not qe_header.has_zstar
+                        else None
+                    ),
                     folder=folder,
                 )
                 if qe_header is not None and qe_header.has_zstar:
@@ -790,51 +795,22 @@ class SecondOrder(ForceConstant, Storable):
         return tf.convert_to_tensor(dynmat * evtotenjovermol)
 
     def calculate_super_replicas(self):
-        scell = self.supercell
-        n_replicas = np.prod(scell)
-        atoms = self.atoms
-        cell = atoms.cell
-        n_unit_cell = atoms.positions.shape[0]
-        replicated_positions = self.replicated_atoms.positions.reshape(
-            (n_replicas, n_unit_cell, 3)
-        )
-
-        list_of_index = np.round(
-            (replicated_positions - self.atoms.positions).dot(np.linalg.inv(atoms.cell))
-        ).astype(int)
-        list_of_index = list_of_index[:, 0, :]
-
-        tt = []
-        rreplica = []
-        for ix2 in [-1, 0, 1]:
-            for iy2 in [-1, 0, 1]:
-                for iz2 in [-1, 0, 1]:
-                    for f in range(list_of_index.shape[0]):
-                        scell_id = np.array(
-                            [ix2 * scell[0], iy2 * scell[1], iz2 * scell[2]]
-                        )
-                        replica_id = list_of_index[f]
-                        t = replica_id + scell_id
-                        replica_position = np.tensordot(t, cell, (-1, 0))
-                        tt.append(t)
-                        rreplica.append(replica_position)
-
-        tt = np.array(tt)
-        return tt
+        """Return replica translations in the neighboring 3x3x3 BvK cells."""
+        neighboring_cells = np.stack(
+            np.meshgrid([-1, 0, 1], [-1, 0, 1], [-1, 0, 1], indexing="ij"),
+            axis=-1,
+        ).reshape(-1, 3)
+        supercell_shifts = neighboring_cells @ self.supercell_grid.matrix
+        return (
+            supercell_shifts[:, np.newaxis, :]
+            + self.replica_translations[np.newaxis, :, :]
+        ).reshape(-1, 3)
 
     def calculate_supercell_positions(self):
-        supercell = self.supercell
-        atoms = self.atoms
-        cell = atoms.cell
-        replicated_cell = cell * supercell
-        sc_r_pos = np.zeros((3**3, 3))
-        ir = 0
-        for ix2 in [-1, 0, 1]:
-            for iy2 in [-1, 0, 1]:
-                for iz2 in [-1, 0, 1]:
-                    for i in np.arange(3):
-                        sc_r_pos[ir, i] = np.dot(
-                            replicated_cell[:, i], np.array([ix2, iy2, iz2])
-                        )
-                    ir = ir + 1
-        return sc_r_pos
+        """Return Cartesian origins of the neighboring 3x3x3 BvK cells."""
+        neighboring_cells = np.stack(
+            np.meshgrid([-1, 0, 1], [-1, 0, 1], [-1, 0, 1], indexing="ij"),
+            axis=-1,
+        ).reshape(-1, 3)
+        super_lattice = self.supercell_grid.matrix @ np.asarray(self.atoms.cell)
+        return neighboring_cells @ super_lattice

@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from fractions import Fraction
 from hashlib import sha256
 
 import numpy as np
@@ -22,6 +23,7 @@ def _integer_determinant_and_adjugate(matrix):
 
 
 def _readonly_integer_matrix(value, name):
+    """Validate an ``(n,3)`` lattice-coordinate array and freeze a copy."""
     array = np.asarray(value)
     if array.shape[-1:] != (3,) or array.ndim != 2:
         raise ValueError(f"{name} must have shape (n, 3)")
@@ -47,6 +49,7 @@ class QGrid:
     addresses: NDArray[np.int64] = field(init=False, repr=False)
 
     def __post_init__(self):
+        """Validate the mesh and materialize its deterministic addresses."""
         shape = tuple(int(n) for n in self.shape)
         if len(shape) != 3 or any(n <= 0 for n in shape):
             raise ValueError("shape must contain three positive integers")
@@ -61,10 +64,12 @@ class QGrid:
 
     @property
     def size(self):
+        """Number of reciprocal mesh points."""
         return len(self.addresses)
 
     @property
     def fractional_points(self):
+        """Reduced reciprocal coordinates in the declared storage order."""
         points = self.addresses / np.asarray(self.shape)
         points.setflags(write=False)
         return points
@@ -111,6 +116,7 @@ class SupercellGrid:
     _key_to_id: dict = field(init=False, repr=False, compare=False)
 
     def __post_init__(self):
+        """Build exact quotient representatives and their class lookup."""
         matrix = np.asarray(self.matrix)
         if matrix.shape != (3, 3) or not np.allclose(matrix, np.rint(matrix)):
             raise ValueError("matrix must be a nonsingular integer 3x3 matrix")
@@ -160,15 +166,21 @@ class SupercellGrid:
 
     @property
     def size(self):
+        """Number of periodic translation classes, ``abs(det(M))``."""
         return abs(self._determinant)
 
     def class_key(self, translation):
-        translation = np.asarray(translation, dtype=np.int64)
-        if translation.shape != (3,):
-            raise ValueError("translation must have shape (3,)")
+        """Return the exact adjugate-modulo key of an integer translation."""
+        translation = np.asarray(translation)
+        if translation.shape != (3,) or not np.allclose(
+            translation, np.rint(translation)
+        ):
+            raise ValueError("translation must be an integer vector with shape (3,)")
+        translation = np.asarray(np.rint(translation), dtype=np.int64)
         return tuple(np.mod(translation @ self._adjugate, self.size))
 
     def class_id(self, translation):
+        """Return the deterministic id of a translation's periodic class."""
         return self._key_to_id[self.class_key(translation)]
 
     def canonical_translation(self, class_id):
@@ -192,6 +204,7 @@ class TranslationSupport:
     class_ids: NDArray[np.int64] = field(init=False, repr=False)
 
     def __post_init__(self):
+        """Validate literal translations and classify them without folding."""
         translations = _readonly_integer_matrix(self.translations, "translations")
         if self.provenance not in ("periodic", "file", "wigner-seitz"):
             raise ValueError(
@@ -206,12 +219,26 @@ class TranslationSupport:
 
     @classmethod
     def periodic(cls, supercell, order="C"):
-        """Build the compact support used by periodic replica tensors."""
+        """Build compact periodic support in historical centered order.
+
+        Tensor slots follow the quotient's deterministic C/F class order,
+        while their Fourier translations use the centered representative of
+        each class.  This preserves the established direct-periodic gauge;
+        Wigner--Seitz interpolation is invariant to which representative of a
+        class supplied the starting block.
+        """
         grid = supercell if isinstance(supercell, SupercellGrid) else SupercellGrid(supercell, order=order)
-        return cls(grid.representatives, grid, provenance="periodic")
+        numerators = grid.representatives @ grid._adjugate
+        supercell_shifts = np.asarray([
+            [round(Fraction(int(value), grid._determinant)) for value in row]
+            for row in numerators
+        ], dtype=np.int64)
+        centered = grid.representatives - supercell_shifts @ grid.matrix
+        return cls(centered, grid, provenance="periodic")
 
     @property
     def size(self):
+        """Number of translations stored by the IFC representation."""
         return len(self.translations)
 
     @property
@@ -251,13 +278,14 @@ class WignerSeitzImages:
     fractional_positions: NDArray[np.float64] = field(repr=False)
     cell: NDArray[np.float64] = field(repr=False)
     super_lattice: NDArray[np.float64] = field(repr=False)
-    tolerance: float = 1e-10
+    tolerance: float = 1e-5
     _inverse_super_lattice: NDArray[np.float64] = field(repr=False, compare=False, default=None)
     _smallest_singular: float = field(repr=False, compare=False, default=None)
     _cache: dict = field(default_factory=dict, repr=False, compare=False)
 
     @classmethod
-    def build(cls, support, positions, cell, tolerance=1e-10, pbc=True):
+    def build(cls, support, positions, cell, tolerance=1e-5, pbc=True):
+        """Prepare a lazy 3D-periodic shortest-image solver for one support."""
         if not isinstance(support, TranslationSupport):
             raise TypeError("support must be a TranslationSupport")
         cell = np.asarray(cell, dtype=float)

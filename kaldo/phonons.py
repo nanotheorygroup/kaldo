@@ -4,14 +4,18 @@ Anharmonic Lattice Dynamics
 
 """
 import functools
+from hashlib import sha256
 import os
 
 from kaldo.storable import is_calculated
 from kaldo.storable import lazy_property, Storable
 from kaldo.helpers.logger import log_size
 from kaldo.storable import FOLDER_NAME
-from kaldo.grid import Grid
-from kaldo.observables.harmonic_with_q import HarmonicWithQ
+from kaldo.grid import QGrid
+from kaldo.observables.harmonic_with_q import (
+    HarmonicWithQ,
+    _resolve_ordinary_ifc_interpolation,
+)
 from kaldo.observables.harmonic_with_q_temp import HarmonicWithQTemp, CLASSICAL_HBAR_SCALE
 from kaldo.forceconstants import ForceConstants
 import kaldo.controllers.anharmonic as aha
@@ -74,10 +78,10 @@ def _get_ir_kgrid_data(atoms, kpts, grid_type='C'):
 
     kpts_arr = np.asarray(kpts, dtype=int)
     n_k_points = int(np.prod(kpts_arr))
-    grid = Grid(kpts_arr, order=grid_type)
+    grid = QGrid(tuple(kpts_arr), order=grid_type)
 
     # Integer grid coordinates (0..Ni-1) and fractional equivalents.
-    k_indices = grid.generate_index_grid()   # (n_k_points, 3) int
+    k_indices = grid.addresses   # (n_k_points, 3) int
     q_fracs = k_indices / kpts_arr.astype(float)  # (n_k_points, 3) in [0,1)
 
     # Build spglib structure tuple.
@@ -196,7 +200,7 @@ def _compute_kpoint_projection(index_k, n_modes, n_k_points, omega, physical_mod
                                 evect_np, third_sparse_data, chi_k_np, velocity_np,
                                 cell_inv, kpts, broadening_shape, broadening_kernel,
                                 sigma_mode_np, third_bandwidth,
-                                hbar, n_replicas, is_sparse, kpoint_maps):
+                                hbar, n_translations, is_sparse, kpoint_maps):
     """Compute sparse_phase and sparse_potential for all modes at one k-point.
 
     All inputs are numpy arrays (picklable). TF tensors are created internally.
@@ -260,7 +264,7 @@ def _compute_kpoint_projection(index_k, n_modes, n_k_points, omega, physical_mod
                 nu_single, evect_tf, dirac_delta_result, index_k, mu,
                 n_k_points, n_modes, is_plus, is_sparse, index_kpp_full,
                 _chi_k, second_minus, second_minus_chi, third_tf,
-                n_replicas, omega, hbar,
+                n_translations, omega, hbar,
             )
             # TensorFlow objects do not cross the process boundary. Reuse
             # Phonons' persistence payload so workers and storage agree on one
@@ -415,13 +419,19 @@ class Phonons(Storable):
         Enforce detailed balance when calculating anharmonic properties. Useful for
         simulations where it may be difficult to get a sufficiently dense k-point grid.
         Default: False
-    is_unfolding : bool
-        If the second order force constants need to be unfolded like in P. B. Allen
-        et al., Phys. Rev. B 87, 085322 (2013) set this to True. This selects
-        the ordinary NAC-off interpolation only. An active NAC controller uses
-        the Wigner--Seitz interpolation required by its input provenance for
-        either value of this flag.
-        Default: False
+    ifc_interpolation : {"auto", "wigner-seitz", "periodic"}
+        Controls how finite-supercell IFC translations are interpolated away
+        from their commensurate q mesh. ``"auto"`` (recommended) applies
+        pair-dependent Wigner--Seitz images to compact periodic tensors and
+        retains literal translations supplied by formats such as TDEP. A
+        nonpolar QE q2r body retains QE's direct periodic convention; polar
+        q2r data use their matched Wigner--Seitz/NAC reconstruction.
+        ``"wigner-seitz"`` and ``"periodic"`` are direct overrides; an
+        override is never silently ignored. ``"periodic"`` is incompatible
+        with active NAC, whose short- and long-range terms require matching
+        Wigner--Seitz weights. Wigner--Seitz interpolation currently requires
+        periodic boundary conditions in all three lattice directions.
+        Default: ``"auto"``
     is_nac : bool or None, optional
         Controls the harmonic long-range correction. ``None`` automatically
         activates it when the loaded atoms have a dielectric tensor and
@@ -528,7 +538,7 @@ class Phonons(Storable):
                  storage: str = "formatted",
                  grid_type: str = "C",
                  is_balanced: bool = False,
-                 is_unfolding: bool = False,
+                 ifc_interpolation: str = "auto",
                  is_nac: bool | None = None,
                  g_factor: ArrayLike = None,
                  is_symmetrizing_frequency: bool = False, 
@@ -551,14 +561,17 @@ class Phonons(Storable):
         self.folder = folder
         self.kpts = np.array(kpts)
         self._grid_type = grid_type
-        self._reciprocal_grid = Grid(self.kpts, order=self._grid_type)
-        self.is_unfolding = is_unfolding
+        self._reciprocal_grid = QGrid(tuple(self.kpts), order=self._grid_type)
+        if ifc_interpolation not in ("auto", "wigner-seitz", "periodic"):
+            raise ValueError(
+                "ifc_interpolation must be 'auto', 'wigner-seitz', or 'periodic'"
+            )
+        self.ifc_interpolation = ifc_interpolation
         if is_nac is not None and not isinstance(is_nac, (bool, np.bool_)):
             raise TypeError("is_nac must be True, False, or None for automatic detection")
         self.is_nac = None if is_nac is None else bool(is_nac)
         self._nac_requested = self.is_nac
-        if self.is_unfolding:
-            logging.info('Using unfolding.')
+        logging.info("Using IFC interpolation mode %s.", self.ifc_interpolation)
         self.min_frequency = min_frequency
         self.max_frequency = max_frequency
         self.broadening_shape = broadening_shape
@@ -577,6 +590,60 @@ class Phonons(Storable):
         self.is_balanced = is_balanced
         self.nac_bvk_supercell_matrix = nac_bvk_supercell_matrix
         self.atoms = self.forceconstants.atoms
+        has_polar_data = (
+            "dielectric" in self.forceconstants.second.atoms.info
+            and "charges" in self.forceconstants.second.atoms.arrays
+            and np.any(np.abs(self.forceconstants.second.atoms.arrays["charges"]) > 1.0e-8)
+        )
+        if (
+            self.ifc_interpolation == "periodic"
+            and self.is_nac is not False
+            and has_polar_data
+        ):
+            raise ValueError(
+                "ifc_interpolation='periodic' cannot be used with active NAC. "
+                "Use 'auto' (recommended), 'wigner-seitz', or is_nac=False "
+                "for a periodic-path diagnostic."
+            )
+        if self.ifc_interpolation == "auto":
+            self.ifc_interpolation_resolved = (
+                "wigner-seitz"
+                if self.is_nac is not False and has_polar_data
+                else _resolve_ordinary_ifc_interpolation(
+                    self.forceconstants.second, self.ifc_interpolation
+                )
+            )
+        else:
+            self.ifc_interpolation_resolved = self.ifc_interpolation
+        if (
+            self.ifc_interpolation_resolved == "wigner-seitz"
+            and not np.all(np.asarray(self.atoms.pbc, dtype=bool))
+        ):
+            raise ValueError(
+                "Wigner--Seitz IFC interpolation requires periodic boundary "
+                "conditions in all three lattice directions."
+            )
+        self._second_support_digest = (
+            self.forceconstants.second.translation_support.digest
+        )
+        # Third-order IFCs are commonly constructed lazily.  Include their
+        # declared lattice topology without forcing that construction, so two
+        # calculations with different IFC3 supercells cannot share a cache
+        # namespace merely because ``forceconstants._third`` is still None.
+        third_supercell = np.asarray(
+            getattr(
+                self.forceconstants,
+                "third_supercell",
+                self.forceconstants.supercell,
+            ),
+            dtype=np.int64,
+        )
+        if third_supercell.shape == (3,):
+            third_supercell = np.diag(third_supercell)
+        third_topology_digest = sha256(
+            np.asarray(third_supercell, dtype="<i8").tobytes()
+        ).hexdigest()
+        self._third_topology_digest = third_topology_digest
         self.supercell = np.array(self.forceconstants.supercell)
         self.n_k_points = int(np.prod(self.kpts))
         self.n_atoms = self.forceconstants.n_atoms
@@ -605,6 +672,27 @@ class Phonons(Storable):
                 "subspaces). Marginal sums remain correct. For strict "
                 "per-mode invariance use broadening_kernel='tdep'."
             )
+
+    @property
+    def ifc_cache_key(self):
+        """Return the current IFC topology/interpolation cache identity.
+
+        The third-order object may be loaded after ``Phonons`` construction.
+        Reading this property at storage time incorporates that object's
+        literal translation support without eagerly constructing it.
+        """
+        digests = [self._second_support_digest, self._third_topology_digest]
+        loaded_third = getattr(self.forceconstants, "_third", None)
+        if loaded_third is not None:
+            digests.append(loaded_third.translation_support.digest)
+        return (
+            "v3_req-"
+            + self.ifc_interpolation
+            + "_harm-"
+            + self.ifc_interpolation_resolved
+            + "_"
+            + "_".join(digest[:16] for digest in digests)
+        )
 
     def _get_folder_path_components(self, label):
         """Get folder path components for Phonons-specific attributes."""
@@ -684,7 +772,7 @@ class Phonons(Storable):
         physical_mode : np array(n_k_points, n_modes)
             bool
         """
-        q_points = self._reciprocal_grid.unitary_grid(is_wrapping=False)
+        q_points = self._reciprocal_grid.fractional_points
         physical_mode = np.zeros((self.n_k_points, self.n_modes), dtype=bool)
 
         for ik in range(len(q_points)):
@@ -695,7 +783,7 @@ class Phonons(Storable):
                                    folder=self.folder,
                                    storage=self.storage,
                                    is_nw=self.is_nw,
-                                   is_unfolding=self.is_unfolding,
+                                   ifc_interpolation=self.ifc_interpolation,
                                    is_amorphous=self._is_amorphous,
                                    is_nac=self.is_nac,
                                    nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix)
@@ -717,7 +805,7 @@ class Phonons(Storable):
         frequency : np array(n_k_points, n_modes)
              frequency in THz
         """
-        q_points = self._reciprocal_grid.unitary_grid(is_wrapping=False)
+        q_points = self._reciprocal_grid.fractional_points
         frequency = np.zeros((self.n_k_points, self.n_modes))
         for ik in range(len(q_points)):
             q_point = q_points[ik]
@@ -727,7 +815,7 @@ class Phonons(Storable):
                                    folder=self.folder,
                                    storage=self.storage,
                                    is_nw=self.is_nw,
-                                   is_unfolding=self.is_unfolding,
+                                   ifc_interpolation=self.ifc_interpolation,
                                    is_amorphous=self._is_amorphous,
                                    is_nac=self.is_nac,
                                    nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix)
@@ -749,7 +837,7 @@ class Phonons(Storable):
         participation_ratio : np array(n_k_points, n_modes)
              atomic participation
         """
-        q_points = self._reciprocal_grid.unitary_grid(is_wrapping=False)
+        q_points = self._reciprocal_grid.fractional_points
         participation_ratio = np.zeros((self.n_k_points, self.n_modes))
         for ik in range(len(q_points)):
             q_point = q_points[ik]
@@ -759,7 +847,7 @@ class Phonons(Storable):
                                    folder=self.folder,
                                    storage=self.storage,
                                    is_nw=self.is_nw,
-                                   is_unfolding=self.is_unfolding,
+                                   ifc_interpolation=self.ifc_interpolation,
                                    is_amorphous=self._is_amorphous,
                                    is_nac=self.is_nac,
                                    nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix)
@@ -780,7 +868,7 @@ class Phonons(Storable):
              velocity in 100m/s or A/ps
         """
 
-        q_points = self._reciprocal_grid.unitary_grid(is_wrapping=False)
+        q_points = self._reciprocal_grid.fractional_points
         velocity = np.zeros((self.n_k_points, self.n_modes, 3))
         for ik in range(len(q_points)):
             q_point = q_points[ik]
@@ -790,7 +878,7 @@ class Phonons(Storable):
                                    folder=self.folder,
                                    storage=self.storage,
                                    is_nw=self.is_nw,
-                                   is_unfolding=self.is_unfolding,
+                                   ifc_interpolation=self.ifc_interpolation,
                                    is_amorphous=self._is_amorphous,
                                    is_nac=self.is_nac,
                                    nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix)
@@ -814,7 +902,7 @@ class Phonons(Storable):
             If the system is not amorphous, these values are stored as complex numbers.
         """
         type = complex if (not self._is_amorphous) else float
-        q_points = self._reciprocal_grid.unitary_grid(is_wrapping=False)
+        q_points = self._reciprocal_grid.fractional_points
         shape = (self.n_k_points, self.n_modes + 1, self.n_modes)
         log_size(shape, name='eigensystem', type=type)
         eigensystem = np.zeros(shape, dtype=type)
@@ -826,7 +914,7 @@ class Phonons(Storable):
                                    folder=self.folder,
                                    storage=self.storage,
                                    is_nw=self.is_nw,
-                                   is_unfolding=self.is_unfolding,
+                                   ifc_interpolation=self.ifc_interpolation,
                                    is_amorphous=self._is_amorphous,
                                    is_nac=self.is_nac,
                                    nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix)
@@ -850,7 +938,7 @@ class Phonons(Storable):
         c_v : np.array(n_k_points, n_modes)
             heat capacity in J/K for each k point and each mode
         """
-        q_points = self._reciprocal_grid.unitary_grid(is_wrapping=False)
+        q_points = self._reciprocal_grid.fractional_points
         c_v = np.zeros((self.n_k_points, self.n_modes))
         for ik in range(len(q_points)):
             q_point = q_points[ik]
@@ -863,7 +951,7 @@ class Phonons(Storable):
                 temperature=self.temperature,
                 is_classic=self.is_classic,
                 is_nw=self.is_nw,
-                is_unfolding=self.is_unfolding,
+                ifc_interpolation=self.ifc_interpolation,
                 is_amorphous=self._is_amorphous,
                 is_nac=self.is_nac,
                 nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix,
@@ -883,7 +971,7 @@ class Phonons(Storable):
         heat_capacity_2d : np.array(n_k_points, n_modes, n_modes)
             heat capacity in W/m/K for each k point and each modes couple.
         """
-        q_points = self._reciprocal_grid.unitary_grid(is_wrapping=False)
+        q_points = self._reciprocal_grid.fractional_points
         shape = (self.n_k_points, self.n_modes, self.n_modes)
         log_size(shape, name='heat_capacity_2d', type=float)
         heat_capacity_2d = np.zeros(shape)
@@ -898,7 +986,7 @@ class Phonons(Storable):
                 temperature=self.temperature,
                 is_classic=self.is_classic,
                 is_nw=self.is_nw,
-                is_unfolding=self.is_unfolding,
+                ifc_interpolation=self.ifc_interpolation,
                 is_amorphous=self._is_amorphous,
                 is_nac=self.is_nac,
                 nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix,
@@ -924,7 +1012,7 @@ class Phonons(Storable):
         population : np.array(n_k_points, n_modes)
             population for each k point and each mode
         """
-        q_points = self._reciprocal_grid.unitary_grid(is_wrapping=False)
+        q_points = self._reciprocal_grid.fractional_points
         population = np.zeros((self.n_k_points, self.n_modes))
         for ik in range(len(q_points)):
             q_point = q_points[ik]
@@ -937,7 +1025,7 @@ class Phonons(Storable):
                 temperature=self.temperature,
                 is_classic=self.is_classic,
                 is_nw=self.is_nw,
-                is_unfolding=self.is_unfolding,
+                ifc_interpolation=self.ifc_interpolation,
                 is_amorphous=self._is_amorphous,
                 is_nac=self.is_nac,
                 nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix,
@@ -1425,7 +1513,10 @@ class Phonons(Storable):
 
     @property
     def _is_amorphous(self):
-        is_amorphous = np.array_equal(self.kpts, (1, 1, 1)) and np.array_equal(self.supercell, (1, 1, 1))
+        is_amorphous = (
+            np.array_equal(self.kpts, (1, 1, 1))
+            and self.forceconstants.supercell_grid.size == 1
+        )
         return is_amorphous
 
 
@@ -1520,14 +1611,7 @@ class Phonons(Storable):
 
 
     def _allowed_third_phonons_index(self, index_q, is_plus):
-        q_vec = self._reciprocal_grid.id_to_unitary_grid_index(index_q)
-        qp_vec = self._reciprocal_grid.unitary_grid(is_wrapping=False)
-        qpp_vec = q_vec[np.newaxis, :] + (int(is_plus) * 2 - 1) * qp_vec[:, :]
-        rescaled_qpp = np.round((qpp_vec * self._reciprocal_grid.grid_shape), 0).astype(int)
-        rescaled_qpp = np.mod(rescaled_qpp, self._reciprocal_grid.grid_shape)
-        index_qpp_full = np.ravel_multi_index(rescaled_qpp.T, self._reciprocal_grid.grid_shape, mode='raise',
-                                              order=self._grid_type)
-        return index_qpp_full
+        return self._reciprocal_grid.momentum_partner_ids(index_q, is_plus)
 
 
     @property
@@ -1669,24 +1753,48 @@ class Phonons(Storable):
 
     @timeit
     def _project_crystal(self):
-        n_replicas = self.forceconstants.third.n_replicas
+        # IFC3 interpolation may expand the translation axes beyond the
+        # |det(M)| periodic classes. Keep that support size distinct from the
+        # physical replica count throughout the Fourier projection.
+        interpolation = self.forceconstants.third.get_interpolation(
+            self.ifc_interpolation
+        )
+        n_translations = interpolation.support.size
+        if self.use_q_symmetry and (
+            n_translations != self.forceconstants.third.n_replicas
+        ):
+            raise NotImplementedError(
+                "use_q_symmetry is not yet validated for an IFC3 translation "
+                "support expanded beyond the physical supercell classes; set "
+                "use_q_symmetry=False."
+            )
         try:
-            sparse_third = self.forceconstants.third.value.reshape((self.n_modes, -1))
+            sparse_third = interpolation.value.reshape((self.n_modes, -1))
             sparse_coords = tf.stack([sparse_third.coords[1], sparse_third.coords[0]], -1)
             sparse_coords = tf.cast(sparse_coords, dtype=tf.int64)
             third_sparse_data = (
                 sparse_coords.numpy(),
                 sparse_third.data.astype(np.complex128) if sparse_third.data.dtype != np.complex128 else sparse_third.data,
-                ((self.n_modes * n_replicas) ** 2, self.n_modes),
+                ((self.n_modes * n_translations) ** 2, self.n_modes),
             )
             is_sparse = True
         except AttributeError:
-            third_sparse_data = np.array(self.forceconstants.third.value)
+            # The dense projection kernel consumes the historical rank-3
+            # layout (central mode, translated mode, translated mode).  The
+            # interpolation compiler exposes rank 8 so its two translation
+            # axes are explicit; reshape without changing storage order.
+            third_sparse_data = np.asarray(interpolation.value).reshape(
+                (
+                    self.n_modes,
+                    n_translations * self.n_modes,
+                    n_translations * self.n_modes,
+                )
+            )
             is_sparse = False
 
-        k_mesh = self._reciprocal_grid.unitary_grid(is_wrapping=False)
+        k_mesh = self._reciprocal_grid.fractional_points
         n_k_points = k_mesh.shape[0]
-        chi_k_np = np.array(self.forceconstants.third._chi_k(k_mesh))
+        chi_k_np = interpolation.support.phases(k_mesh)
         evect_np = np.array(self._rescaled_eigenvectors)
         physical_mode = self.physical_mode.reshape((self.n_k_points, self.n_modes))
         omega = self.omega
@@ -1731,12 +1839,23 @@ class Phonons(Storable):
             broadening_kernel=self.broadening_kernel,
             sigma_mode_np=sigma_mode_np,
             third_bandwidth=self.third_bandwidth, hbar=hbar,
-            n_replicas=n_replicas, is_sparse=is_sparse,
+            n_translations=n_translations, is_sparse=is_sparse,
             kpoint_maps=kpoint_maps,
         )
 
         worker_fn = functools.partial(_compute_kpoint_projection, **shared)
         output_dir = self.projection_output_dir
+        if output_dir is not None:
+            # Resume files are numerical results, not generic work markers.
+            # Put each interpolation/support topology in its own namespace so
+            # a periodic or pre-refactor checkpoint cannot satisfy a WS run.
+            output_dir = os.path.join(
+                output_dir,
+                "ifc_"
+                + self.ifc_cache_key
+                + "_"
+                + interpolation.support.digest[:16],
+            )
 
         # Memory handling:
         # - output_dir set: write to disk inside the loop and DROP the

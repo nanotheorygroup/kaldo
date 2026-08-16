@@ -30,6 +30,26 @@ SI_TDEP_DIR = Path(__file__).parent / "si-tdep"
 SI_MASS_AMU = 28.0855
 
 
+def test_lazy_forceconstants_preserve_nondiagonal_topology(tmp_path):
+    """Lazy empty IFC2/IFC3 objects must retain the full integer matrix."""
+    from ase.build import bulk
+    from kaldo.forceconstants import ForceConstants
+
+    atoms = bulk("Si", "diamond", a=5.43)
+    matrix = np.array([[2, 1, 0], [0, 2, 0], [0, 0, 1]], dtype=int)
+    forceconstants = ForceConstants(
+        atoms=atoms,
+        supercell=matrix,
+        third_supercell=matrix,
+        folder=str(tmp_path),
+    )
+
+    np.testing.assert_array_equal(forceconstants.second.supercell_grid.matrix, matrix)
+    np.testing.assert_array_equal(forceconstants.third.supercell_grid.matrix, matrix)
+    assert forceconstants.second.n_replicas == 4
+    assert forceconstants.third.n_replicas == 4
+
+
 def test_replicated_atoms_cell_is_correct_on_nondiagonal_tiling():
     """``ForceConstant.replicated_atoms`` must carry the true supercell cell
     (``M @ uc.cell``) on a non-diagonal SNF tiling.
@@ -58,6 +78,15 @@ def test_replicated_atoms_cell_is_correct_on_nondiagonal_tiling():
     ra = so.replicated_atoms
     assert len(ra) == len(sc) == 216
     np.testing.assert_allclose(np.asarray(ra.cell), np.asarray(sc.cell), atol=1e-10)
+    assert so.supercell_replicas.shape == (27 * n_rep, 3)
+    np.testing.assert_allclose(
+        so.supercell_positions,
+        np.stack(
+            np.meshgrid([-1, 0, 1], [-1, 0, 1], [-1, 0, 1], indexing="ij"),
+            axis=-1,
+        ).reshape(-1, 3) @ np.asarray(sc.cell),
+        atol=1e-12,
+    )
 
     # Every replicated atom sits on an ssposcar site modulo the (correct) cell.
     inv = np.linalg.inv(np.asarray(ra.cell))

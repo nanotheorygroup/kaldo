@@ -75,6 +75,8 @@ def test_nondiagonal_supercell_quotient_is_exact_and_translation_invariant():
     probe = np.array([17, -23, 41])
     for shift in ([0, 0, 0], [101, -77, 39], [-400, 3, 92]):
         assert grid.class_id(probe) == grid.class_id(probe + np.asarray(shift) @ matrix)
+    with pytest.raises(ValueError, match="integer vector"):
+        grid.class_id([0.5, 0, 0])
 
 
 def test_translation_support_keeps_repeated_periodic_classes_distinct():
@@ -97,6 +99,17 @@ def test_translation_support_keeps_repeated_periodic_classes_distinct():
         [[1.0, -1.0, -1.0]],
         atol=1e-15,
     )
+
+
+def test_periodic_support_preserves_centered_direct_fourier_gauge():
+    support = TranslationSupport.periodic(
+        SupercellGrid(np.diag([5, 1, 1]), order="C")
+    )
+    np.testing.assert_array_equal(
+        support.translations,
+        [[0, 0, 0], [1, 0, 0], [2, 0, 0], [-2, 0, 0], [-1, 0, 0]],
+    )
+    np.testing.assert_array_equal(support.class_ids, np.arange(5))
 
 
 def test_forceconstant_keeps_physical_replicas_separate_from_ifc_support(tmp_path):
@@ -171,6 +184,22 @@ def test_wigner_seitz_images_retain_ties_with_normalized_weights():
     np.testing.assert_allclose(np.linalg.norm(displacements, axis=1), np.sqrt(0.5))
     np.testing.assert_allclose(weights, np.full(4, 0.25), rtol=0, atol=0)
     np.testing.assert_allclose(weights.sum(), 1.0, rtol=0, atol=0)
+
+
+def test_wigner_seitz_ties_tolerate_rounded_hexagonal_cell():
+    """Printed lattice decimals must not split a symmetry-required tie."""
+    cell = np.array([
+        [1.0, 0.0, 0.0],
+        [-0.5 + 1.0e-7, np.sqrt(3.0) / 2.0, 0.0],
+        [0.0, 0.0, 2.0],
+    ])
+    grid = SupercellGrid(np.diag([5, 5, 1]))
+    support = TranslationSupport([[1, -2, 0]], grid)
+    images = WignerSeitzImages.build(support, [[0.0, 0.0, 0.0]], cell)
+
+    translations, _, weights = images.image(0, 0, 0)
+    np.testing.assert_array_equal(translations, [[1, -2, 0], [1, 3, 0]])
+    np.testing.assert_allclose(weights, [0.5, 0.5], rtol=0, atol=0)
 
 
 def test_periodic_amorphous_boundary_pair_uses_neighboring_cell():

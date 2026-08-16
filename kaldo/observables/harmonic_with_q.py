@@ -1,13 +1,13 @@
-from kaldo.grid import wrap_coordinates
-from kaldo.observables.forceconstant import chi
+from dataclasses import dataclass
+
+from kaldo.grid import TranslationSupport, WignerSeitzImages
 from kaldo.observables.observable import Observable
 import numpy as np
 from ase import units
 from ase import Atoms
 from opt_einsum import contract
-from kaldo.storable import lazy_property, Storable
+from kaldo.storable import FOLDER_NAME, lazy_property, Storable
 import tensorflow as tf
-from scipy.linalg.lapack import zheev
 from kaldo.helpers.logger import get_logger, log_size
 from kaldo.controllers.nac import (
     normalize_bvk_supercell_matrix,
@@ -31,30 +31,202 @@ MIN_N_MODES_TO_STORE = 1000
 # Used to convert kALDo-unit DM to phonopy-unit DM for cross-validation.
 
 
-_warned_incommensurate = False
+_IFC_INTERPOLATION_MODES = ("auto", "wigner-seitz", "periodic")
 
 
-def _warn_incommensurate_once(q_point, supercell):
-    """Warn once per process when a q-point off the supercell-commensurate grid
-    is evaluated without Wigner-Seitz unfolding.
+def _validate_ifc_interpolation(mode):
+    """Validate the public IFC interpolation selector without aliases."""
+    if mode not in _IFC_INTERPOLATION_MODES:
+        raise ValueError(
+            f"ifc_interpolation={mode!r} is invalid; choose one of "
+            f"{_IFC_INTERPOLATION_MODES}"
+        )
+    return mode
 
-    At such q-points the periodic-replica convention used by the default
-    dynamical-matrix construction is not invariant under the non-symmorphic
-    spacegroup operations, which can break symmetry-protected degeneracies
-    (e.g. split transverse-acoustic branches in diamond-structure crystals).
+
+def _resolve_ordinary_ifc_interpolation(second, requested_mode):
+    """Resolve source-aware ``auto`` for an ordinary (NAC-off) IFC2 body."""
+    requested_mode = _validate_ifc_interpolation(requested_mode)
+    if requested_mode != "auto":
+        return requested_mode
+    hint = getattr(second, "ifc_interpolation_hint", None)
+    if hint is not None:
+        if hint not in ("periodic", "wigner-seitz"):
+            raise ValueError(
+                f"second.ifc_interpolation_hint={hint!r} is invalid"
+            )
+        return hint
+    if second.translation_support.provenance == "file":
+        return "file"
+    return "wigner-seitz"
+
+
+@dataclass(frozen=True)
+class _HarmonicIFCInterpolation:
+    """Immutable Fourier plan for one second-order IFC representation.
+
+    ``values`` follows ``(i, alpha, translation, j, beta)``.  A direct plan
+    has one phase per stored translation.  A Wigner--Seitz plan partitions
+    each periodic IFC block over every tied shortest image of the *atom pair*.
+    The Fourier phase stays in kALDo's integer-translation gauge, while the
+    derivative uses the complete Cartesian pair vector
+    ``R + r_j - r_i``.
     """
-    global _warned_incommensurate
-    if _warned_incommensurate:
-        return
-    scaled = np.asarray(q_point) * np.asarray(supercell)
-    if np.allclose(scaled, np.round(scaled), atol=1e-8):
-        return
-    _warned_incommensurate = True
-    logging.warning(
-        f'q-point {np.asarray(q_point)} is incommensurate with the supercell {tuple(supercell)}: '
-        'the default dynamical-matrix construction can break symmetry-protected degeneracies '
-        '(e.g. split transverse-acoustic branches). Consider is_unfolding=True.'
-    )
+
+    values: np.ndarray
+    support: TranslationSupport
+    positions: np.ndarray
+    cell: np.ndarray
+    resolved_mode: str
+    images: WignerSeitzImages | None = None
+
+    @classmethod
+    def build(cls, second, requested_mode):
+        """Resolve provenance, fold only on request, and prepare pair images."""
+        support = second.translation_support
+        resolved = _resolve_ordinary_ifc_interpolation(second, requested_mode)
+        values = np.asarray(second.dynmat)[0]
+        if values.shape[2] != support.size:
+            raise ValueError(
+                "second-order IFC translation axis does not match its "
+                f"TranslationSupport: {values.shape[2]} != {support.size}"
+            )
+
+        if resolved in ("periodic", "wigner-seitz"):
+            # Explicit periodic/WS choices intentionally forget any literal
+            # file translation and first form one tensor per periodic class.
+            folded = np.zeros(
+                (values.shape[0], values.shape[1], support.supercell.size,
+                 values.shape[3], values.shape[4]),
+                dtype=values.dtype,
+            )
+            for source_id, class_id in enumerate(support.class_ids):
+                folded[:, :, class_id, :, :] += values[:, :, source_id, :, :]
+            if support.provenance == "file" and support.size != support.supercell.size:
+                logging.warning(
+                    "ifc_interpolation=%r folds %d file-provided translations "
+                    "into %d periodic classes by explicit user request.",
+                    requested_mode,
+                    support.size,
+                    support.supercell.size,
+                )
+            support = TranslationSupport.periodic(
+                support.supercell, order=support.supercell.order
+            )
+            values = folded
+
+        positions = np.array(second.atoms.positions, dtype=float, copy=True)
+        cell = np.array(second.atoms.cell, dtype=float, copy=True)
+        images = (
+            WignerSeitzImages.build(
+                support, positions, cell, pbc=second.atoms.pbc
+            )
+            if resolved == "wigner-seitz"
+            else None
+        )
+        return cls(values, support, positions, cell, resolved, images)
+
+    def matrices(self, q_point, distance_threshold=None):
+        """Return the dynamical matrix and its three Cartesian phase kernels.
+
+        The derivative kernels omit the explicit factor ``i``.  kALDo's flux
+        projection consumes their imaginary parts, so storing ``-d`` here is
+        equivalent to evaluating the real part of ``i*d*D(q)`` in the existing
+        velocity convention.
+        """
+        q_point = np.asarray(q_point, dtype=float)
+        n_atoms = len(self.positions)
+        dynamical = np.zeros((n_atoms, 3, n_atoms, 3), dtype=np.complex128)
+        derivatives = np.zeros((3, n_atoms, 3, n_atoms, 3), dtype=np.complex128)
+        fractional_positions = self.positions @ np.linalg.inv(self.cell)
+
+        for source_id, source_translation in enumerate(self.support.translations):
+            for atom_i in range(n_atoms):
+                for atom_j in range(n_atoms):
+                    block = self.values[atom_i, :, source_id, atom_j, :]
+                    if not np.any(block):
+                        continue
+                    if self.images is None:
+                        translations = source_translation[np.newaxis, :]
+                        displacements = (
+                            source_translation
+                            + fractional_positions[atom_j]
+                            - fractional_positions[atom_i]
+                        )[np.newaxis, :] @ self.cell
+                        weights = np.ones(1)
+                    else:
+                        translations, displacements, weights = self.images.image(
+                            source_id, atom_i, atom_j
+                        )
+
+                    for translation, displacement, weight in zip(
+                        translations, displacements, weights
+                    ):
+                        if (
+                            distance_threshold is not None
+                            and np.linalg.norm(displacement) >= distance_threshold
+                        ):
+                            continue
+                        phase = np.exp(2j * np.pi * np.dot(q_point, translation))
+                        contribution = weight * phase * block
+                        dynamical[atom_i, :, atom_j, :] += contribution
+                        for direction in range(3):
+                            derivatives[direction, atom_i, :, atom_j, :] -= (
+                                displacement[direction] * contribution
+                            )
+        n_modes = 3 * n_atoms
+        return dynamical.reshape(n_modes, n_modes), derivatives.reshape(3, n_modes, n_modes)
+
+    def real_space_moments(self, distance_threshold=None):
+        """Return first and second Cartesian moments of the ordinary IFCs.
+
+        The moments use exactly the same pair-specific shortest images and
+        tie weights as the Fourier interpolation.  With
+        ``d = r_i - (R + r_j)`` they are ``sum(d_x D)`` and
+        ``-sum(d_x d_y D)``, matching the long-wavelength expansion consumed
+        by :meth:`ForceConstants.elastic_prop`.
+        """
+        n_atoms = len(self.positions)
+        first = np.zeros(
+            (n_atoms, 3, n_atoms, 3, 3), dtype=np.complex128
+        )
+        second = np.zeros(
+            (n_atoms, 3, n_atoms, 3, 3, 3), dtype=np.complex128
+        )
+        fractional_positions = self.positions @ np.linalg.inv(self.cell)
+
+        for source_id, source_translation in enumerate(self.support.translations):
+            for atom_i in range(n_atoms):
+                for atom_j in range(n_atoms):
+                    block = self.values[atom_i, :, source_id, atom_j, :]
+                    if not np.any(block):
+                        continue
+                    if self.images is None:
+                        displacements = (
+                            source_translation
+                            + fractional_positions[atom_j]
+                            - fractional_positions[atom_i]
+                        )[np.newaxis, :] @ self.cell
+                        weights = np.ones(1)
+                    else:
+                        _, displacements, weights = self.images.image(
+                            source_id, atom_i, atom_j
+                        )
+                    for displacement, weight in zip(displacements, weights):
+                        if (
+                            distance_threshold is not None
+                            and np.linalg.norm(displacement) >= distance_threshold
+                        ):
+                            continue
+                        distance = -displacement
+                        weighted_block = weight * block
+                        first[atom_i, :, atom_j, :, :] += np.einsum(
+                            "ab,x->abx", weighted_block, distance
+                        )
+                        second[atom_i, :, atom_j, :, :, :] -= np.einsum(
+                            "ab,x,y->abxy", weighted_block, distance, distance
+                        )
+        return first, second
 
 
 def _resolve_nac_activation(atoms, requested):
@@ -130,14 +302,13 @@ class HarmonicWithQ(Observable, Storable):
         second,
         distance_threshold=None,
         storage="numpy",
+        folder=FOLDER_NAME,
         is_nw=False,
-        is_unfolding=False,
+        ifc_interpolation="auto",
         is_amorphous=False,
         is_nac=None,
         nac_bvk_supercell_matrix=None,
         nac_q_direction=(1, 0, 0),
-        *kargs,
-        **kwargs,
     ):
         """Initialize a q-point calculation and its optional polar correction.
 
@@ -146,14 +317,22 @@ class HarmonicWithQ(Observable, Storable):
         explicitly returns the NAC-off harmonic model for diagnostics, while
         ``True`` requires complete polar metadata. Input provenance selects
         either the generic total-IFC Gonze convention or the native QE q2r
-        convention; it is not a user-selectable method. Once NAC is active its
-        Wigner--Seitz controller is used regardless of ``is_unfolding``.
+        convention; it is not a user-selectable method.
+
+        ``ifc_interpolation='auto'`` uses Wigner--Seitz interpolation for
+        compact periodic IFC tensors and retains literal translations from
+        formats that provide them. Nonpolar QE q2r input carries a native
+        direct-periodic hint validated against ``matdyn.x``; polar q2r uses
+        its matched Wigner--Seitz/NAC route. ``'wigner-seitz'`` and
+        ``'periodic'`` are explicit overrides. Active NAC requires
+        Wigner--Seitz interpolation; use ``is_nac=False`` with ``'periodic'``
+        for a legacy diagnostic.
 
         ``nac_q_direction`` is a reduced reciprocal direction used only for
         the directional Gamma limit. ``nac_bvk_supercell_matrix`` identifies
         the force-constant BvK grid; it is not a request to remesh IFCs.
         """
-        super().__init__(*kargs, **kwargs)
+        super().__init__(folder=folder)
         # Input arguments
         self.q_point = q_point
         self.atoms = second.atoms
@@ -164,16 +343,30 @@ class HarmonicWithQ(Observable, Storable):
         self.physical_mode = np.ones((1, self.n_modes), dtype=bool)
         # Arguments for specific physical assumptions
         self.is_amorphous = is_amorphous
-        self.is_unfolding = is_unfolding
-        if not is_unfolding and getattr(second, "_snf_mapping", None) is None:
-            # The commensurability heuristic reads self.supercell as an
-            # (nx, ny, nz) grid; SNF observables linearize it to (n_rep, 1, 1),
-            # which would flag every off-axis q as incommensurate (and
-            # is_unfolding is not supported on the SNF path anyway).
-            if "dielectric" not in second.atoms.info:
-                _warn_incommensurate_once(q_point, self.supercell)
+        self.ifc_interpolation = _validate_ifc_interpolation(ifc_interpolation)
         self._nac_requested = is_nac
         self.is_nac = _resolve_nac_activation(self.atoms, is_nac)
+        if self.is_nac and self.ifc_interpolation == "periodic":
+            raise ValueError(
+                "ifc_interpolation='periodic' is incompatible with active NAC: "
+                "the polar short-range reconstruction and long-range restoration "
+                "require matching Wigner-Seitz weights. Use "
+                "ifc_interpolation='auto' (recommended), 'wigner-seitz', or set "
+                "is_nac=False for a periodic-path diagnostic."
+            )
+        if self.is_nac:
+            self.ifc_interpolation_resolved = "wigner-seitz"
+        else:
+            self.ifc_interpolation_resolved = _resolve_ordinary_ifc_interpolation(
+                self.second, self.ifc_interpolation
+            )
+        self.ifc_cache_key = (
+            "v2_"
+            + self.ifc_interpolation_resolved
+            + "_"
+            + self.second.translation_support.digest[:16]
+        )
+        self._ifc_interpolation_plan = None
         self.nac_bvk_supercell_matrix = normalize_bvk_supercell_matrix(
             nac_bvk_supercell_matrix
         )
@@ -429,27 +622,15 @@ class HarmonicWithQ(Observable, Storable):
 
     @lazy_property(label='<q_point>')
     def _dynmat_derivatives_x(self):
-        if self.is_unfolding:
-            _dynmat_derivatives = self.calculate_dynmat_derivatives_unfolded(direction=0)
-        else:
-            _dynmat_derivatives = self.calculate_dynmat_derivatives(direction=0)
-        return _dynmat_derivatives
+        return self.calculate_dynmat_derivatives(direction=0)
 
     @lazy_property(label='<q_point>')
     def _dynmat_derivatives_y(self):
-        if self.is_unfolding:
-            _dynmat_derivatives = self.calculate_dynmat_derivatives_unfolded(direction=1)
-        else:
-            _dynmat_derivatives = self.calculate_dynmat_derivatives(direction=1)
-        return _dynmat_derivatives
+        return self.calculate_dynmat_derivatives(direction=1)
 
     @lazy_property(label='<q_point>')
     def _dynmat_derivatives_z(self):
-        if self.is_unfolding:
-            _dynmat_derivatives = self.calculate_dynmat_derivatives_unfolded(direction=2)
-        else:
-            _dynmat_derivatives = self.calculate_dynmat_derivatives(direction=2)
-        return _dynmat_derivatives
+        return self.calculate_dynmat_derivatives(direction=2)
 
     @lazy_property(label='<q_point>')
     def _dynmat_fourier(self):
@@ -458,11 +639,7 @@ class HarmonicWithQ(Observable, Storable):
 
     @lazy_property(label='<q_point>')
     def _eigensystem(self):
-        if self.is_unfolding:
-            _eigensystem = self.calculate_eigensystem_unfolded(only_eigenvals=False)
-        else:
-            _eigensystem = self.calculate_eigensystem(only_eigenvals=False)
-        return _eigensystem
+        return self.calculate_eigensystem(only_eigenvals=False)
 
     @lazy_property(label='<q_point>')
     def _sij_x(self):
@@ -480,13 +657,31 @@ class HarmonicWithQ(Observable, Storable):
         return _sij
 
     def calculate_frequency(self):
-        # TODO: replace calculate_eigensystem() with eigensystem
-        if self.is_unfolding:
-            eigenvals = self.calculate_eigensystem_unfolded(only_eigenvals=True)
-        else:
-            eigenvals = self.calculate_eigensystem(only_eigenvals=True)
+        eigenvals = self.calculate_eigensystem(only_eigenvals=True)
         frequency = np.abs(eigenvals) ** .5 * np.sign(eigenvals) / (np.pi * 2.)
         return frequency.real
+
+    def _get_ifc_interpolation_plan(self):
+        """Build the q-independent ordinary-IFC Fourier plan once."""
+        if self._ifc_interpolation_plan is None:
+            cache = getattr(self.second, "_ifc_interpolation_plan_cache", None)
+            if cache is None:
+                cache = {}
+                self.second._ifc_interpolation_plan_cache = cache
+            source_value = getattr(self.second, "value", None)
+            if source_value is None:
+                source_value = self.second.dynmat
+            key = (
+                self.ifc_interpolation_resolved,
+                self.second.translation_support.digest,
+                id(source_value),
+            )
+            if key not in cache:
+                cache[key] = _HarmonicIFCInterpolation.build(
+                    self.second, self.ifc_interpolation_resolved
+                )
+            self._ifc_interpolation_plan = cache[key]
+        return self._ifc_interpolation_plan
 
     def _calculate_nac_dynmat_derivatives(self, direction):
         static_data = self._build_nac_static_data_runtime()
@@ -495,63 +690,13 @@ class HarmonicWithQ(Observable, Storable):
         return data["ddm_fd"] * (_PHONOPY_TO_KALDO_DM * units.Bohr)
 
     def calculate_dynmat_derivatives(self, direction):
+        """Return the pair-aware Cartesian Fourier kernel for one direction."""
         if self.is_nac:
             return self._calculate_nac_dynmat_derivatives(direction)
-        q_point = self.q_point
-        is_amorphous = self.is_amorphous
-        distance_threshold = self.distance_threshold
-        atoms = self.atoms
-        list_of_replicas = self.second.list_of_replicas
-        replicated_cell = self.second.replicated_atoms.cell
-        replicated_cell_inv = self.second._replicated_cell_inv
-        cell_inv = self.second.cell_inv
-        dynmat = self.second.dynmat
-        positions = self.atoms.positions
-        n_unit_cell = atoms.positions.shape[0]
-        n_modes = n_unit_cell * 3
-        n_replicas = np.prod(self.supercell)
-        shape = (1, n_unit_cell * 3, n_unit_cell * 3)
-        dir = ['_x', '_y', '_z']
-        type = complex if (not self.is_amorphous) else float
-        log_size(shape, type, name='dynamical_matrix_derivative_' + dir[direction])
-        if self.is_amorphous:
-            distance = positions[:, np.newaxis, :] - positions[np.newaxis, :, :]
-            distance = wrap_coordinates(distance, replicated_cell, replicated_cell_inv)
-            dynmat_derivatives = contract('ij,ibjc->ibjc',
-                                          tf.convert_to_tensor(distance[..., direction]),
-                                          dynmat[0, :, :, 0, :, :],
-                                          backend='tensorflow')
-        else:
-            distance = positions[:, np.newaxis, np.newaxis, :] - (
-                    positions[np.newaxis, np.newaxis, :, :] + list_of_replicas[np.newaxis, :, np.newaxis, :])
-
-            if distance_threshold is not None:
-
-                distance_to_wrap = positions[:, np.newaxis, np.newaxis, :] - (
-                    self.second.replicated_atoms.positions.reshape(n_replicas, n_unit_cell, 3)[
-                    np.newaxis, :, :, :])
-
-                shape = (n_unit_cell, 3, n_unit_cell, 3)
-                type = complex
-                dynmat_derivatives = np.zeros(shape, dtype=type)
-                for l in range(n_replicas):
-                    wrapped_distance = wrap_coordinates(distance_to_wrap[:, l, :, :], replicated_cell,
-                                                        replicated_cell_inv)
-                    mask = (np.linalg.norm(wrapped_distance, axis=-1) < distance_threshold)
-                    id_i, id_j = np.argwhere(mask).T
-                    dynmat_derivatives[id_i, :, id_j, :] += contract('f,fbc->fbc', distance[id_i, l, id_j, direction], \
-                                                                     dynmat.numpy()[0, id_i, :, 0, id_j, :] *
-                                                                     chi(q_point, list_of_replicas, cell_inv)[l])
-            else:
-                dynmat_derivatives = contract('ilj,ibljc,l->ibjc',
-                                              tf.convert_to_tensor(distance.astype(complex)[..., direction]),
-                                              tf.cast(dynmat[0], tf.complex128),
-                                              tf.convert_to_tensor(
-                                                  chi(q_point, list_of_replicas, cell_inv).flatten().astype(
-                                                      complex)),
-                                              backend='tensorflow')
-        dynmat_derivatives = tf.reshape(dynmat_derivatives, (n_modes, n_modes))
-        return dynmat_derivatives
+        _, derivatives = self._get_ifc_interpolation_plan().matrices(
+            self.q_point, self.distance_threshold
+        )
+        return derivatives[direction]
 
     def calculate_sij(self, direction):
         q_point = self.q_point
@@ -611,46 +756,12 @@ class HarmonicWithQ(Observable, Storable):
         return np.vstack((eigenvals[np.newaxis, :], eigenvects))
 
     def calculate_dynmat_fourier(self):
-        q_point = self.q_point
-        distance_threshold = self.distance_threshold
-        atoms = self.atoms
-        n_unit_cell = atoms.positions.shape[0]
-        n_replicas = np.prod(self.supercell)
-        dynmat = self.second.dynmat
-        cell_inv = self.second.cell_inv
-        replicated_cell_inv = self.second._replicated_cell_inv
-        is_at_gamma = (q_point == (0, 0, 0)).all()
-        list_of_replicas = self.second.list_of_replicas
+        """Fourier transform IFCs using the selected translation convention."""
         log_size((self.n_modes, self.n_modes), complex, name='dynmat_fourier')
-        if distance_threshold is not None:
-            shape = (n_unit_cell, 3, n_unit_cell, 3)
-            type = complex
-            dyn_s = np.zeros(shape, dtype=type)
-            replicated_cell = self.second.replicated_atoms.cell
-
-            for l in range(n_replicas):
-                distance_to_wrap = atoms.positions[:, np.newaxis, :] - (
-                    self.second.replicated_atoms.positions.reshape(n_replicas, n_unit_cell, 3)[np.newaxis, l, :, :])
-
-                distance_to_wrap = wrap_coordinates(distance_to_wrap, replicated_cell, replicated_cell_inv)
-
-                mask = np.linalg.norm(distance_to_wrap, axis=-1) < distance_threshold
-                id_i, id_j = np.argwhere(mask).T
-                dyn_s[id_i, :, id_j, :] += dynmat.numpy()[0, id_i, :, 0, id_j, :] * \
-                                           chi(q_point, list_of_replicas, cell_inv)[l]
-        else:
-            if is_at_gamma:
-                if self.is_amorphous:
-                    dyn_s = dynmat[0]
-                else:
-                    dyn_s = contract('ialjb->iajb', dynmat[0], backend='tensorflow')
-            else:
-                dyn_s = contract('ialjb,l->iajb',
-                                 tf.cast(dynmat[0], tf.complex128),
-                                 tf.convert_to_tensor(chi(q_point, list_of_replicas, cell_inv).flatten()),
-                                 backend='tensorflow')
-        dyn_s = tf.reshape(dyn_s, (self.n_modes, self.n_modes))
-        return dyn_s
+        dynamical, _ = self._get_ifc_interpolation_plan().matrices(
+            self.q_point, self.distance_threshold
+        )
+        return tf.convert_to_tensor(dynamical)
 
     def calculate_eigensystem(self, only_eigenvals):
         if self.is_nac:
@@ -675,124 +786,6 @@ class HarmonicWithQ(Observable, Storable):
         participation_ratio = tf.math.square(participation_ratio)
         participation_ratio = tf.math.reciprocal(tf.math.reduce_sum(participation_ratio, axis=1) * n_atoms)
         return participation_ratio
-
-    def calculate_eigensystem_unfolded(self, only_eigenvals=False):
-        if self.is_nac:
-            return self._calculate_nac_eigensystem(only_eigenvals=only_eigenvals)
-        q_point = self.q_point
-        supercell = self.second.supercell
-        atoms = self.second.atoms
-        cell = atoms.cell
-        reciprocal_n = np.round(atoms.cell.reciprocal(), 12)  # round to avoid accumulation of error
-        reciprocal_n /= reciprocal_n[0, 0] # Normalized reciprocal cell
-        n_unit_cell = len(atoms)
-        distances = -1 * atoms.get_all_distances(vector=True, mic=False)
-        # -1 in distance calc is to maintain our sign convention
-
-        # Get Force constants
-        fc_s = self.second.dynmat.numpy()
-        fc_s = fc_s.reshape((n_unit_cell, 3, supercell[0], supercell[1], supercell[2], n_unit_cell, 3))
-        supercell_positions = self.second.supercell_positions
-        supercell_norms = 1 / 2 * np.linalg.norm(supercell_positions, axis=1) ** 2
-        cell_replicas = self.second.supercell_replicas
-        cell_positions = contract('ia,ab->ib', cell_replicas, cell)
-        cell_plus_distance = cell_positions[:, None, None, :] + distances[None, :, :, :]
-        supercell_positions = self.second.supercell_positions
-        supercell_cell_distances = contract('La,inma->Linm', supercell_positions, cell_plus_distance)
-        projection = supercell_cell_distances - supercell_norms[:, None, None, None]
-
-        # Filter + Weights
-        mask_distance = (projection <= 1e-6).all(axis=0)
-        n_equivalent = (np.abs(projection) <= 1e-6).sum(axis=0)
-        weight = 1 / n_equivalent
-        coefficients = weight * mask_distance
-
-        # Find contributing replicas
-        mask_full = coefficients.any(axis=(-2, -1))
-        coefficients = coefficients[mask_full]
-        cell_replicas = cell_replicas[mask_full]
-        cell_indices = cell_replicas % supercell
-
-        # Calculate phase and combine with coefficient to normalize contributions from replicas
-        # that may be represented more than once
-        phase = np.exp(-2j * np.pi * contract('a,ia->i', q_point, cell_replicas))
-        prefactors = contract('i,inm->inm', phase, coefficients)
-        prefactors = prefactors.repeat(9, axis=0).reshape((-1, 3, 3, n_unit_cell, n_unit_cell))
-        prefactors = prefactors.transpose((4, 2, 0, 3, 1))
-
-        # Sum over each contribution after multiplying the force at each replica by the phase + coefficient
-        dyn_s = prefactors * fc_s[:, :, cell_indices[:, 0], cell_indices[:, 1], cell_indices[:, 2], :, :]
-        dyn_s = np.transpose(dyn_s, axes=(3, 4, 2, 0, 1))
-        dyn_s = dyn_s.sum(axis=2)
-        dyn_s = dyn_s.reshape((n_unit_cell * 3, n_unit_cell * 3))
-
-        # Apply correction for Born effective charges, if detected
-        # Diagonalize
-        if only_eigenvals:
-            omega2, eigenvect, info = zheev(dyn_s, compute_v=False)
-            # ``omega2`` is already the signed eigenspectrum.  Converting it
-            # to a signed square root and squaring again destroys the sign of
-            # unstable (imaginary-frequency) modes.
-            esystem = omega2
-        else:
-            omega2, eigenvect, info = zheev(dyn_s)
-            esystem = np.vstack((omega2[np.newaxis, :], eigenvect))
-        return esystem
-
-    def calculate_dynmat_derivatives_unfolded(self, direction):
-        if self.is_nac:
-            return self._calculate_nac_dynmat_derivatives(direction)
-        q_point = self.q_point
-        supercell = self.second.supercell
-        atoms = self.second.atoms
-        cell = atoms.cell
-        reciprocal_n = np.round(atoms.cell.reciprocal(), 12)  # round to avoid accumulation of error
-        reciprocal_n /= reciprocal_n[0, 0] # Normalized reciprocal cell
-        n_unit_cell = len(atoms)
-        distances = -1 * atoms.get_all_distances(vector=True, mic=False)
-        # -1 in distance calc is to maintain our sign convention
-
-        # Get Force constants
-        fc_s = self.second.dynmat.numpy()
-        fc_s = fc_s.reshape((n_unit_cell, 3, supercell[0], supercell[1], supercell[2], n_unit_cell, 3))
-        supercell_positions = self.second.supercell_positions
-        supercell_norms = (1/2) * np.linalg.norm(supercell_positions, axis=1) ** 2
-        cell_replicas = self.second.supercell_replicas
-        cell_positions = contract('ia,ab->ib', cell_replicas, cell)
-        cell_plus_distance = cell_positions[:, None, None, :] + distances[None, :, :, :]
-        supercell_cell_distances = contract('La,inma->Linm', supercell_positions, cell_plus_distance)
-        projection = supercell_cell_distances - supercell_norms[:, None, None, None]
-
-        # Filter + Weights
-        mask_distance = (projection <= 1e-6).all(axis=0)
-        n_equivalent = (np.abs(projection) <= 1e-6).sum(axis=0)
-        weight = 1 / n_equivalent
-        coefficients = weight * mask_distance
-
-        # Find contributing replicas
-        mask_full = coefficients.any(axis=(-2, -1))
-        coefficients = coefficients[mask_full]
-        cell_replicas = cell_replicas[mask_full]
-        cell_positions = cell_positions[mask_full]
-        cell_indices = cell_replicas % supercell
-
-        # Calculate phase and combine with coefficient to normalize contributions from replicas
-        # that may be represented more than once
-        # NOTE: If you wanted to redo this to calculate all the directions at the same time, the first
-        # prefactors line is the only place where direction is used.
-        phase = np.exp(-2j * np.pi * contract('a,ia->i', q_point, cell_replicas))
-        prefactors = contract('i,i,inm->inm', cell_positions[:, direction], phase, coefficients)
-        prefactors = prefactors.repeat(9, axis=0).reshape((-1, 3, 3, n_unit_cell, n_unit_cell))
-        prefactors = prefactors.transpose((4, 2, 0, 3, 1))
-
-        # Sum over each contribution after multiplying the force at each replica by the phase + coefficient
-        ddyn_s = prefactors * fc_s[:, :, cell_indices[:, 0], cell_indices[:, 1], cell_indices[:, 2], :, :]
-        ddyn_s = np.transpose(ddyn_s, axes=(3, 4, 2, 0, 1))
-        ddyn_s = ddyn_s.sum(axis=2)
-        ddyn_s = ddyn_s.reshape((n_unit_cell * 3, n_unit_cell * 3))
-
-        # Apply correction for Born effective charges, if detected
-        return ddyn_s
 
     def phonon_mode_frames(self, mode_index, amplitude=0.1, time_step=0.01, n_steps=100):
         """
@@ -829,7 +822,7 @@ class HarmonicWithQ(Observable, Storable):
             )
 
         n_atoms = len(self.atoms)
-        n_replicas = int(np.prod(self.supercell))
+        n_replicas = self.second.n_replicas
 
         # Eigenvector for this mode, mass-weighted displacement pattern
         eigvec = np.array(self._eigensystem)[1:, mode_index]

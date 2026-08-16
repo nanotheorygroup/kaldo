@@ -40,7 +40,8 @@ def gan_second():
 
 
 def _frequencies_cm(second, q_point):
-    hwq = HarmonicWithQ(q_point=np.array(q_point), second=second, is_unfolding=False)
+    hwq = HarmonicWithQ(q_point=np.array(q_point), second=second)
+    assert hwq.ifc_interpolation_resolved == "periodic"
     return np.sort(np.array(hwq.frequency).flatten()) * THZ_TO_CM
 
 
@@ -74,3 +75,47 @@ def test_missing_born_charges_warn(caplog):
         )
     assert charges is None
     assert any("non-analytic correction" in message for message in caplog.messages)
+
+
+@pytest.mark.parametrize("axis", range(3), ids=("x", "y", "z"))
+def test_pair_aware_velocity_matches_dispersion_gradient(gan_second, axis):
+    """The full ``R+r_j-r_i`` kernel must differentiate the same spectrum."""
+    q_point = np.array([0.13, 0.07, 0.11], dtype=np.float64)
+    harmonic = HarmonicWithQ(
+        q_point=q_point,
+        second=gan_second,
+        storage="memory",
+        is_nac=False,
+        ifc_interpolation="wigner-seitz",
+    )
+    order = np.argsort(np.asarray(harmonic.frequency).reshape(-1))
+    velocity = np.asarray(harmonic.velocity)[0][order, axis]
+
+    wavevector_step = 1.0e-4  # 1/angstrom
+    direction = np.eye(3)[axis]
+    dq_reduced = (
+        np.asarray(gan_second.atoms.cell) @ direction
+        * wavevector_step / (2.0 * np.pi)
+    )
+
+    def frequencies(offset):
+        sample = HarmonicWithQ(
+            q_point=q_point + offset,
+            second=gan_second,
+            storage="memory",
+            is_nac=False,
+            ifc_interpolation="wigner-seitz",
+        )
+        return np.sort(np.asarray(sample.frequency).reshape(-1))
+
+    slope = (frequencies(dq_reduced) - frequencies(-dq_reduced)) / (
+        2.0 * wavevector_step
+    )
+    usable = np.abs(slope) > 0.05
+    assert np.any(usable)
+    np.testing.assert_allclose(
+        velocity[usable] / slope[usable],
+        2.0 * np.pi,
+        rtol=2.0e-3,
+        atol=0.0,
+    )
