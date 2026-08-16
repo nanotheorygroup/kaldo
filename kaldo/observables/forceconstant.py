@@ -1,6 +1,6 @@
 import numpy as np
 from numpy.typing import NDArray, ArrayLike
-from kaldo.grid import Grid, SupercellGrid, TranslationSupport
+from kaldo.grid import SupercellGrid, TranslationSupport
 from kaldo.helpers.logger import get_logger
 from kaldo.observables.observable import Observable
 from ase import Atoms
@@ -20,9 +20,9 @@ class ForceConstant(Observable):
                  supercell: tuple[int, int, int],
                  folder: str,
                  value: ArrayLike | None = None,
-                 grid: Grid | None = None,
                  supercell_grid: SupercellGrid | None = None,
                  translation_support: TranslationSupport | None = None,
+                 replica_translations: ArrayLike | None = None,
                  **kwargs):
         super().__init__(folder=folder, **kwargs)
         self.atoms = atoms
@@ -37,7 +37,8 @@ class ForceConstant(Observable):
             matrix = np.asarray(supercell)
             if matrix.shape == (3,):
                 matrix = np.diag(matrix)
-            supercell_grid = SupercellGrid(matrix, order=getattr(grid, "order", "C"))
+            order = self._detect_replica_order(matrix)
+            supercell_grid = SupercellGrid(matrix, order=order)
         if translation_support is None:
             translation_support = TranslationSupport.periodic(supercell_grid)
         if not np.array_equal(translation_support.supercell.matrix, supercell_grid.matrix):
@@ -46,6 +47,17 @@ class ForceConstant(Observable):
         self.translation_support = translation_support
         self.n_replicas = supercell_grid.size
         self.n_translations = translation_support.size
+        if replica_translations is None:
+            replica_translations = supercell_grid.representatives
+        replica_translations = np.asarray(replica_translations)
+        if replica_translations.shape != (self.n_replicas, 3) or not np.allclose(
+            replica_translations, np.rint(replica_translations)
+        ):
+            raise ValueError("replica_translations must have shape (n_replicas, 3) and be integer")
+        self.replica_translations = np.asarray(np.rint(replica_translations), dtype=np.int64)
+        class_ids = [supercell_grid.class_id(vector) for vector in self.replica_translations]
+        if sorted(class_ids) != list(range(self.n_replicas)):
+            raise ValueError("replica_translations must contain each periodic class exactly once")
         if len(self.replicated_positions) != self.n_replicas:
             raise ValueError(
                 "replicated_positions must contain one physical structure for "
@@ -57,18 +69,30 @@ class ForceConstant(Observable):
         if value is not None and getattr(value, "ndim", None) == 8:
             if value.shape[2] != self.n_translations or value.shape[5] != self.n_translations:
                 raise ValueError("IFC3 translation axes do not match translation_support")
+        if value is not None and getattr(value, "ndim", None) == 11:
+            if any(value.shape[axis] != self.n_translations for axis in (2, 5, 8)):
+                raise ValueError("IFC4 translation axes do not match translation_support")
         self._cell_inv = None
         self._replicated_cell_inv = None
         self._list_of_replicas = None
 
-        # * `replicated_atoms` and `list_of_replicas` are two main variables that are widely used in other places
-        # Grid type directly impact on these two variables
-
-        if grid is not None:
-            self._direct_grid = grid
-        else:
-            # grid info is not given, so recover it from the grid type from the supercell matrix
-            self._direct_grid = Grid.recover_grid_from_array(self.replicated_positions, self.supercell, self.atoms)
+    def _detect_replica_order(self, matrix):
+        """Detect the historical C/F ordering from physical replica positions."""
+        matrix = np.asarray(matrix, dtype=np.int64)
+        if np.count_nonzero(matrix - np.diag(np.diag(matrix))) or np.any(np.diag(matrix) <= 0):
+            return "C"
+        detected = np.rint(
+            (self.replicated_positions - self.atoms.positions[None, :, :])
+            @ np.linalg.inv(self.atoms.cell)
+        ).astype(np.int64)
+        if not np.all(detected == detected[:, :1, :]):
+            raise ValueError("replicated_positions do not describe rigid lattice translations")
+        detected = detected[:, 0, :]
+        for order in ("C", "F"):
+            if np.array_equal(SupercellGrid(matrix, order=order).representatives, detected):
+                logging.debug("Using %s-style replica position order", order)
+                return order
+        raise ValueError("Unable to detect C/F replica order from replicated_positions")
 
 
     @classmethod
@@ -79,12 +103,11 @@ class ForceConstant(Observable):
                        value: ArrayLike | None = None,
                        folder: str = 'kALDo',
                        **kwargs):
-        _direct_grid = Grid(supercell, grid_type)
         supercell_grid = SupercellGrid(np.diag(supercell), order=grid_type)
         translation_support = kwargs.pop(
             "translation_support", TranslationSupport.periodic(supercell_grid)
         )
-        _grid_arr = _direct_grid.grid(is_wrapping=False)
+        _grid_arr = supercell_grid.representatives
         # supercell grid * cell paramemter => supercell positions
         # supercell positions + atoms in unit cell positions => atoms in supercell positions
         replicated_positions = _grid_arr.dot(atoms.cell)[:, np.newaxis, :] + atoms.positions[np.newaxis, :, :]
@@ -93,9 +116,9 @@ class ForceConstant(Observable):
                    supercell=supercell,
                    value=value,
                    folder=folder,
-                   grid=_direct_grid,
                    supercell_grid=supercell_grid,
                    translation_support=translation_support,
+                   replica_translations=_grid_arr,
                    **kwargs)
         return inst
 
@@ -118,13 +141,10 @@ class ForceConstant(Observable):
         # forceconstant.replicated_atoms is used
         if self._replicated_atoms is None:
             atoms = self.atoms
-            grid_arr = self._direct_grid.grid(is_wrapping=False)
-            replicated_positions = grid_arr.dot(atoms.cell)[:, np.newaxis, :] + atoms.positions[np.newaxis, :, :]
-
-            n_replicas = grid_arr.shape[0]
+            n_replicas = len(self.replicated_positions)
             replicated_atoms = Atoms(
                 symbols=atoms.get_chemical_symbols() * n_replicas,
-                positions=replicated_positions.reshape(-1, 3),
+                positions=self.replicated_positions.reshape(-1, 3),
                 cell=self._replicated_cell,
                 pbc=atoms.pbc,
             )
@@ -135,17 +155,9 @@ class ForceConstant(Observable):
     def _replicated_cell(self):
         """Cartesian cell of the replicated (supercell) structure.
 
-        For a diagonal Grid this is ``diag(supercell) @ uc.cell`` (the same
-        cell ``atoms * supercell`` produced historically). For a
-        NonDiagonalGrid the tiling is the SNF matrix M, so the supercell
-        cell is ``M @ uc.cell`` (e.g. a rhombohedral primitive tiled into a
-        cubic conventional supercell); ``atoms * supercell`` would be wrong
-        because ``supercell`` is a linearized ``(n_rep, 1, 1)`` placeholder.
+        The exact integer tiling matrix also covers non-diagonal supercells.
         """
-        M = getattr(self._direct_grid, "_M", None)
-        if M is None:
-            M = self.supercell_grid.matrix
-        return np.asarray(M) @ np.asarray(self.atoms.cell)
+        return np.asarray(self.supercell_grid.matrix) @ np.asarray(self.atoms.cell)
 
 
     @property

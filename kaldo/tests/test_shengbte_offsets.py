@@ -1,18 +1,12 @@
 """
 Regression tests for the ShengBTE third-order cell-offset bug.
 
-``read_third_order_matrix`` resolves each quartet's second/third cell offset
-(a Cartesian vector in the FORCE_CONSTANTS_3RD file) to a replica id by
-rounding it to an integer lattice index and looking it up against kaldo's
-minimum-image-wrapped grid (``Grid.grid(is_wrapping=True)``). That grid keeps
-only one representative index per replica within the minimum-image range, so
-an offset written outside that range, whether from a different sign
-convention for a half-box (even-supercell) replica, or from an unwrapped
-integer index on an odd supercell, fails the lookup. The lookup returns an
-empty array of ids, which is then used directly as a numpy fancy index into
-the third-order tensor; indexing with an empty array is not an error, it is a
-silent no-op, so the force constants for that quartet are dropped without any
-exception, warning, or nonzero-count mismatch surfacing at the call site.
+The historical ``read_third_order_matrix`` rounded each Cartesian offset to
+an integer lattice index and searched only a bounded set of stored
+representatives. An equivalent offset outside that set produced an empty
+NumPy fancy index, making assignment a silent no-op. The corrected reader
+uses exact periodic-class lookup, independent of which integer representative
+the file writes.
 
 These tests exercise ``kaldo.interfaces.shengbte_io.read_third_order_matrix``
 directly, with no pheasy code involved, using a synthetic two-atom cubic
@@ -82,7 +76,7 @@ def test_fc3_offset_sign_convention_resolves_to_same_replica(tmp_path):
     dense_positive = np.asarray(third_positive).reshape((2, 3, 2, 2, 3, 2, 2, 3))
     dense_negative = np.asarray(third_negative).reshape((2, 3, 2, 2, 3, 2, 2, 3))
     np.testing.assert_allclose(dense_negative, dense_positive, atol=1e-12)
-    # block lands at replica 1 (the (1, 0, 0) cell on Grid((2, 1, 1), 'C'))
+    # The block lands in periodic class 1, represented by (1, 0, 0).
     np.testing.assert_allclose(dense_negative[0, :, 1, 1, :, 0, 0, :], phi, atol=1e-12)
     assert np.count_nonzero(dense_negative) == np.count_nonzero(phi)
 

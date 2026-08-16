@@ -1,5 +1,5 @@
 import numpy as np
-from kaldo.grid import Grid
+from kaldo.grid import SupercellGrid
 from ase.build import bulk
 
 replica_grid = np.array([[0, 0, 0],
@@ -257,8 +257,12 @@ k_grid = np.array([[-0.4, -0.4, -0.4],
 
 def test_r_mesh():
     grid_shape = (5, 5, 5)
-    generated_grid = Grid(grid_shape=grid_shape, order='C')
-    np.testing.assert_equal(replica_grid, generated_grid.grid(is_wrapping=True))
+    generated_grid = SupercellGrid(np.diag(grid_shape), order='C')
+    assert generated_grid.size == 125
+    for vector in replica_grid:
+        assert generated_grid.class_id(vector) == generated_grid.class_id(
+            np.mod(vector, grid_shape)
+        )
 
 
 def test_ase_grid():
@@ -270,7 +274,7 @@ def test_ase_grid():
     ase_calculated_replica = np.round(replicated_atoms.positions.dot(np.linalg.inv(atoms.cell)), 5) \
                                  .reshape(supercell[0], supercell[1], supercell[2], n_atoms, 3)
 
-    space_grid = Grid(supercell, order='F')
-    fd_calculated_replica = (space_grid.grid(is_wrapping=False)[:, np.newaxis, :] + atoms.positions.dot(np.linalg.inv(atoms.cell)) \
+    space_grid = SupercellGrid(np.diag(supercell), order='F')
+    fd_calculated_replica = (space_grid.representatives[:, np.newaxis, :] + atoms.positions.dot(np.linalg.inv(atoms.cell)) \
         [np.newaxis, :, :]).reshape(supercell[0],supercell[1],supercell[2],n_atoms, 3)
     np.testing.assert_array_almost_equal(ase_calculated_replica, fd_calculated_replica)

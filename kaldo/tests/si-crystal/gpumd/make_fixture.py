@@ -31,8 +31,8 @@ def main():
     # The fixture's replica axes are ordered by whatever grid the hiphive route
     # detected; record it honestly so the gpumd reader reconstructs the SAME
     # replica->R-vector mapping (rather than assuming 'C').
-    grid_order = fc.second._direct_grid.order
-    if fc.third._direct_grid.order != grid_order:
+    grid_order = fc.second.supercell_grid.order
+    if fc.third.supercell_grid.order != grid_order:
         raise ValueError('fc2/fc3 grid order mismatch')
 
     # hiphive yields a dense ndarray; other routes yield sparse.COO. Handle both.

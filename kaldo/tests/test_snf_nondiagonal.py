@@ -1,9 +1,9 @@
 """
-Tests for non-diagonal TDEP supercell handling primitives.
+Tests for exact non-diagonal TDEP supercell quotient handling.
 
-kaldo.interfaces.tdep_io.build_supercell_replica_mapping +
-wrap_lattice_vector_to_replica are the low-level primitives for mapping
-TDEP per-atom pairs/triplets/quartets onto a non-diagonal ssposcar tiling.
+``build_supercell_replica_mapping`` recovers the integer tiling, while
+``SupercellGrid.class_id`` maps TDEP pair/triplet/quartet translations to
+periodic classes without a bounded search.
 
 The reference_si production fixture is non-diagonal (rhombohedral primitive
 + cubic conventional ssposcar, det M = 108); it is env-var-gated because it
@@ -55,19 +55,18 @@ def test_build_supercell_replica_mapping_si_nondiagonal():
 def test_wrap_lattice_vector_to_replica_si():
     """Arbitrary TDEP lattice vectors map to a unique replica id."""
     import ase.io
-    from kaldo.interfaces.tdep_io import (
-        build_supercell_replica_mapping, wrap_lattice_vector_to_replica,
-    )
+    from kaldo.grid import SupercellGrid
+    from kaldo.interfaces.tdep_io import build_supercell_replica_mapping
     uc = ase.io.read(str(SI_PROD / "infile.ucposcar"), format="vasp")
     sc = ase.io.read(str(SI_PROD / "infile.ssposcar"), format="vasp")
     m = build_supercell_replica_mapping(uc, sc)
 
     # Origin
-    assert wrap_lattice_vector_to_replica(
-        [0, 0, 0], m["replica_table"], m["M"]) >= 0
+    grid = SupercellGrid(np.rint(m["M"]).astype(int))
+    assert grid.class_id([0, 0, 0]) >= 0
     # Arbitrary R in primitive basis
     for R in [[1, 0, 0], [-1, 0, 0], [2, -1, 3], [5, 5, 5]]:
-        idx = wrap_lattice_vector_to_replica(R, m["replica_table"], m["M"])
+        idx = grid.class_id(R)
         assert idx >= 0, f"R={R} did not map to a replica"
         # And it's in range
         assert 0 <= idx < 108
@@ -98,7 +97,7 @@ def test_non_commuting_tiling_recovers_true_m():
     definition.
     """
     from ase.build import make_supercell
-    from kaldo.grid import wrap_lattice_vector_to_replica
+    from kaldo.grid import SupercellGrid
     from kaldo.interfaces.tdep_io import build_supercell_replica_mapping
 
     prim = _skewed_primitive()
@@ -125,12 +124,14 @@ def test_non_commuting_tiling_recovers_true_m():
     # Wrapping any replica shifted by a supercell lattice translation
     # (rows of M0 in the primitive basis) must recover the same replica.
     table = mapping["replica_table"]
+    grid = SupercellGrid(M0)
     for idx, R in enumerate(table):
+        expected = grid.class_id(R)
         for s in ([1, 0, 0], [0, 1, 0], [-1, 1, -1]):
             R_shifted = R + np.array(s) @ M0
-            found = wrap_lattice_vector_to_replica(R_shifted, table, mapping["M"])
-            assert found == idx, (
-                f"replica {R} + {s}@M wrapped to {found}, expected {idx}"
+            found = grid.class_id(R_shifted)
+            assert found == expected, (
+                f"replica {R} + {s}@M wrapped to {found}, expected {expected}"
             )
 
 

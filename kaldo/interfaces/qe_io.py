@@ -19,7 +19,7 @@ from ase.units import Bohr, Rydberg
 from numpy.typing import NDArray
 from numpy.typing import ArrayLike
 
-from kaldo.grid import Grid
+from kaldo.grid import SupercellGrid
 from kaldo.helpers.logger import get_logger
 
 logging = get_logger()
@@ -165,8 +165,9 @@ def read_third_d3q(
     with open(filename, "r") as file:
         n_unit_atoms = atoms.positions.shape[0]
         n_replicas = np.prod(supercell)
-        current_grid = Grid(supercell, order=order)
+        current_grid = SupercellGrid(np.diag(supercell), order=order)
         supercell = np.array(supercell)
+        occupied_targets = set()
 
         # initalize third order force constant
         third_order = np.zeros(
@@ -226,16 +227,17 @@ def read_third_d3q(
                 second_cell_index = [int(x) for x in readline[:3]]
                 third_cell_index = [int(x) for x in readline[3:6]]
 
-                # wrap cell index
-                second_cell_index -= supercell * np.rint(second_cell_index / supercell)
-                third_cell_index -= supercell * np.rint(third_cell_index / supercell)
-
-                second_cell_id = current_grid.grid_index_to_id(
-                    second_cell_index, is_wrapping=True
+                second_cell_id = current_grid.class_id(second_cell_index)
+                third_cell_id = current_grid.class_id(third_cell_index)
+                target = (
+                    atom_i, alpha, second_cell_id, atom_j, beta,
+                    third_cell_id, atom_k, gamma,
                 )
-                third_cell_id = current_grid.grid_index_to_id(
-                    third_cell_index, is_wrapping=True
-                )
+                if target in occupied_targets:
+                    raise ValueError(
+                        f"{filename}: duplicate d3q entry resolves to canonical target {target}"
+                    )
+                occupied_targets.add(target)
 
                 if readline[6][-4] == "E":
                     # it has two digits for exp part

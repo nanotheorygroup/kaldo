@@ -69,7 +69,7 @@ def test_periodic_loader_support_matches_legacy_replica_order():
     assert second.n_translations == 4
     np.testing.assert_array_equal(
         second.translation_support.translations,
-        second._direct_grid.grid(is_wrapping=False),
+        second.supercell_grid.representatives,
     )
 
 

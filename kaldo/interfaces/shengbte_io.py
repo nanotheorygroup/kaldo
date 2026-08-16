@@ -4,31 +4,23 @@ Anharmonic Lattice Dynamics
 """
 import numpy as np
 from ase import Atoms
-from kaldo.grid import Grid
+from kaldo.grid import SupercellGrid
 from sparse import COO
 from kaldo.helpers.logger import get_logger
 logging = get_logger()
 
 
-def _resolve_cell_id(cell_position, cell_inv, supercell, current_grid, source):
+def _resolve_cell_id(cell_position, cell_inv, current_grid, source):
     """Resolve a Cartesian cell offset to a replica id, independent of the sign
     convention the writer used for half-box (even-supercell) offsets.
 
-    ``Grid.cell_position_to_id`` rounds the raw Cartesian offset to an integer
-    cell index and looks it up against kaldo's minimum-image-wrapped grid. On
-    even supercells the half-box replica is representable as either +d/2 or
-    -d/2 (same physical replica); kaldo's wrapped grid only keeps +d/2, so a
-    file written with the -d/2 convention fails that lookup. Resolve instead
-    by wrapping the raw integer index into [0, d) ourselves and looking it up
-    against the unwrapped grid, which enumerates every 0..d-1 triplet exactly
-    once and so is unique and total for any integer input.
+    The integer quotient maps either sign convention for an even-cell
+    half-box offset to the same periodic class without a bounded search.
     """
     frac = cell_position.dot(cell_inv)
     if np.max(np.abs(frac - np.round(frac))) > 1e-3:
         raise ValueError(f"{source}: cell offset {cell_position} is not a lattice vector of the supercell.")
-    cell_index = np.mod(frac.round(0).astype(int), np.array(supercell, dtype=int))
-    ids = current_grid.grid_index_to_id(cell_index, is_wrapping=False)
-    return int(ids[0])
+    return current_grid.class_id(frac.round().astype(int))
 
 
 def read_third_order_matrix(third_file: str,
@@ -40,8 +32,9 @@ def read_third_order_matrix(third_file: str,
     n_unit_atoms = atoms.positions.shape[0]
     n_replicas = np.prod(supercell)
     third_order = np.zeros((n_unit_atoms, 3, n_replicas, n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
-    current_grid = Grid(supercell, order=order)
+    current_grid = SupercellGrid(np.diag(supercell), order=order)
     cell_inv = np.linalg.inv(np.array(atoms.cell))
+    occupied_blocks = set()
 
     with open(third_file, 'r') as file:
         first_line = file.readline()
@@ -53,13 +46,19 @@ def read_third_order_matrix(third_file: str,
 
             # next two lines are the positions of the second and third cell
             second_cell_position = np.array([float(x) for x in file.readline().split()])
-            second_cell_id = _resolve_cell_id(second_cell_position, cell_inv, supercell, current_grid, third_file)
+            second_cell_id = _resolve_cell_id(second_cell_position, cell_inv, current_grid, third_file)
 
             third_cell_position = np.array([float(x) for x in file.readline().split()])
-            third_cell_id = _resolve_cell_id(third_cell_position, cell_inv, supercell, current_grid, third_file)
+            third_cell_id = _resolve_cell_id(third_cell_position, cell_inv, current_grid, third_file)
 
             # index to atom
             atom_i, atom_j, atom_k = np.array([int(x) for x in file.readline().split()]) - 1
+            target = (atom_i, second_cell_id, atom_j, third_cell_id, atom_k)
+            if target in occupied_blocks:
+                raise ValueError(
+                    f"{third_file}: duplicate FC3 block resolves to canonical target {target}"
+                )
+            occupied_blocks.add(target)
 
             # for x,y,z directions with 3 atoms
             # FC3 assigns each quartet's block directly into its slot (ShengBTE-format writers emit

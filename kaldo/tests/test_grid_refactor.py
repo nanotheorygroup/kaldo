@@ -1,8 +1,11 @@
 """Focused tests for the separated reciprocal and IFC translation grids."""
 
 import numpy as np
+import pytest
+from ase import Atoms
 
 from kaldo.grid import QGrid, SupercellGrid, TranslationSupport, WignerSeitzImages
+from kaldo.observables.forceconstant import ForceConstant
 
 
 def test_q_grid_order_and_exact_time_reversal_partner():
@@ -18,8 +21,38 @@ def test_q_grid_order_and_exact_time_reversal_partner():
         )
     np.testing.assert_array_equal(
         grid.momentum_partner_ids(5, is_plus=True),
-        [grid.address_to_id(grid.addresses[5] - address) for address in grid.addresses],
+        [grid.address_to_id(grid.addresses[5] + address) for address in grid.addresses],
     )
+
+
+def test_q_grid_matches_legacy_enumeration_and_momentum_convention():
+    """Keep historical point ids while replacing float momentum arithmetic."""
+    for shape in ((1, 1, 1), (2, 3, 4), (3, 2, 5)):
+        for order in ("C", "F"):
+            grid = QGrid(shape, order=order)
+            ids = np.arange(np.prod(shape))
+            legacy_addresses = np.asarray(
+                np.unravel_index(ids, shape, order=order)
+            ).T
+            np.testing.assert_array_equal(grid.addresses, legacy_addresses)
+            np.testing.assert_allclose(
+                grid.fractional_points,
+                legacy_addresses / np.asarray(shape, dtype=float),
+                rtol=0.0,
+                atol=0.0,
+            )
+
+            for point_id in ids:
+                q = legacy_addresses[point_id]
+                for is_plus, sign in ((False, -1), (True, 1)):
+                    expected_addresses = np.mod(q + sign * legacy_addresses, shape)
+                    expected_ids = np.ravel_multi_index(
+                        expected_addresses.T, shape, order=order
+                    )
+                    np.testing.assert_array_equal(
+                        grid.momentum_partner_ids(point_id, is_plus),
+                        expected_ids,
+                    )
 
 
 def test_supercell_diagonal_representatives_preserve_c_and_f_order():
@@ -66,6 +99,44 @@ def test_translation_support_keeps_repeated_periodic_classes_distinct():
     )
 
 
+def test_forceconstant_keeps_physical_replicas_separate_from_ifc_support(tmp_path):
+    atoms = Atoms("Si", positions=[[0.0, 0.0, 0.0]], cell=np.eye(3), pbc=True)
+    grid = SupercellGrid(np.diag([2, 1, 1]))
+    support = TranslationSupport(
+        [[0, 0, 0], [2, 0, 0], [-2, 0, 0]], grid, provenance="file"
+    )
+    physical = np.array([[0, 0, 0], [-1, 0, 0]])
+    positions = physical[:, None, :] + atoms.positions[None, :, :]
+    forceconstant = ForceConstant(
+        atoms=atoms,
+        replicated_positions=positions,
+        replica_translations=physical,
+        supercell=(2, 1, 1),
+        supercell_grid=grid,
+        translation_support=support,
+        folder=str(tmp_path),
+    )
+
+    assert len(forceconstant.replicated_atoms) == 2
+    assert forceconstant.n_translations == 3
+    np.testing.assert_array_equal(forceconstant.replicated_atoms.positions, positions.reshape(-1, 3))
+    np.testing.assert_array_equal(forceconstant.list_of_replicas, support.translations)
+
+
+def test_forceconstant_rejects_incomplete_physical_replica_classes(tmp_path):
+    atoms = Atoms("Si", positions=[[0.0, 0.0, 0.0]], cell=np.eye(3), pbc=True)
+    grid = SupercellGrid(np.diag([2, 1, 1]))
+    with pytest.raises(ValueError, match="each periodic class exactly once"):
+        ForceConstant(
+            atoms=atoms,
+            replicated_positions=np.zeros((2, 1, 3)),
+            replica_translations=[[0, 0, 0], [2, 0, 0]],
+            supercell=(2, 1, 1),
+            supercell_grid=grid,
+            folder=str(tmp_path),
+        )
+
+
 def test_wigner_seitz_images_find_skew_cell_shortest_vector():
     cell = np.array([[2.0, 0.0, 0.0], [1.8, 0.7, 0.0], [0.1, 0.2, 2.1]])
     supercell = SupercellGrid(np.eye(3, dtype=int))
@@ -73,7 +144,7 @@ def test_wigner_seitz_images_find_skew_cell_shortest_vector():
     positions = np.array([[0.0, 0.0, 0.0], [1.71, 0.665, 0.0]])
 
     images = WignerSeitzImages.build(support, positions, cell)
-    actual = images.displacements[0][0][1]
+    _, actual, _ = images.image(0, 0, 1)
     brute_force = []
     displacement = positions[1] - positions[0]
     for a in range(-4, 5):
@@ -94,9 +165,7 @@ def test_wigner_seitz_images_retain_ties_with_normalized_weights():
     positions = np.array([[0.0, 0.0, 0.0], [0.5, 0.5, 0.0]])
 
     images = WignerSeitzImages.build(support, positions, cell)
-    translations = images.translations[0][0][1]
-    displacements = images.displacements[0][0][1]
-    weights = images.weights[0][0][1]
+    translations, displacements, weights = images.image(0, 0, 1)
 
     assert len(translations) == 4
     np.testing.assert_allclose(np.linalg.norm(displacements, axis=1), np.sqrt(0.5))
@@ -111,6 +180,21 @@ def test_periodic_amorphous_boundary_pair_uses_neighboring_cell():
 
     images = WignerSeitzImages.build(support, positions, cell)
 
-    np.testing.assert_array_equal(images.translations[0][0][1], [[1, 0, 0]])
-    np.testing.assert_allclose(images.displacements[0][0][1], [[1.0, 0.0, 0.0]])
-    np.testing.assert_allclose(images.weights[0][0][1], [1.0])
+    translations, displacements, weights = images.image(0, 0, 1)
+    np.testing.assert_array_equal(translations, [[1, 0, 0]])
+    np.testing.assert_allclose(displacements, [[1.0, 0.0, 0.0]])
+    np.testing.assert_allclose(weights, [1.0])
+
+
+def test_wigner_seitz_images_are_lazy_and_cached():
+    support = TranslationSupport.periodic(SupercellGrid(np.diag([2, 1, 1])))
+    images = WignerSeitzImages.build(
+        support,
+        np.array([[0.0, 0.0, 0.0], [0.2, 0.0, 0.0]]),
+        np.eye(3),
+    )
+
+    assert images._cache == {}
+    first = images.image(0, 0, 1)
+    assert list(images._cache) == [(0, 0, 1)]
+    assert images.image(0, 0, 1) is first

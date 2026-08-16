@@ -7,7 +7,7 @@ from numpy.typing import NDArray
 from pathlib import Path
 from ase.geometry import get_distances
 from kaldo.helpers.logger import get_logger
-from kaldo.grid import Grid, SupercellGrid, TranslationSupport
+from kaldo.grid import SupercellGrid, TranslationSupport
 from sparse import COO
 
 logging = get_logger()
@@ -163,11 +163,6 @@ def build_supercell_replica_mapping(primitive_atoms, supercell_atoms, tol=1e-4):
     )
 
 
-# wrap_lattice_vector_to_replica was moved to kaldo.grid (it is pure SNF
-# math with no TDEP-format dependency). Re-export here for back-compat.
-from kaldo.grid import wrap_lattice_vector_to_replica  # noqa: E402, F401
-
-
 # ---------------------------------------------------------------------------
 # Shared helpers for the TDEP observable loaders
 # ---------------------------------------------------------------------------
@@ -235,8 +230,8 @@ def build_nondiag_observable_kwargs(uc, sc):
           "replicated_positions": (n_rep * n_uc, 3) Cartesian,
           "supercell": M,              # physical integer supercell matrix
           "folder": ...,                # caller fills
-          "grid": NonDiagonalGrid(...),
           "supercell_grid": SupercellGrid(M),
+          "replica_translations": (n_rep, 3),
           "_mapping": <SNF mapping dict>,
         }
 
@@ -245,11 +240,7 @@ def build_nondiag_observable_kwargs(uc, sc):
     then attaches ``_snf_mapping`` / ``_supercell_matrix`` / ``_replica_table``
     metadata via :func:`attach_snf_metadata` below.
     """
-    from kaldo.grid import NonDiagonalGrid
     mapping = build_supercell_replica_mapping(uc, sc)
-    nd_grid = NonDiagonalGrid(
-        replica_table=mapping["replica_table"], M=mapping["M"],
-    )
     supercell_grid = SupercellGrid(np.rint(mapping["M"]).astype(np.int64))
     rep_pos = (mapping["replica_table"] @ np.asarray(uc.cell))[:, None, :] \
               + np.asarray(uc.positions)[None, :, :]
@@ -257,8 +248,8 @@ def build_nondiag_observable_kwargs(uc, sc):
         atoms=uc,
         replicated_positions=rep_pos.reshape(-1, 3),
         supercell=supercell_grid.matrix,
-        grid=nd_grid,
         supercell_grid=supercell_grid,
+        replica_translations=mapping["replica_table"],
         _mapping=mapping,
     )
 
@@ -284,7 +275,7 @@ def parse_tdep_forceconstant(
     eps: float = 1e-13,
     tol: float = 1e-5,
     format: str = "vasp",
-    grid: Grid | None = None,
+    grid: SupercellGrid | None = None,
     supercell_grid: SupercellGrid | None = None,
     return_support: bool = False,
 ):
@@ -302,8 +293,7 @@ def parse_tdep_forceconstant(
     ``grid`` is not None
         Returns a dense ndarray of shape ``(1, n_uc, 3, n_rep, n_uc, 3)``,
         the kaldo replica-factorized storage convention. ``grid`` may be
-        :class:`Grid` (diagonal supercell) or :class:`NonDiagonalGrid`
-        (SNF non-diagonal supercell). Used by
+        :class:`SupercellGrid`. Used by
         :class:`SecondOrder.from_folder`. When this branch is taken
         ``supercell``, ``two_dim``, and ``symmetrize`` are unused.
 
@@ -332,7 +322,7 @@ def parse_tdep_forceconstant(
         matching.
     format : str, optional
         ASE format string for reading structures. Default ``"vasp"``.
-    grid : Grid or NonDiagonalGrid or None, optional
+    grid : SupercellGrid or None, optional
         If supplied, route through the kaldo replica-factorized path
         (above). When given, ``supercell``, ``two_dim`` and ``symmetrize``
         are ignored.
@@ -386,7 +376,7 @@ def parse_tdep_forceconstant(
 
     if grid is not None:
         # --- kaldo replica-factorized path ---
-        n_rep = grid.grid_size if hasattr(grid, "grid_size") else int(np.prod(grid.grid_shape))
+        n_rep = grid.size
         tensor = np.zeros((1, n_uc, 3, n_rep, n_uc, 3), dtype=float)
         with open(fc_file) as f:
             na = int(f.readline().split()[0])
@@ -404,13 +394,7 @@ def parse_tdep_forceconstant(
                         [f.readline().split() for _ in range(3)], dtype=float,
                     )
                     R = np.round(lv).astype(int)
-                    rep_ids = grid.grid_index_to_id(R, is_wrapping=True)
-                    if len(rep_ids) == 0:
-                        raise ValueError(
-                            f"IFC2 entry (a1={a1}, a2={a2}, R={R}) did not"
-                            " resolve to any replica in the supplied grid"
-                        )
-                    rep_id = int(rep_ids[0])
+                    rep_id = grid.class_id(R)
                     tensor[0, a1, :, rep_id, a2, :] += phi
         return tensor
 
@@ -668,7 +652,7 @@ def parse_tdep_third_forceconstant(
     fc_filename: str,
     primitive: str | Atoms,
     supercell: tuple[int, int, int] | None = None,
-    grid: Grid | None = None,
+    grid: SupercellGrid | None = None,
     supercell_grid: SupercellGrid | None = None,
     return_support: bool = False,
 ):
@@ -681,12 +665,11 @@ def parse_tdep_third_forceconstant(
     primitive : str or Atoms
         Path to ``infile.ucposcar`` (or an ASE ``Atoms``).
     supercell : tuple[int, int, int], optional
-        Diagonal supercell tiling. Builds ``Grid(supercell, order='C')``
+        Diagonal supercell tiling. Builds ``SupercellGrid``
         internally. Mutually exclusive with ``grid=``.
-    grid : Grid or NonDiagonalGrid, optional
-        Replica grid. Use this to pass a ``NonDiagonalGrid`` for SNF
-        non-diagonal tilings, or a pre-built ``Grid`` for the diagonal
-        case. Mutually exclusive with ``supercell=``.
+    grid : SupercellGrid, optional
+        Exact periodic translation quotient. Mutually exclusive with
+        ``supercell=``.
 
     Returns
     -------
@@ -703,7 +686,7 @@ def parse_tdep_third_forceconstant(
             " supercell= or grid="
         )
     if grid is None and supercell_grid is None:
-        grid = Grid(supercell, order="C")
+        grid = SupercellGrid(np.diag(supercell), order="C")
     if isinstance(primitive, Atoms):
         uc = primitive
     else:
@@ -767,7 +750,7 @@ def parse_tdep_third_forceconstant(
             tensor = COO(np.empty((8, 0), dtype=np.int64), np.empty(0), shape=shape)
         return (tensor, support) if return_support else tensor
 
-    n_rep = grid.grid_size if hasattr(grid, "grid_size") else int(np.prod(grid.grid_shape))
+    n_rep = grid.size
 
     dense = np.zeros(
         (n_uc, 3, n_rep, n_uc, 3, n_rep, n_uc, 3), dtype=float,
@@ -811,15 +794,8 @@ def parse_tdep_third_forceconstant(
 
                 R2 = np.round(lv2).astype(int)
                 R3 = np.round(lv3).astype(int)
-                r2_ids = grid.grid_index_to_id(R2, is_wrapping=True)
-                r3_ids = grid.grid_index_to_id(R3, is_wrapping=True)
-                if len(r2_ids) == 0 or len(r3_ids) == 0:
-                    raise ValueError(
-                        f"IFC3 triplet (a1={a1}, a2={a2}, a3={a3},"
-                        f" R2={R2}, R3={R3}) did not resolve in the grid"
-                    )
-                r2_id = int(r2_ids[0])
-                r3_id = int(r3_ids[0])
+                r2_id = grid.class_id(R2)
+                r3_id = grid.class_id(R3)
                 dense[a1, :, r2_id, a2, :, r3_id, a3, :] += phi
 
     return COO.from_numpy(dense)
@@ -832,7 +808,7 @@ def parse_tdep_fourth_forceconstant(
     fc_filename: str,
     primitive: str | Atoms,
     supercell: tuple[int, int, int] | None = None,
-    grid: Grid | None = None,
+    grid: SupercellGrid | None = None,
 ):
     """Parse TDEP fourth-order force constants.
 
@@ -847,12 +823,11 @@ def parse_tdep_fourth_forceconstant(
         Path to ``infile.forceconstant_fourthorder``.
     primitive : str or Atoms
     supercell : tuple[int, int, int], optional
-        Diagonal supercell tiling. Builds ``Grid(supercell, order='C')``
+        Diagonal supercell tiling. Builds ``SupercellGrid``
         internally. Mutually exclusive with ``grid=``.
-    grid : Grid or NonDiagonalGrid, optional
-        Replica grid. Use this to pass a ``NonDiagonalGrid`` for SNF
-        non-diagonal tilings, or a pre-built ``Grid`` for the diagonal
-        case. Mutually exclusive with ``supercell=``.
+    grid : SupercellGrid, optional
+        Exact periodic translation quotient. Mutually exclusive with
+        ``supercell=``.
     """
     if (supercell is None) == (grid is None):
         raise ValueError(
@@ -860,13 +835,13 @@ def parse_tdep_fourth_forceconstant(
             " supercell= or grid="
         )
     if grid is None:
-        grid = Grid(supercell, order="C")
+        grid = SupercellGrid(np.diag(supercell), order="C")
     if isinstance(primitive, Atoms):
         uc = primitive
     else:
         uc = ase.io.read(primitive, format='vasp')
     n_uc = len(uc)
-    n_rep = grid.grid_size if hasattr(grid, "grid_size") else int(np.prod(grid.grid_shape))
+    n_rep = grid.size
 
     shape = (
         n_uc, 3, n_rep,
@@ -934,18 +909,9 @@ def parse_tdep_fourth_forceconstant(
                 R2_int = np.round(R2).astype(int)
                 R3_int = np.round(R3).astype(int)
                 R4_int = np.round(R4).astype(int)
-                r2_ids = grid.grid_index_to_id(R2_int, is_wrapping=True)
-                r3_ids = grid.grid_index_to_id(R3_int, is_wrapping=True)
-                r4_ids = grid.grid_index_to_id(R4_int, is_wrapping=True)
-                if len(r2_ids) == 0 or len(r3_ids) == 0 or len(r4_ids) == 0:
-                    raise ValueError(
-                        f"IFC4 quartet (a1={a1}, a2={i2}, a3={i3}, a4={i4},"
-                        f" R2={R2_int}, R3={R3_int}, R4={R4_int}) did not"
-                        " resolve in the grid"
-                    )
-                r2_id = int(r2_ids[0])
-                r3_id = int(r3_ids[0])
-                r4_id = int(r4_ids[0])
+                r2_id = grid.class_id(R2_int)
+                r3_id = grid.class_id(R3_int)
+                r4_id = grid.class_id(R4_int)
 
                 block = np.empty((11, 81), dtype=np.int64)
                 block[0] = a1;    block[1] = da;  block[2] = r2_id

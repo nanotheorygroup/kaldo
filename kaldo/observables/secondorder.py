@@ -20,7 +20,6 @@ from kaldo.parallel import (
 import ase.units as units
 from kaldo.helpers.logger import get_logger, log_size
 from kaldo.storable import Storable, lazy_property
-from kaldo.grid import Grid
 import kaldo.controllers.nac as nac
 
 logging = get_logger()

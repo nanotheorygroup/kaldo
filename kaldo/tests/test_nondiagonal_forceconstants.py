@@ -51,7 +51,7 @@ def test_replicated_atoms_cell_is_correct_on_nondiagonal_tiling():
 
     kw = build_nondiag_observable_kwargs(uc, sc)
     kw.pop("_mapping")
-    n_rep = kw["supercell"][0]
+    n_rep = kw["supercell_grid"].size
     n_uc = len(uc)
     so = SecondOrder(value=np.zeros((1, n_uc, 3, n_rep, n_uc, 3)), folder="kALDo", **kw)
 
@@ -88,9 +88,9 @@ def test_replicated_atoms_cell_matches_ssposcar_on_production_si():
 def test_conductivity_runs_on_nondiagonal_fc():
     """BTE/conductivity smoke test: Conductivity runs on a non-diagonal fc.
 
-    Exercises the Grid + list_of_replicas + chi() + sij + velocity path
-    through kaldo's conductivity.rta, confirming our NonDiagonalGrid is
-    compatible with BTE machinery and not just Phonons.frequency.
+    Exercises exact translation support, phases, flux, and velocity through
+    ``conductivity.rta``, confirming non-diagonal topology reaches the BTE
+    machinery and not only ``Phonons.frequency``.
 
     The exact kappa number depends heavily on mesh + sigma choices on the
     production DFT Si fixture; here we only assert:
@@ -109,7 +109,7 @@ def test_conductivity_runs_on_nondiagonal_fc():
     )
     ph = Phonons(
         forceconstants=fc, kpts=(5, 5, 5), temperature=300,
-        is_classic=False, storage="memory", is_unfolding=False,
+        is_classic=False, storage="memory", ifc_interpolation="auto",
     )
     cond = Conductivity(phonons=ph, method="rta", storage="memory").conductivity
     kappa = cond.sum(axis=0).diagonal()
@@ -119,7 +119,7 @@ def test_conductivity_runs_on_nondiagonal_fc():
     # On this 5^3 mesh + 5^3 supercell Si DFT fixture, kappa can run high
     # because low-q acoustic modes dominate and are under-resolved. The
     # exact value isn't the point of this smoke test; we just want to
-    # confirm the NonDiagonalGrid -> BTE path produces a sensible order
+    # Confirm the non-diagonal quotient -> BTE path has a sensible order
     # of magnitude (tens to ~thousand W/mK range).
     assert 10 < kappa_mean < 2000, (
         f"Si nondiag kappa = {kappa_mean:.1f} W/mK, unphysical order"
@@ -194,21 +194,16 @@ def test_diagonal_path_and_snf_path_agree_on_si_tdep():
     def collect_ifc2(fc):
         second = np.asarray(fc.second.value)[0]  # (n_uc, 3, n_rep, n_uc, 3)
         n_uc = fc.n_atoms
-        rep_pos = np.asarray(fc.second.replicated_positions).reshape(
-            fc.n_replicas, n_uc, 3,
-        )
-        uc_cell = np.asarray(fc.atoms.cell)
-        inv_cell = np.linalg.inv(uc_cell)
         d = {}
         for i in range(n_uc):
-            for r in range(fc.n_replicas):
+            for r, translation in enumerate(fc.second.translation_support.translations):
                 for j in range(n_uc):
                     phi = second[i, :, r, j, :]
                     if not np.any(phi):
                         continue
-                    rj = rep_pos[r, j]
-                    R_frac = (rj - np.asarray(fc.atoms.positions)[j]) @ inv_cell
-                    R_min = np.round(R_frac - 5 * np.round(R_frac / 5)).astype(int)
+                    R_min = np.round(
+                        translation - 5 * np.round(translation / 5)
+                    ).astype(int)
                     d[(i, j, tuple(R_min))] = phi
         return d
 

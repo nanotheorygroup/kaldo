@@ -41,7 +41,7 @@ class FourthOrder(ForceConstant):
         supercell : (int, int, int)
             Primitive → supercell tiling. Used for diagonal supercells; a
             non-diagonal ``infile.ssposcar`` is detected automatically and
-            routed through the SNF (NonDiagonalGrid) path.
+            routed through the exact non-diagonal supercell quotient.
         format : {"tdep"}
             File format. Only ``"tdep"`` is supported at this time.
         supercell_matrix : np.ndarray, optional
@@ -64,7 +64,7 @@ class FourthOrder(ForceConstant):
                     kw = build_nondiag_observable_kwargs(uc, sc)
                     mapping = kw.pop("_mapping")
                     fourth_ifcs = parse_tdep_fourth_forceconstant(fc_filename=fc_filename, primitive=uc,
-                                                                  grid=kw["grid"])
+                                                                  grid=kw["supercell_grid"])
                     fourth_order = cls(value=fourth_ifcs, folder=folder, **kw)
                     return attach_snf_metadata(fourth_order, mapping)
 
