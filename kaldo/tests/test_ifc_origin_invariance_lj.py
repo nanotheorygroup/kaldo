@@ -1,10 +1,16 @@
-"""End-to-end origin-invariance regression for IFC interpolation.
+"""End-to-end calculator/MLIP-path regression for IFC interpolation.
 
 This is the self-contained Lennard--Jones argon experiment from Issue 2 of
 ``chiral-Te-ace-kaldo``.  A rigid shift of every atom changes only where the
 unit-cell boundary is drawn; it cannot change a phonon frequency or thermal
 conductivity.  The legacy replica-only Fourier phases violated that gauge
 invariance even though the frequencies on the commensurate mesh agreed.
+
+The callable calculator factory passed to ``SecondOrder.calculate`` and
+``ThirdOrder.calculate`` is the same integration boundary used by MLIP ASE
+calculators.  Lennard--Jones keeps this unit test self-contained: it tests
+kALDo's direct finite-displacement path without making CI depend on one MLIP
+framework or model file.
 """
 
 from functools import partial
@@ -23,20 +29,24 @@ from kaldo.phonons import Phonons
 def _relaxed_argon_reference():
     """Return the three-atom trigonal LJ crystal used by the reproducer."""
     a, c = 4.44, 6.10
-    cell = np.array([
-        [a, 0.0, 0.0],
-        [-a / 2.0, a * np.sqrt(3.0) / 2.0, 0.0],
-        [0.0, 0.0, c],
-    ])
+    cell = np.array(
+        [
+            [a, 0.0, 0.0],
+            [-a / 2.0, a * np.sqrt(3.0) / 2.0, 0.0],
+            [0.0, 0.0, c],
+        ]
+    )
     x = 0.2648
     atoms = Atoms(
         "Ar3",
         cell=cell,
-        scaled_positions=np.array([
-            [x, 0.0, 1.0 / 3.0],
-            [0.0, x, 2.0 / 3.0],
-            [-x, -x, 0.0],
-        ]),
+        scaled_positions=np.array(
+            [
+                [x, 0.0, 1.0 / 3.0],
+                [0.0, x, 2.0 / 3.0],
+                [-x, -x, 0.0],
+            ]
+        ),
         pbc=True,
     )
     atoms.calc = LennardJones(sigma=3.4, epsilon=0.01, rc=9.0, smooth=True)
@@ -84,8 +94,8 @@ def _lj_phonons(atoms, folder):
     )
 
 
-def test_lj_argon_rta_is_invariant_to_wrapped_crystal_origin(tmp_path):
-    """Regenerated IFCs give identical spectra and RTA kappa after a shift."""
+def test_calculator_factory_rta_is_invariant_to_wrapped_crystal_origin(tmp_path):
+    """The direct calculator path preserves spectra and RTA after a shift."""
     reference_atoms = _relaxed_argon_reference()
     translated_atoms = reference_atoms.copy()
     translated_atoms.set_scaled_positions(
