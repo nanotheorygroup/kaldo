@@ -68,9 +68,10 @@ class _HarmonicIFCInterpolation:
     ``values`` follows ``(i, alpha, translation, j, beta)``.  A direct plan
     has one phase per stored translation.  A Wigner--Seitz plan partitions
     each periodic IFC block over every tied shortest image of the *atom pair*.
-    The Fourier phase stays in kALDo's integer-translation gauge, while the
-    derivative uses the complete Cartesian pair vector
-    ``R + r_j - r_i``.
+    The Fourier phase stays in kALDo's integer-translation gauge.  Pair-aware
+    Wigner--Seitz plans differentiate the complete Cartesian pair vector
+    ``R + r_j - r_i``; native direct q2r plans differentiate their stored
+    translation ``R`` so the derivative matches QE's Fourier convention.
     """
 
     values: np.ndarray
@@ -79,6 +80,7 @@ class _HarmonicIFCInterpolation:
     cell: np.ndarray
     resolved_mode: str
     images: WignerSeitzImages | None = None
+    include_pair_displacement: bool = True
 
     @classmethod
     def build(cls, second, requested_mode):
@@ -124,7 +126,23 @@ class _HarmonicIFCInterpolation:
             if resolved == "wigner-seitz"
             else None
         )
-        return cls(values, support, positions, cell, resolved, images)
+        # Nonpolar q2r is intentionally evaluated in QE's native direct
+        # Fourier gauge.  Its matrix and derivative phases contain the stored
+        # lattice translation R only; adding a basis offset here changes that
+        # convention when an atom is wrapped across the unit-cell boundary.
+        include_pair_displacement = not (
+            resolved == "periodic"
+            and getattr(second, "ifc_interpolation_hint", None) == "periodic"
+        )
+        return cls(
+            values,
+            support,
+            positions,
+            cell,
+            resolved,
+            images,
+            include_pair_displacement,
+        )
 
     def matrices(self, q_point, distance_threshold=None):
         """Return the dynamical matrix and its three Cartesian phase kernels.
@@ -148,10 +166,14 @@ class _HarmonicIFCInterpolation:
                         continue
                     if self.images is None:
                         translations = source_translation[np.newaxis, :]
-                        displacements = (
-                            source_translation
-                            + fractional_positions[atom_j]
+                        pair_offset = (
+                            fractional_positions[atom_j]
                             - fractional_positions[atom_i]
+                            if self.include_pair_displacement
+                            else 0.0
+                        )
+                        displacements = (
+                            source_translation + pair_offset
                         )[np.newaxis, :] @ self.cell
                         weights = np.ones(1)
                     else:

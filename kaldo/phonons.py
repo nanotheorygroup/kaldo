@@ -685,11 +685,14 @@ class Phonons(Storable):
         loaded_third = getattr(self.forceconstants, "_third", None)
         if loaded_third is not None:
             digests.append(loaded_third.translation_support.digest)
+        third_hint = getattr(loaded_third, "ifc_interpolation_hint", None)
         return (
-            "v3_req-"
+            "v4_req-"
             + self.ifc_interpolation
             + "_harm-"
             + self.ifc_interpolation_resolved
+            + "_third-"
+            + str(third_hint or "source")
             + "_"
             + "_".join(digest[:16] for digest in digests)
         )

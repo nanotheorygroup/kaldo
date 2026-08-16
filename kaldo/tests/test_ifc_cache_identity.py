@@ -10,7 +10,9 @@ from kaldo.grid import SupercellGrid, TranslationSupport
 from kaldo.phonons import Phonons
 
 
-def _forceconstants(*, third_supercell=(2, 1, 1), third_support=None, pbc=True):
+def _forceconstants(
+    *, third_supercell=(2, 1, 1), third_support=None, third_hint=None, pbc=True
+):
     atoms = Atoms("H", cell=np.eye(3), pbc=pbc)
     second_grid = SupercellGrid(np.eye(3, dtype=int))
     second = SimpleNamespace(
@@ -20,7 +22,10 @@ def _forceconstants(*, third_supercell=(2, 1, 1), third_support=None, pbc=True):
     third = (
         None
         if third_support is None
-        else SimpleNamespace(translation_support=third_support)
+        else SimpleNamespace(
+            translation_support=third_support,
+            ifc_interpolation_hint=third_hint,
+        )
     )
     return SimpleNamespace(
         atoms=atoms,
@@ -47,12 +52,8 @@ def _phonons(forceconstants, tmp_path, **kwargs):
 
 def test_lazy_ifc3_supercells_have_distinct_cache_namespaces(tmp_path):
     """A lazy IFC3 object must not hide its declared translation topology."""
-    first = _phonons(
-        _forceconstants(third_supercell=(2, 1, 1)), tmp_path / "first"
-    )
-    second = _phonons(
-        _forceconstants(third_supercell=(1, 2, 1)), tmp_path / "second"
-    )
+    first = _phonons(_forceconstants(third_supercell=(2, 1, 1)), tmp_path / "first")
+    second = _phonons(_forceconstants(third_supercell=(1, 2, 1)), tmp_path / "second")
 
     assert first.forceconstants._third is None
     assert second.forceconstants._third is None
@@ -76,6 +77,22 @@ def test_loaded_ifc3_supports_have_distinct_cache_namespaces(tmp_path):
 
     assert first.ifc_cache_key != second.ifc_cache_key
     assert first._add_grid_components("") != second._add_grid_components("")
+
+
+def test_loaded_ifc3_native_gauges_have_distinct_cache_namespaces(tmp_path):
+    """The d3q periodic route must not reuse a WS-compiled IFC3 cache."""
+    grid = SupercellGrid(np.diag([2, 1, 1]))
+    support = TranslationSupport.periodic(grid)
+    wigner = _phonons(
+        _forceconstants(third_support=support),
+        tmp_path / "wigner",
+    )
+    periodic = _phonons(
+        _forceconstants(third_support=support, third_hint="periodic"),
+        tmp_path / "periodic",
+    )
+
+    assert wigner.ifc_cache_key != periodic.ifc_cache_key
 
 
 def test_source_aware_auto_does_not_share_explicit_periodic_ifc3_cache(tmp_path):

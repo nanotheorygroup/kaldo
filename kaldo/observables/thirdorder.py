@@ -109,12 +109,14 @@ class ThirdOrder(ForceConstant):
     def get_interpolation(self, mode="auto"):
         """Compile IFC3 for the requested real-space interpolation rule.
 
-        ``auto`` preserves literal file-provided translations and otherwise
-        selects pair-dependent Wigner--Seitz interpolation.  ``periodic`` and
-        ``wigner-seitz`` are explicit overrides: both first fold every source
-        translation into its exact supercell quotient class.  The latter then
-        distributes each ``(i,j)`` and ``(i,k)`` pair independently over all
-        tied shortest images, with the Cartesian-product weight.
+        ``auto`` preserves literal file-provided translations, honors an
+        interface's explicit native-gauge hint (for example d3q's unrecentered
+        cell indices), and otherwise selects pair-dependent Wigner--Seitz
+        interpolation.  ``periodic`` and ``wigner-seitz`` are explicit user
+        overrides: both first fold every source translation into its exact
+        supercell quotient class.  The latter then distributes each ``(i,j)``
+        and ``(i,k)`` pair independently over all tied shortest images, with
+        the Cartesian-product weight.
 
         Sparse input remains sparse throughout compilation.  The returned
         object is cached per requested mode and source identity.
@@ -138,10 +140,11 @@ class ThirdOrder(ForceConstant):
         if cache_key in cache:
             return cache[cache_key]
 
+        hint = getattr(self, "ifc_interpolation_hint", None)
         if mode == "auto" and support.provenance == "file":
             result = _ThirdOrderIFCInterpolation(value, support, "file")
         else:
-            resolved = "wigner-seitz" if mode == "auto" else mode
+            resolved = (hint or "wigner-seitz") if mode == "auto" else mode
             if support.provenance == "file" and mode != "auto":
                 logging.warning(
                     "ifc_interpolation=%r folds %d file-provided IFC3 "
@@ -421,6 +424,19 @@ class ThirdOrder(ForceConstant):
                                                         grid_type=grid_type,
                                                         supercell=supercell,
                                                         value=third_order,
+                                                        # d3q writes explicit,
+                                                        # unrecentered cell
+                                                        # indices; retain that
+                                                        # native direct gauge.
+                                                        ifc_interpolation_hint=(
+                                                            "periodic"
+                                                            if format in (
+                                                                "qe-d3q",
+                                                                "shengbte-d3q",
+                                                                "vasp-d3q",
+                                                            )
+                                                            else None
+                                                        ),
                                                         folder=folder)
 
             case 'hiphive':

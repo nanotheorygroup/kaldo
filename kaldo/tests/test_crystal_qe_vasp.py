@@ -80,7 +80,9 @@ def test_qhgk_conductivity(phonons):
     cond = Conductivity(phonons=phonons, method="qhgk", storage="memory",
                         diffusivity_bandwidth=1.0).conductivity.sum(axis=0)
     cond = np.abs(np.mean(cond.diagonal()))
-    np.testing.assert_allclose(cond, 2.241208, rtol=5e-3, atol=0.0)
+    # The q2r velocity now differentiates QE's native R-only Fourier phase;
+    # the previous reference used an inconsistent R+r_j-r_i derivative.
+    np.testing.assert_allclose(cond, 2.266229, rtol=5e-3, atol=0.0)
 
 
 def test_rta_conductivity(phonons):

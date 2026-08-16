@@ -34,10 +34,10 @@ def phonons():
     )
     return phonons
 
-# These references use pair-specific Wigner--Seitz interpolation for both
-# IFC2 and IFC3.  Before this refactor, one periodic replica representative
-# was reused for every basis-atom pair; that changes off-mesh velocities and
-# three-phonon matrix elements even though commensurate frequencies agree.
+# These references use pair-specific Wigner--Seitz interpolation for VASP
+# IFC2 and d3q's native periodic interpolation for IFC3.  d3q explicitly
+# records unrecentered cell indices, so silently redistributing those blocks
+# would change the source convention.
 # The wider RTA/inverse/default-kernel bands remain because degenerate-mode
 # eigenvector bases differ slightly across BLAS backends (issue #290).
 
