@@ -236,6 +236,7 @@ class SecondOrder(ForceConstant, Storable):
         value: ArrayLike | None = None,
         is_acoustic_sum: bool = False,
         folder: str = "kALDo",
+        translation_support=None,
     ):
         # acoustic sum rule will be applied later in SecondOrder.__init__ if applicable
         ifc = super().from_supercell(
@@ -245,6 +246,7 @@ class SecondOrder(ForceConstant, Storable):
             value=value,
             is_acoustic_sum=is_acoustic_sum,
             folder=folder,
+            translation_support=translation_support,
         )
         return ifc
 
@@ -489,35 +491,33 @@ class SecondOrder(ForceConstant, Storable):
                     attach_snf_metadata,
                     resolve_tdep_supercell,
                 )
-                from kaldo.grid import Grid
+                from kaldo.grid import SupercellGrid
 
                 uc, sc, diagonal_supercell = resolve_tdep_supercell(
                     folder, supercell, supercell_matrix
                 )
                 fc_file = os.path.join(folder, "infile.forceconstant")
 
+                matrix = np.rint(np.asarray(sc.cell) @ np.linalg.inv(np.asarray(uc.cell))).astype(int)
+                physical_grid = SupercellGrid(matrix, order="C")
+                d2, support = parse_tdep_forceconstant(
+                    fc_file=fc_file, primitive=uc, supercell_grid=physical_grid,
+                    return_support=True,
+                )
                 if diagonal_supercell is None:
                     kw = build_nondiag_observable_kwargs(uc, sc)
                     mapping = kw.pop("_mapping")
-                    d2 = parse_tdep_forceconstant(
-                        fc_file=fc_file, primitive=uc, grid=kw["grid"]
-                    )
                     second_order = SecondOrder(
-                        value=d2, is_acoustic_sum=is_acoustic_sum, folder=folder, **kw
+                        value=d2, is_acoustic_sum=is_acoustic_sum, folder=folder,
+                        translation_support=support, **kw
                     )
                     return attach_snf_metadata(second_order, mapping)
 
                 supercell = diagonal_supercell
-                d2 = parse_tdep_forceconstant(
-                    fc_file=fc_file, primitive=uc, grid=Grid(supercell, order="C")
-                )
-                second_order = SecondOrder(
-                    atoms=uc,
-                    replicated_positions=sc.positions,
-                    supercell=supercell,
-                    value=d2,
-                    is_acoustic_sum=is_acoustic_sum,
-                    folder=folder,
+                second_order = SecondOrder.from_supercell(
+                    atoms=uc, supercell=supercell, grid_type="C", value=d2,
+                    is_acoustic_sum=is_acoustic_sum, folder=folder,
+                    translation_support=support,
                 )
 
             case "gpumd":

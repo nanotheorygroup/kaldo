@@ -7,10 +7,31 @@ from numpy.typing import NDArray
 from pathlib import Path
 from ase.geometry import get_distances
 from kaldo.helpers.logger import get_logger
-from kaldo.grid import Grid
+from kaldo.grid import Grid, SupercellGrid, TranslationSupport
 from sparse import COO
 
 logging = get_logger()
+
+
+def _integer_lattice_vector(vector, context, tol=1e-6):
+    """Validate and convert one TDEP primitive-basis lattice vector."""
+    vector = np.asarray(vector, dtype=float)
+    rounded = np.rint(vector)
+    if vector.shape != (3,) or not np.allclose(vector, rounded, atol=tol, rtol=0):
+        raise ValueError(f"{context} must be an integer lattice vector, got {vector}")
+    return rounded.astype(np.int64)
+
+
+def _file_translation_support(translations, supercell_grid):
+    """Create deterministic TDEP support without periodic-class collapse.
+
+    Zero is always first.  All other distinct literal translations are sorted
+    lexicographically, making tensor axes independent of record order.
+    """
+    unique = {tuple(np.asarray(r, dtype=np.int64)) for r in translations}
+    unique.add((0, 0, 0))
+    ordered = [(0, 0, 0)] + sorted(unique - {(0, 0, 0)})
+    return TranslationSupport(ordered, supercell_grid, provenance="file")
 
 
 def _readline_or_raise(fh, context):
@@ -212,9 +233,10 @@ def build_nondiag_observable_kwargs(uc, sc):
         {
           "atoms": uc,
           "replicated_positions": (n_rep * n_uc, 3) Cartesian,
-          "supercell": (n_rep, 1, 1)  (linearized; the real M is in mapping),
+          "supercell": M,              # physical integer supercell matrix
           "folder": ...,                # caller fills
           "grid": NonDiagonalGrid(...),
+          "supercell_grid": SupercellGrid(M),
           "_mapping": <SNF mapping dict>,
         }
 
@@ -228,14 +250,15 @@ def build_nondiag_observable_kwargs(uc, sc):
     nd_grid = NonDiagonalGrid(
         replica_table=mapping["replica_table"], M=mapping["M"],
     )
+    supercell_grid = SupercellGrid(np.rint(mapping["M"]).astype(np.int64))
     rep_pos = (mapping["replica_table"] @ np.asarray(uc.cell))[:, None, :] \
               + np.asarray(uc.positions)[None, :, :]
-    n_rep = len(mapping["replica_table"])
     return dict(
         atoms=uc,
         replicated_positions=rep_pos.reshape(-1, 3),
-        supercell=(n_rep, 1, 1),
+        supercell=supercell_grid.matrix,
         grid=nd_grid,
+        supercell_grid=supercell_grid,
         _mapping=mapping,
     )
 
@@ -262,6 +285,8 @@ def parse_tdep_forceconstant(
     tol: float = 1e-5,
     format: str = "vasp",
     grid: Grid | None = None,
+    supercell_grid: SupercellGrid | None = None,
+    return_support: bool = False,
 ):
     """
     Parse TDEP second-order force constants.
@@ -281,6 +306,11 @@ def parse_tdep_forceconstant(
         (SNF non-diagonal supercell). Used by
         :class:`SecondOrder.from_folder`. When this branch is taken
         ``supercell``, ``two_dim``, and ``symmetrize`` are unused.
+
+    ``supercell_grid`` is not None
+        Preserves every literal TDEP translation.  The optional
+        ``return_support`` result carries the deterministic translation-axis
+        metadata used to construct a :class:`SecondOrder` object.
 
     Parameters
     ----------
@@ -306,6 +336,11 @@ def parse_tdep_forceconstant(
         If supplied, route through the kaldo replica-factorized path
         (above). When given, ``supercell``, ``two_dim`` and ``symmetrize``
         are ignored.
+    supercell_grid : SupercellGrid, optional
+        Physical supercell quotient used to classify, but never collapse,
+        the file-provided translations.
+    return_support : bool, optional
+        Return ``(tensor, TranslationSupport)`` in literal-translation mode.
     """
     # Load primitive
     if isinstance(primitive, Atoms):
@@ -316,6 +351,38 @@ def parse_tdep_forceconstant(
         raise RuntimeError("Primitive cell missing")
 
     n_uc = len(uc)
+
+    if supercell_grid is not None:
+        records = []
+        translations = []
+        with open(fc_file) as f:
+            na = int(_readline_or_raise(f, "IFC2 atom count").split()[0])
+            _cutoff = float(_readline_or_raise(f, "IFC2 cutoff").split()[0])
+            if na != n_uc:
+                raise AssertionError(f"IFC2 file n_atoms={na} != primitive n_atoms={n_uc}")
+            for a1 in range(n_uc):
+                n_nbr = int(_readline_or_raise(f, "IFC2 neighbor count").split()[0])
+                for _ in range(n_nbr):
+                    a2 = int(_readline_or_raise(f, "IFC2 atom index").split()[0]) - 1
+                    R = _integer_lattice_vector(
+                        _readline_or_raise(f, "IFC2 lattice vector").split(),
+                        "IFC2 lattice vector",
+                    )
+                    phi = np.array([
+                        _readline_or_raise(f, "IFC2 tensor block").split()
+                        for _ in range(3)
+                    ], dtype=float)
+                    records.append((a1, a2, R, phi))
+                    translations.append(R)
+        support = _file_translation_support(translations, supercell_grid)
+        translation_id = {tuple(R): i for i, R in enumerate(support.translations)}
+        tensor = np.zeros((1, n_uc, 3, support.size, n_uc, 3), dtype=float)
+        # TDEP neighbor lists may repeat a target contribution; those records
+        # are additive, but translations in the same periodic class remain on
+        # distinct support entries.
+        for a1, a2, R, phi in records:
+            tensor[0, a1, :, translation_id[tuple(R)], a2, :] += phi
+        return (tensor, support) if return_support else tensor
 
     if grid is not None:
         # --- kaldo replica-factorized path ---
@@ -602,6 +669,8 @@ def parse_tdep_third_forceconstant(
     primitive: str | Atoms,
     supercell: tuple[int, int, int] | None = None,
     grid: Grid | None = None,
+    supercell_grid: SupercellGrid | None = None,
+    return_support: bool = False,
 ):
     """Parse TDEP third-order force constants.
 
@@ -621,21 +690,83 @@ def parse_tdep_third_forceconstant(
 
     Returns
     -------
-    sparse.COO
-        Shape ``(n_uc, 3, n_rep, n_uc, 3, n_rep, n_uc, 3)``.
+    sparse.COO or tuple
+        Literal mode uses ``n_translation`` on both translation axes and can
+        return its :class:`TranslationSupport`; legacy mode retains ``n_rep``.
     """
-    if (supercell is None) == (grid is None):
+    if supercell_grid is not None:
+        if supercell is not None or grid is not None:
+            raise ValueError("supercell_grid= is mutually exclusive with supercell= and grid=")
+    elif (supercell is None) == (grid is None):
         raise ValueError(
             "parse_tdep_third_forceconstant requires exactly one of"
             " supercell= or grid="
         )
-    if grid is None:
+    if grid is None and supercell_grid is None:
         grid = Grid(supercell, order="C")
     if isinstance(primitive, Atoms):
         uc = primitive
     else:
         uc = ase.io.read(primitive, format="vasp")
     n_uc = len(uc)
+    if supercell_grid is not None:
+        records = []
+        translations = []
+        with open(fc_filename) as f:
+            na = int(_readline_or_raise(f, "IFC3 atom count").split()[0])
+            _cutoff = float(_readline_or_raise(f, "IFC3 cutoff").split()[0])
+            if na != n_uc:
+                raise AssertionError(f"IFC3 file n_atoms={na} != primitive n_atoms={n_uc}")
+            for a1 in range(n_uc):
+                n_trips = int(_readline_or_raise(f, "IFC3 triplet count").split()[0])
+                for _ in range(n_trips):
+                    i1 = int(_readline_or_raise(f, "IFC3 central atom").split()[0]) - 1
+                    a2 = int(_readline_or_raise(f, "IFC3 second atom").split()[0]) - 1
+                    a3 = int(_readline_or_raise(f, "IFC3 third atom").split()[0]) - 1
+                    if i1 != a1:
+                        raise ValueError(f"IFC3 record at outer atom {a1} has central index i1={i1} (expected {a1})")
+                    R1 = _integer_lattice_vector(
+                        _readline_or_raise(f, "IFC3 central lattice vector").split(),
+                        "IFC3 central lattice vector",
+                    )
+                    if np.any(R1):
+                        raise ValueError(f"IFC3 R1 lattice vector must be zero, got {R1}")
+                    R2 = _integer_lattice_vector(
+                        _readline_or_raise(f, "IFC3 lattice vector").split(), "IFC3 R2"
+                    )
+                    R3 = _integer_lattice_vector(
+                        _readline_or_raise(f, "IFC3 lattice vector").split(), "IFC3 R3"
+                    )
+                    flat = np.empty(27)
+                    idx = 0
+                    while idx < 27:
+                        for token in _readline_or_raise(f, "IFC3 tensor block").split():
+                            if idx == 27:
+                                break
+                            flat[idx] = float(token)
+                            idx += 1
+                    records.append((a1, a2, a3, R2, R3, flat.reshape(3, 3, 3)))
+                    translations.extend((R2, R3))
+        support = _file_translation_support(translations, supercell_grid)
+        translation_id = {tuple(R): i for i, R in enumerate(support.translations)}
+        shape = (n_uc, 3, support.size, n_uc, 3, support.size, n_uc, 3)
+        coordinates = []
+        values = []
+        for a1, a2, a3, R2, R3, phi in records:
+            r2 = translation_id[tuple(R2)]
+            r3 = translation_id[tuple(R3)]
+            for alpha, beta, gamma in zip(*np.nonzero(phi)):
+                coordinates.append((a1, alpha, r2, a2, beta, r3, a3, gamma))
+                values.append(phi[alpha, beta, gamma])
+        if coordinates:
+            tensor = COO(
+                np.asarray(coordinates, dtype=np.int64).T,
+                np.asarray(values, dtype=float), shape=shape, has_duplicates=True,
+            )
+        else:
+            tensor = COO(np.empty((8, 0), dtype=np.int64), np.empty(0), shape=shape)
+        return (tensor, support) if return_support else tensor
+
     n_rep = grid.grid_size if hasattr(grid, "grid_size") else int(np.prod(grid.grid_shape))
 
     dense = np.zeros(

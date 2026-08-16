@@ -214,27 +214,32 @@ class ThirdOrder(ForceConstant):
                     attach_snf_metadata,
                     resolve_tdep_supercell,
                 )
+                from kaldo.grid import SupercellGrid
 
                 uc, sc, diagonal_supercell = resolve_tdep_supercell(folder, supercell, supercell_matrix)
                 fc_filename = os.path.join(folder, 'infile.forceconstant_thirdorder')
 
+                matrix = np.rint(np.asarray(sc.cell) @ np.linalg.inv(np.asarray(uc.cell))).astype(int)
+                physical_grid = SupercellGrid(matrix, order="C")
+                third_ifcs, support = parse_tdep_third_forceconstant(
+                    fc_filename=fc_filename, primitive=uc,
+                    supercell_grid=physical_grid, return_support=True,
+                )
                 if diagonal_supercell is None:
                     kw = build_nondiag_observable_kwargs(uc, sc)
                     mapping = kw.pop("_mapping")
-                    third_ifcs = parse_tdep_third_forceconstant(fc_filename=fc_filename, primitive=uc,
-                                                                grid=kw["grid"])
-                    third_order = cls(value=third_ifcs, folder=folder, **kw)
+                    third_order = cls(
+                        value=third_ifcs, folder=folder,
+                        translation_support=support, **kw
+                    )
                     return attach_snf_metadata(third_order, mapping)
 
                 supercell = diagonal_supercell
-                third_ifcs = parse_tdep_third_forceconstant(fc_filename=fc_filename, primitive=uc,
-                                                            supercell=supercell)
-
-                third_order = cls(atoms=uc,
-                                  replicated_positions=sc.positions,
-                                  supercell=supercell,
-                                  value=third_ifcs,
-                                  folder=folder)
+                third_order = cls.from_supercell(
+                    atoms=uc, supercell=supercell, grid_type="C",
+                    value=third_ifcs, folder=folder,
+                    translation_support=support,
+                )
 
             case 'gpumd':
                 from kaldo.interfaces import gpumd_io
