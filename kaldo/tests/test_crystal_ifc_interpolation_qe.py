@@ -39,3 +39,26 @@ def test_unfolding_dispersion(phonons):
     ).frequency
     frequency_actual = frequency_actual.flatten()  # HWQ outputs a 2d array
     np.testing.assert_array_almost_equal(frequency_expected, frequency_actual, decimal=2)
+
+
+def test_zero_born_charge_q2r_auto_uses_qe_periodic_convention(phonons):
+    """A present but zero Z* block is nonpolar and must not select NAC/WS.
+
+    QE q2r files may contain the dielectric/Born section even when every Born
+    tensor is zero.  Section presence is therefore not sufficient evidence of
+    a polar long-range term; the ordinary q2r body must retain the direct
+    periodic transform validated against ``matdyn.x``.
+    """
+    second = phonons.forceconstants.second
+
+    assert "charges" in second.atoms.arrays
+    np.testing.assert_allclose(second.atoms.arrays["charges"], 0.0, atol=0.0)
+    assert second.ifc_interpolation_hint == "periodic"
+    harmonic = HarmonicWithQ(
+        q_point=np.array([0.3, 0.0, 0.3]),
+        second=second,
+        ifc_interpolation="auto",
+        storage="memory",
+    )
+    assert harmonic.is_nac is False
+    assert harmonic.ifc_interpolation_resolved == "periodic"

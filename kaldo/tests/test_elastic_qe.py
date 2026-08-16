@@ -17,14 +17,16 @@ def forceconstants():
 
 def test_c11(forceconstants):
     cijkl = forceconstants.elastic_prop()
-    np.testing.assert_approx_equal(cijkl[0, 0, 0, 0], 227.5, significant=3)
+    # This nonpolar q2r fixture retains QE's direct-periodic convention; the
+    # q->0 moments must therefore preserve its existing matdyn-compatible result.
+    np.testing.assert_allclose(cijkl[0, 0, 0, 0], 227.509722, rtol=5e-4, atol=0.0)
 
 
 def test_c12(forceconstants):
     cijkl = forceconstants.elastic_prop()
-    np.testing.assert_approx_equal(cijkl[0, 0, 1, 1], 51.71, significant=3)
+    np.testing.assert_allclose(cijkl[0, 0, 1, 1], 51.710100, rtol=5e-4, atol=0.0)
 
 
 def test_c44(forceconstants):
     cijkl = forceconstants.elastic_prop()
-    np.testing.assert_approx_equal(cijkl[1, 2, 1, 2], 74.49, significant=3)
+    np.testing.assert_allclose(cijkl[1, 2, 1, 2], 74.494384, rtol=5e-4, atol=0.0)

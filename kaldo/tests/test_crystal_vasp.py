@@ -49,18 +49,20 @@ def test_qhgk_conductivity(phonons):
     cond = Conductivity(phonons=phonons, method="qhgk", storage="memory",
                         diffusivity_bandwidth=1.0).conductivity.sum(axis=0)
     cond = np.abs(np.mean(cond.diagonal()))
-    np.testing.assert_allclose(cond, 1.693686, rtol=5e-3, atol=0.0)
+    # Auto now uses pair-aware Wigner--Seitz IFC2/IFC3 interpolation.  The
+    # previous goldens used one periodic representative for every atom pair.
+    np.testing.assert_allclose(cond, 1.615985, rtol=5e-3, atol=0.0)
 
 
 def test_rta_conductivity(phonons):
     cond = np.abs(
         np.mean(Conductivity(phonons=phonons, method="rta", storage="memory").conductivity.sum(axis=0).diagonal())
     )
-    np.testing.assert_allclose(cond, 16.406325, rtol=5e-3, atol=0.0)
+    np.testing.assert_allclose(cond, 12.840515, rtol=5e-3, atol=0.0)
 
 
 def test_inverse_conductivity(phonons):
     cond = np.abs(
         np.mean(Conductivity(phonons=phonons, method="inverse", storage="memory").conductivity.sum(axis=0).diagonal())
     )
-    np.testing.assert_allclose(cond, 16.576349, rtol=5e-3, atol=0.0)
+    np.testing.assert_allclose(cond, 12.895325, rtol=5e-3, atol=0.0)

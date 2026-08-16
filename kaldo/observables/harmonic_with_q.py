@@ -678,7 +678,10 @@ class HarmonicWithQ(Observable, Storable):
             )
             if key not in cache:
                 cache[key] = _HarmonicIFCInterpolation.build(
-                    self.second, self.ifc_interpolation_resolved
+                    # Pass the public request, not its internal resolution:
+                    # ``file`` is provenance used by the plan builder, not a
+                    # user-selectable interpolation mode.
+                    self.second, self.ifc_interpolation
                 )
             self._ifc_interpolation_plan = cache[key]
         return self._ifc_interpolation_plan
@@ -696,7 +699,15 @@ class HarmonicWithQ(Observable, Storable):
         _, derivatives = self._get_ifc_interpolation_plan().matrices(
             self.q_point, self.distance_threshold
         )
-        return derivatives[direction]
+        derivative = derivatives[direction]
+        if self.is_amorphous and np.allclose(self.q_point, 0.0):
+            # At Gamma a real IFC has a real Fourier derivative in the
+            # amorphous Allen--Feldman convention.  The interpolation plan
+            # stores complex arrays so it can also represent crystal q points;
+            # discard that identically-zero imaginary storage component before
+            # the real-valued velocity contraction.
+            derivative = derivative.real
+        return derivative
 
     def calculate_sij(self, direction):
         q_point = self.q_point
@@ -718,6 +729,13 @@ class HarmonicWithQ(Observable, Storable):
             dir = ['_x', '_y', '_z']
             log_size(shape, type, name='sij' + dir[direction])
         if self.is_amorphous and (self.q_point == np.array([0, 0, 0])).all():
+            # TensorFlow's Hermitian eigensolver keeps a complex dtype because
+            # the common Fourier container is complex.  In this Gamma-only
+            # amorphous branch both the IFC matrix and its eigenvectors are
+            # physically real; restore that contract before the real-valued
+            # Allen--Feldman flux projection.
+            eigenvects = tf.math.real(eigenvects)
+            dynmat_derivatives = tf.math.real(dynmat_derivatives)
             sij = tf.tensordot(eigenvects, dynmat_derivatives, (0, 1))
             sij = tf.tensordot(eigenvects, sij, (0, 1))
         else:

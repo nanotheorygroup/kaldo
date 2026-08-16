@@ -1,13 +1,16 @@
 from pathlib import Path
 import os
+from types import SimpleNamespace
 
 import h5py
 import numpy as np
 import pytest
 import ase.io
+from ase import Atoms
 from ase import units as ase_units
 
 from kaldo.forceconstants import ForceConstants
+from kaldo.grid import SupercellGrid, TranslationSupport
 from kaldo.interfaces import qe_io
 from kaldo.observables import harmonic_with_q as hwq
 from kaldo.observables.harmonic_with_q import HarmonicWithQ
@@ -23,6 +26,35 @@ from kaldo.controllers.nac import (
 
 def format_tensor_diff(name, label, actual, expected):
     return f"{name} mismatch at {label}"
+
+
+def test_interleaved_fc_maps_c_storage_to_compact_translation_order():
+    """Exact quotient ids must not be confused with Phonopy compact slots."""
+    shape = (2, 3, 4)
+    grid = SupercellGrid(np.diag(shape), order="C")
+    support = TranslationSupport.periodic(grid, order="C")
+    n_replicas = grid.size
+    value = np.zeros((1, 1, 3, n_replicas, 1, 3), dtype=np.float64)
+    for replica_id in range(n_replicas):
+        value[0, 0, :, replica_id, 0, :] = np.eye(3) * (replica_id + 1)
+    second = SimpleNamespace(
+        value=value,
+        atoms=Atoms("Si", positions=[[0.0, 0.0, 0.0]], cell=np.eye(3), pbc=True),
+        supercell_grid=grid,
+        translation_support=support,
+    )
+
+    actual = _build_interleaved_fc(second)[0, :, 0, 0]
+    expected = np.empty(n_replicas, dtype=np.float64)
+    for compact_id in range(n_replicas):
+        compact_translation = np.array(
+            np.unravel_index(compact_id, shape, order="F")
+        )
+        source_translation = np.mod(-compact_translation, shape)
+        source_id = np.ravel_multi_index(source_translation, shape, order="C")
+        expected[compact_id] = source_id + 1
+
+    np.testing.assert_array_equal(actual, expected)
 
 
 def _native_pair_gauge_dynamical_matrix(second_order, q_red):

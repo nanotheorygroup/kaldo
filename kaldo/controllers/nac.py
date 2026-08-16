@@ -977,6 +977,47 @@ def _unique_supercell_translations(supercell_matrix, symprec=1e-8):
     return translations
 
 
+def _ordered_compact_translations(atoms, supercell_matrix, symprec=1e-5):
+    """Return translations in the compact Phonopy/Gonze atom-major order.
+
+    The IFC replica axis keeps its loader-declared C/F storage order, whereas
+    the compact NAC mapping follows Phonopy's translation order.  Keeping this
+    ordering in one helper prevents exact quotient-class lookup from silently
+    being mistaken for a compact-array index.
+    """
+    supercell_matrix = np.asarray(supercell_matrix, dtype=np.int64)
+    diagonal = np.diag(supercell_matrix)
+    if np.all(supercell_matrix == np.diag(diagonal)):
+        max_grid_extent = int(np.max(np.abs(diagonal)))
+        max_basis_denominator = 1
+        for position in atoms.get_scaled_positions(wrap=False):
+            for coordinate in position:
+                fractional_coordinate = coordinate % 1.0
+                if fractional_coordinate > 1e-10:
+                    for denominator in range(1, 64):
+                        rational = round(
+                            fractional_coordinate * denominator
+                        ) / denominator
+                        if abs(rational - fractional_coordinate) < 1e-8:
+                            max_basis_denominator = max(
+                                max_basis_denominator, denominator
+                            )
+                            break
+        sort_factor = max_grid_extent * max_basis_denominator
+
+        def sort_key(item):
+            return _diagonal_supercell_sort_key(item[1], sort_factor)
+
+    else:
+        def sort_key(item):
+            return tuple(np.round(item[1], 10)[::-1])
+
+    return sorted(
+        _unique_supercell_translations(supercell_matrix, symprec=symprec),
+        key=sort_key,
+    )
+
+
 def _phonopy_lattice_points():
     """Return nearby lattice images used in Phonopy shortest-vector searches.
 
@@ -1350,11 +1391,22 @@ def _build_interleaved_fc(second_order):
     for source_id, class_id in enumerate(support.class_ids):
         folded_fc[:, :, class_id, :, :] += native_fc[:, :, source_id, :, :]
 
+    # Build an explicit quotient-class -> compact-slot map.  For a diagonal
+    # supercell the compact order is historically F-like (first lattice index
+    # varies fastest), even when the source IFC axis is C ordered.  A class id
+    # therefore cannot be used directly as a compact-array index.
+    compact_translations = _ordered_compact_translations(
+        second_order.atoms, supercell_grid.matrix
+    )
+    compact_index_by_class = np.empty(n_replicas, dtype=np.int64)
+    for compact_index, (translation, _) in enumerate(compact_translations):
+        compact_index_by_class[supercell_grid.class_id(translation)] = compact_index
+
     # Negate each periodic translation because kALDo labels the cell of the
     # force atom whereas the Gonze/Phonopy transform labels the displaced atom.
     reversed_replica_indices = np.array(
         [
-            supercell_grid.class_id(-translation)
+            compact_index_by_class[supercell_grid.class_id(-translation)]
             for translation in supercell_grid.representatives
         ],
         dtype=int,
@@ -1397,45 +1449,17 @@ def _build_supercell_matrix_mapping(
     the first vector's index.
     """
 
-    # Establish a deterministic translation order. Diagonal cells reproduce
-    # kALDo's historical C-order replica axis; general integer cells use their
-    # fractional coordinates as an order independent of atom enumeration.
+    # Establish the compact translation order independently from the source
+    # IFC replica-axis order.  ``_build_interleaved_fc`` uses the same helper
+    # to map each exact quotient class onto these compact slots.
     supercell_matrix = np.array(supercell_matrix, dtype=int)
     primitive_matrix = np.linalg.inv(supercell_matrix)
     primitive_cell = np.array(atoms.cell.array, dtype=float, copy=True)
     supercell_cell = supercell_matrix @ primitive_cell
     primitive_scaled = atoms.get_scaled_positions(wrap=False)
-    diagonal = np.diag(supercell_matrix)
-    if np.all(supercell_matrix == np.diag(diagonal)):
-        max_grid_extent = int(np.max(np.abs(diagonal)))
-        max_basis_denominator = 1
-        for position in primitive_scaled:
-            for coordinate in position:
-                fractional_coordinate = coordinate % 1.0
-                if fractional_coordinate > 1e-10:
-                    for denominator in range(1, 64):
-                        rational = round(fractional_coordinate * denominator) / denominator
-                        if abs(rational - fractional_coordinate) < 1e-8:
-                            max_basis_denominator = max(max_basis_denominator, denominator)
-                            break
-        sort_factor = max_grid_extent * max_basis_denominator
-
-        def sort_key(position):
-            """Return the historical diagonal-grid replica order."""
-            return _diagonal_supercell_sort_key(position, sort_factor)
-
-    else:
-        # The long-range Gonze kernel depends on a consistent translation
-        # order, not on a diagonal-grid enumeration. Fractional supercell
-        # coordinates provide a deterministic order for a general integer
-        # matrix; callers that combine this mapping with short-range IFCs must
-        # still ensure that their compact-FC replica axis uses the same order.
-        def sort_key(position):
-            """Return a deterministic order for a general integer cell."""
-            return tuple(np.round(position, 10)[::-1])
-
-    translations = _unique_supercell_translations(supercell_matrix, symprec=symprec)
-    translations = sorted(translations, key=lambda item: sort_key(item[1]))
+    translations = _ordered_compact_translations(
+        atoms, supercell_matrix, symprec=symprec
+    )
     n_translation = len(translations)
     n_atom = len(atoms)
 

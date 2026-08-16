@@ -236,6 +236,7 @@ class SecondOrder(ForceConstant, Storable):
         is_acoustic_sum: bool = False,
         folder: str = "kALDo",
         translation_support=None,
+        ifc_interpolation_hint=None,
     ):
         # acoustic sum rule will be applied later in SecondOrder.__init__ if applicable
         ifc = super().from_supercell(
@@ -246,6 +247,7 @@ class SecondOrder(ForceConstant, Storable):
             is_acoustic_sum=is_acoustic_sum,
             folder=folder,
             translation_support=translation_support,
+            ifc_interpolation_hint=ifc_interpolation_hint,
         )
         return ifc
 
@@ -434,12 +436,19 @@ class SecondOrder(ForceConstant, Storable):
                     supercell=supercell,
                     value=_second_order[np.newaxis, ...],
                     # Nonpolar q2r is validated against matdyn.x's direct
-                    # periodic transform. Polar q2r deliberately has no hint:
-                    # its subtracted body and restoration use matched WS/NAC.
+                    # periodic transform.  Inspect the tensor values, not only
+                    # the q2r section flag: some files carry a syntactically
+                    # present but identically-zero Born-charge block.  Polar
+                    # q2r deliberately has no hint because its subtracted body
+                    # and long-range restoration use matched WS/NAC geometry.
                     is_acoustic_sum=True,
                     ifc_interpolation_hint=(
                         "periodic"
-                        if qe_header is not None and not qe_header.has_zstar
+                        if qe_header is not None
+                        and (
+                            charges is None
+                            or not np.any(np.abs(charges[1:]) > 1.0e-8)
+                        )
                         else None
                     ),
                     folder=folder,
