@@ -1,3 +1,6 @@
+from dataclasses import dataclass
+
+from kaldo.grid import TranslationSupport, WignerSeitzImages
 from kaldo.observables.forceconstant import ForceConstant
 from ase import Atoms
 import os
@@ -21,6 +24,69 @@ REPLICATED_ATOMS_FILE = 'replicated_atoms.xyz'
 THIRD_ORDER_FILE_SPARSE = 'third.npz'
 THIRD_ORDER_FILE = 'third.npy'
 
+_IFC_INTERPOLATION_MODES = ("auto", "wigner-seitz", "periodic")
+
+
+@dataclass(frozen=True)
+class _ThirdOrderIFCInterpolation:
+    """Immutable result of compiling IFC3 onto a translation support.
+
+    ``value`` follows ``(i,a,Rj,j,b,Rk,k,c)``.  Its two translation axes
+    refer to the same ``support``.  Wigner--Seitz compilation changes only
+    those integer translations and partitions tied images by their geometric
+    weights; it does not add basis offsets to kALDo's Fourier phase gauge.
+    """
+
+    value: object
+    support: TranslationSupport
+    resolved_mode: str
+
+
+def _as_coo(value):
+    """Return a pydata/sparse COO without densifying an existing sparse IFC."""
+    if isinstance(value, COO):
+        return value
+    return COO.from_numpy(np.asarray(value))
+
+
+def _rank8_ifc3(value, n_atoms, n_translations):
+    """Normalize legacy flattened IFC3 storage without densifying COO data."""
+    expected = (
+        n_atoms, 3, n_translations, n_atoms, 3,
+        n_translations, n_atoms, 3,
+    )
+    if getattr(value, "ndim", None) == 8:
+        if value.shape != expected:
+            raise ValueError(
+                f"third-order IFC shape {value.shape} does not match {expected}"
+            )
+        return value
+    flattened = (
+        n_atoms * 3,
+        n_translations * n_atoms * 3,
+        n_translations * n_atoms * 3,
+    )
+    if getattr(value, "ndim", None) == 3 and value.shape == flattened:
+        return value.reshape(expected)
+    raise ValueError(
+        "third-order IFC value must have rank 8, or the legacy flattened "
+        f"shape {flattened}"
+    )
+
+
+def _coalesced_coo(coords, data, shape, dtype):
+    """Build a deterministic COO and sum entries mapped to the same slot."""
+    if data:
+        return COO(
+            np.asarray(coords, dtype=np.int64).T,
+            np.asarray(data, dtype=dtype),
+            shape=shape,
+            has_duplicates=True,
+            sorted=False,
+        )
+    return COO(np.empty((len(shape), 0), dtype=np.int64),
+               np.empty(0, dtype=dtype), shape=shape)
+
 
 def detect_path(files: list[str], folder: str = ""):
     """return the path and the filename of the first existed file in the ``files`` list in ``folder``.
@@ -35,6 +101,150 @@ def detect_path(files: list[str], folder: str = ""):
 
 
 class ThirdOrder(ForceConstant):
+
+    def get_interpolation(self, mode="auto"):
+        """Compile IFC3 for the requested real-space interpolation rule.
+
+        ``auto`` preserves literal file-provided translations and otherwise
+        selects pair-dependent Wigner--Seitz interpolation.  ``periodic`` and
+        ``wigner-seitz`` are explicit overrides: both first fold every source
+        translation into its exact supercell quotient class.  The latter then
+        distributes each ``(i,j)`` and ``(i,k)`` pair independently over all
+        tied shortest images, with the Cartesian-product weight.
+
+        Sparse input remains sparse throughout compilation.  The returned
+        object is cached per requested mode and source identity.
+        """
+        if mode not in _IFC_INTERPOLATION_MODES:
+            raise ValueError(
+                f"ifc_interpolation={mode!r} is invalid; choose one of "
+                f"{_IFC_INTERPOLATION_MODES}"
+            )
+        support = self.translation_support
+        source_value = self.value
+        if source_value is None:
+            raise ValueError("third-order IFC value is not available")
+        value = _rank8_ifc3(source_value, len(self.atoms), support.size)
+
+        cache_key = (mode, id(source_value), support.digest)
+        cache = getattr(self, "_interpolation_cache", None)
+        if cache is None:
+            cache = {}
+            self._interpolation_cache = cache
+        if cache_key in cache:
+            return cache[cache_key]
+
+        if mode == "auto" and support.provenance == "file":
+            result = _ThirdOrderIFCInterpolation(value, support, "file")
+        else:
+            resolved = "wigner-seitz" if mode == "auto" else mode
+            if support.provenance == "file" and mode != "auto":
+                logging.warning(
+                    "ifc_interpolation=%r folds %d file-provided IFC3 "
+                    "translations into %d periodic classes by explicit "
+                    "user request.",
+                    mode, support.size, support.supercell.size,
+                )
+            folded, periodic_support = self._fold_periodic_classes(value, support)
+            if resolved == "periodic":
+                result = _ThirdOrderIFCInterpolation(
+                    folded, periodic_support, resolved
+                )
+            else:
+                compiled, compiled_support = self._compile_wigner_seitz(
+                    folded, periodic_support
+                )
+                result = _ThirdOrderIFCInterpolation(
+                    compiled, compiled_support, resolved
+                )
+        cache[cache_key] = result
+        return result
+
+    @staticmethod
+    def _fold_periodic_classes(value, support):
+        """Coalesce both IFC3 translation axes into exact quotient classes."""
+        source = _as_coo(value)
+        coords = np.array(source.coords, dtype=np.int64, copy=True)
+        coords[2] = support.class_ids[coords[2]]
+        coords[5] = support.class_ids[coords[5]]
+        shape = list(source.shape)
+        shape[2] = shape[5] = support.supercell.size
+        folded = COO(
+            coords, np.asarray(source.data), shape=tuple(shape),
+            has_duplicates=True, sorted=False,
+        )
+        periodic_support = TranslationSupport.periodic(
+            support.supercell, order=support.supercell.order
+        )
+        return folded, periodic_support
+
+    def _compile_wigner_seitz(self, folded, support):
+        """Partition each nonzero IFC3 block over pair-shortest images."""
+        images = WignerSeitzImages.build(
+            support, np.asarray(self.atoms.positions), np.asarray(self.atoms.cell)
+        )
+
+        # A shared, sorted axis is required because Rj and Rk occupy axes of
+        # one tensor.  Build it from precisely the images used by nonzero IFCs.
+        translations = set()
+        for coord in folded.coords.T:
+            i, source_j, j, source_k, k = (
+                int(coord[0]), int(coord[2]), int(coord[3]),
+                int(coord[5]), int(coord[6]),
+            )
+            translations.update(
+                tuple(int(x) for x in r)
+                for r in images.translations[source_j][i][j]
+            )
+            translations.update(
+                tuple(int(x) for x in r)
+                for r in images.translations[source_k][i][k]
+            )
+        if not translations:
+            translations.update(tuple(int(x) for x in r)
+                                for r in support.translations)
+        ordered = np.asarray(sorted(translations), dtype=np.int64)
+        compiled_support = TranslationSupport(
+            ordered, support.supercell, provenance="wigner-seitz"
+        )
+        translation_ids = {tuple(r): index for index, r in enumerate(ordered)}
+
+        output_coords, output_data = [], []
+        for coord, datum in zip(folded.coords.T, folded.data):
+            i, source_j, j, source_k, k = (
+                int(coord[0]), int(coord[2]), int(coord[3]),
+                int(coord[5]), int(coord[6]),
+            )
+            trans_j = images.translations[source_j][i][j]
+            weights_j = images.weights[source_j][i][j]
+            trans_k = images.translations[source_k][i][k]
+            weights_k = images.weights[source_k][i][k]
+            if not np.isclose(np.sum(weights_j), 1.0, rtol=0, atol=1e-14):
+                raise ValueError(
+                    "Wigner-Seitz weights for the (i,j) pair do not sum to one"
+                )
+            if not np.isclose(np.sum(weights_k), 1.0, rtol=0, atol=1e-14):
+                raise ValueError(
+                    "Wigner-Seitz weights for the (i,k) pair do not sum to one"
+                )
+            for rj, weight_j in zip(trans_j, weights_j):
+                for rk, weight_k in zip(trans_k, weights_k):
+                    target = np.array(coord, dtype=np.int64, copy=True)
+                    target[2] = translation_ids[tuple(rj)]
+                    target[5] = translation_ids[tuple(rk)]
+                    output_coords.append(target)
+                    output_data.append(datum * weight_j * weight_k)
+
+        shape = list(folded.shape)
+        shape[2] = shape[5] = compiled_support.size
+        compiled = _coalesced_coo(
+            output_coords, output_data, tuple(shape), folded.dtype
+        )
+        if not np.allclose(
+            np.sum(compiled.data), np.sum(folded.data), rtol=1e-13, atol=1e-13
+        ):
+            raise ValueError("Wigner-Seitz IFC3 compilation did not conserve total weight")
+        return compiled, compiled_support
 
     @classmethod
     def load(cls,

@@ -1,0 +1,158 @@
+"""Scientific contracts for provenance-aware third-order IFC interpolation."""
+
+import numpy as np
+from ase import Atoms
+from sparse import COO
+
+from kaldo.grid import SupercellGrid, TranslationSupport
+from kaldo.observables.thirdorder import ThirdOrder
+
+
+def _third(value, support, positions=((0.0, 0.0, 0.0),)):
+    atoms = Atoms("H" * len(positions), positions=positions, cell=np.eye(3), pbc=True)
+    replicated = (
+        support.supercell.representatives[:, None, :] @ np.asarray(atoms.cell)
+        + np.asarray(atoms.positions)[None, :, :]
+    )
+    return ThirdOrder(
+        atoms=atoms,
+        replicated_positions=replicated,
+        supercell=tuple(np.diag(support.supercell.matrix)),
+        folder="",
+        value=value,
+        supercell_grid=support.supercell,
+        translation_support=support,
+    )
+
+
+def _single_entry(shape, translation_j, translation_k, datum=1.0):
+    coord = np.array([[0], [0], [translation_j], [0], [0],
+                      [translation_k], [0], [0]])
+    return COO(coord, np.array([datum]), shape=shape)
+
+
+def _fourier_value(interpolation, qj, qk):
+    phases_j = interpolation.support.phases(qj)[0]
+    phases_k = interpolation.support.phases(qk)[0]
+    dense = interpolation.value.todense()
+    return np.einsum("r,s,iarjbskc->", phases_j, phases_k, dense)
+
+
+def test_wigner_seitz_ties_form_cartesian_product_with_conserved_weights():
+    grid = SupercellGrid(np.diag([2, 1, 1]))
+    support = TranslationSupport.periodic(grid)
+    shape = (1, 3, 2, 1, 3, 2, 1, 3)
+    third = _third(_single_entry(shape, 1, 1), support)
+
+    result = third.get_interpolation("wigner-seitz")
+
+    np.testing.assert_array_equal(
+        result.support.translations, [[-1, 0, 0], [1, 0, 0]]
+    )
+    nonzero = result.value.data
+    assert len(nonzero) == 4
+    np.testing.assert_allclose(nonzero, np.full(4, 0.25), rtol=0, atol=1e-15)
+    np.testing.assert_allclose(nonzero.sum(), 1.0, rtol=0, atol=1e-15)
+
+
+def test_dense_and_sparse_inputs_compile_identically():
+    grid = SupercellGrid(np.diag([2, 1, 1]))
+    support = TranslationSupport.periodic(grid)
+    shape = (1, 3, 2, 1, 3, 2, 1, 3)
+    sparse_value = _single_entry(shape, 1, 1, datum=2.5)
+    dense_value = sparse_value.todense()
+
+    sparse_result = _third(sparse_value, support).get_interpolation("wigner-seitz")
+    dense_result = _third(dense_value, support).get_interpolation("wigner-seitz")
+
+    np.testing.assert_array_equal(
+        sparse_result.support.translations, dense_result.support.translations
+    )
+    np.testing.assert_allclose(
+        sparse_result.value.todense(), dense_result.value.todense(), rtol=0, atol=0
+    )
+
+
+def test_legacy_rank3_sparse_storage_is_normalized_without_densifying():
+    grid = SupercellGrid(np.diag([2, 1, 1]))
+    support = TranslationSupport.periodic(grid)
+    rank8_shape = (1, 3, 2, 1, 3, 2, 1, 3)
+    rank3 = _single_entry(rank8_shape, 1, 1, datum=2.0).reshape((3, 6, 6))
+    third = _third(rank3, support)
+
+    periodic = third.get_interpolation("periodic")
+    wigner_seitz = third.get_interpolation("wigner-seitz")
+
+    assert isinstance(periodic.value, COO)
+    assert isinstance(wigner_seitz.value, COO)
+    assert periodic.value.shape == rank8_shape
+    assert wigner_seitz.value.ndim == 8
+    np.testing.assert_allclose(wigner_seitz.value.data.sum(), 2.0, rtol=0, atol=1e-15)
+
+
+def test_wigner_seitz_and_periodic_gauges_agree_at_commensurate_q():
+    grid = SupercellGrid(np.diag([2, 1, 1]))
+    support = TranslationSupport.periodic(grid)
+    shape = (1, 3, 2, 1, 3, 2, 1, 3)
+    third = _third(_single_entry(shape, 1, 1, datum=3.0), support)
+    periodic = third.get_interpolation("periodic")
+    wigner_seitz = third.get_interpolation("wigner-seitz")
+
+    for qj, qk in (([0, 0, 0], [0, 0, 0]),
+                   ([0.5, 0, 0], [0, 0, 0]),
+                   ([0.5, 0, 0], [0.5, 0, 0])):
+        np.testing.assert_allclose(
+            _fourier_value(wigner_seitz, qj, qk),
+            _fourier_value(periodic, qj, qk),
+            rtol=0, atol=1e-14,
+        )
+
+
+def test_file_auto_preserves_literal_value_and_translation_support():
+    grid = SupercellGrid(np.diag([2, 1, 1]))
+    support = TranslationSupport([[0, 0, 0], [2, 0, 0]], grid, provenance="file")
+    shape = (1, 3, 2, 1, 3, 2, 1, 3)
+    value = _single_entry(shape, 1, 0)
+    third = _third(value, support)
+
+    result = third.get_interpolation("auto")
+
+    assert result.resolved_mode == "file"
+    assert result.value is value
+    assert result.support is support
+    assert third.get_interpolation("auto") is result
+
+
+def test_explicit_periodic_override_folds_file_translations():
+    grid = SupercellGrid(np.diag([2, 1, 1]))
+    support = TranslationSupport([[0, 0, 0], [2, 0, 0]], grid, provenance="file")
+    shape = (1, 3, 2, 1, 3, 2, 1, 3)
+    coords = np.array([
+        [0, 0], [0, 0], [0, 1], [0, 0], [0, 0], [0, 1], [0, 0], [0, 0]
+    ])
+    value = COO(coords, np.array([1.0, 2.0]), shape=shape)
+    third = _third(value, support)
+
+    periodic = third.get_interpolation("periodic")
+    wigner_seitz = third.get_interpolation("wigner-seitz")
+
+    assert periodic.resolved_mode == "periodic"
+    assert periodic.support.provenance == "periodic"
+    assert periodic.support.size == 2
+    np.testing.assert_allclose(periodic.value.data.sum(), 3.0, rtol=0, atol=0)
+    assert wigner_seitz.resolved_mode == "wigner-seitz"
+    np.testing.assert_allclose(wigner_seitz.value.data.sum(), 3.0, rtol=0, atol=1e-15)
+
+
+def test_invalid_mode_and_mismatched_axes_are_rejected():
+    grid = SupercellGrid(np.diag([2, 1, 1]))
+    support = TranslationSupport.periodic(grid)
+    value = np.zeros((1, 3, 2, 1, 3, 2, 1, 3))
+    third = _third(value, support)
+
+    try:
+        third.get_interpolation("unfolded")
+    except ValueError as error:
+        assert "ifc_interpolation" in str(error)
+    else:
+        raise AssertionError("invalid interpolation mode was accepted")
