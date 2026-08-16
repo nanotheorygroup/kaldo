@@ -204,3 +204,42 @@ def test_pair_gauge_tracks_independent_basis_images_in_skew_cell():
         rtol=2e-14,
         atol=2e-14,
     )
+
+
+def test_wigner_seitz_fc3_magnitude_is_invariant_to_wrapped_origin_shift():
+    """Moving the cell origin cannot change an IFC3 Fourier magnitude.
+
+    A rigid translation followed by wrapping may move different basis atoms
+    through different cell faces.  Their stored coordinates then differ by
+    independent lattice vectors, but this is only an eigenvector/Fourier gauge
+    change—not a change in the crystal or its scattering strength.
+    """
+    cell = np.array([[3.0, 0.0, 0.0], [1.4, 2.7, 0.0], [0.2, 0.1, 4.1]])
+    scaled = np.array([
+        [0.05, 0.08, 0.11],
+        [0.42, 0.31, 0.17],
+        [0.19, 0.73, 0.29],
+    ])
+    origin_shift = np.array([0.73, 0.41, 0.67])
+    wrapped = np.mod(scaled + origin_shift, 1.0)
+    grid = SupercellGrid(np.eye(3, dtype=int))
+    support = TranslationSupport.periodic(grid)
+    shape = (3, 3, 1, 3, 3, 1, 3, 3)
+    coordinate = np.array([[0], [1], [0], [1], [2], [0], [2], [0]])
+    value = COO(coordinate, np.array([2.75]), shape=shape)
+
+    reference = _third(value, support, scaled @ cell, cell).get_interpolation(
+        "wigner-seitz"
+    )
+    translated = _third(value, support, wrapped @ cell, cell).get_interpolation(
+        "wigner-seitz"
+    )
+    qj = np.array([0.13, 0.27, 0.19])
+    qk = np.array([0.21, -0.16, 0.07])
+
+    np.testing.assert_allclose(
+        np.abs(_fourier_value(translated, qj, qk)),
+        np.abs(_fourier_value(reference, qj, qk)),
+        rtol=2e-14,
+        atol=2e-14,
+    )
