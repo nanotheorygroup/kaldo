@@ -58,10 +58,10 @@ FORMAT_CASES = (
         (5, 5, 5),
         (3, 3, 3),
         "wigner-seitz",
-        "wigner-seitz",
+        "file",
     ),
     _FormatCase(
-        "qe-sheng", "si-crystal/qe", (3, 3, 3), (3, 3, 3), "periodic", "wigner-seitz"
+        "qe-sheng", "si-crystal/qe", (3, 3, 3), (3, 3, 3), "wigner-seitz", "file"
     ),
     _FormatCase(
         "vasp-d3q",
@@ -72,7 +72,7 @@ FORMAT_CASES = (
         "periodic",
     ),
     _FormatCase(
-        "qe-d3q", "ge-crystal/d3q", (5, 5, 5), (3, 3, 3), "periodic", "periodic"
+        "qe-d3q", "ge-crystal/d3q", (5, 5, 5), (3, 3, 3), "wigner-seitz", "periodic"
     ),
     _FormatCase(
         "hiphive",
@@ -212,9 +212,7 @@ def _pair_translation_slots(
             for atom_j in range(n_atoms):
                 slots[source_id, atom_i, atom_j] = _translation_slot(
                     target_support,
-                    translation
-                    + face_offsets[atom_j]
-                    - face_offsets[atom_i],
+                    translation + face_offsets[atom_j] - face_offsets[atom_i],
                 )
     return slots
 
@@ -281,12 +279,6 @@ def _regauge_third(third, face_offsets):
 def _move_origin(forceconstants):
     """Wrap a loaded basis and consistently transform its IFC gauge."""
     crossed_faces = None
-    # QE q2r defines the harmonic eigenvector gauge with the stored lattice
-    # translation alone.  Mixed qe-sheng data must keep IFC3 in that same
-    # gauge; other routes relabel both IFC orders together.  In particular,
-    # vasp-d3q has a generic harmonic body even though its IFC3 source retains
-    # d3q's direct periodic interpolation rule.
-    native_direct_gauge = forceconstants.second.ifc_interpolation_hint == "periodic"
     for observable in (forceconstants.second, forceconstants.third):
         scaled = observable.atoms.get_scaled_positions(wrap=False)
         shifted = scaled + ORIGIN_SHIFT
@@ -294,19 +286,9 @@ def _move_origin(forceconstants):
         if crossed_faces is None:
             crossed_faces = face_offsets
         if observable is forceconstants.second:
-            if not native_direct_gauge:
-                _regauge_second(observable, face_offsets)
+            _regauge_second(observable, face_offsets)
         else:
-            if native_direct_gauge:
-                source = _rank8_ifc3(
-                    observable.value,
-                    len(observable.atoms),
-                    observable.translation_support.size,
-                )
-                source = source if isinstance(source, COO) else COO.from_numpy(source)
-                moved_third_weight = np.sum(np.abs(source.data))
-            else:
-                moved_third_weight = _regauge_third(observable, face_offsets)
+            moved_third_weight = _regauge_third(observable, face_offsets)
         observable.atoms.set_scaled_positions(np.mod(shifted, 1.0))
         observable.replicated_positions = (
             observable.replica_translations[:, np.newaxis, :]

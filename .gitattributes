@@ -9,6 +9,10 @@ kaldo/tests/si-tdep/** -diff -merge
 kaldo/tests/sigma2/** -diff -merge
 kaldo/tests/ge-crystal/** -diff -merge
 
+# Keep generated QE oracle inputs and outputs reviewable as plain text.
+kaldo/tests/si-crystal/qe/matdyn_elastic_reference.in text diff merge
+kaldo/tests/si-crystal/qe/matdyn_elastic_reference.freq text diff merge
+
 # binary file
 *.npz binary
 kaldo/tests/si-crystal/hiphive/model2.fcs binary

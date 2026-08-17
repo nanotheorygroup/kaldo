@@ -17,7 +17,8 @@ def phonons():
         folder="kaldo/tests/si-crystal/vasp",
         supercell=[5, 5, 5],
         third_supercell=[5, 5, 5],
-        format="vasp-sheng")
+        format="vasp-sheng",
+    )
     phonons = Phonons(
         forceconstants=forceconstants,
         kpts=[3, 3, 3],
@@ -28,26 +29,39 @@ def phonons():
     )
     return phonons
 
+
 def test_lagacy_format():
     forceconstants = ForceConstants.from_folder(
         folder="kaldo/tests/si-crystal/vasp",
         supercell=[5, 5, 5],
         third_supercell=[5, 5, 5],
-        format="vasp-sheng")
-    
+        format="vasp-sheng",
+    )
+
     forceconstants2 = ForceConstants.from_folder(
         folder="kaldo/tests/si-crystal/vasp",
         supercell=[5, 5, 5],
         third_supercell=[5, 5, 5],
-        format="shengbte")
-    
+        format="shengbte",
+    )
+
     np.testing.assert_equal(forceconstants.second.value, forceconstants2.second.value)
-    np.testing.assert_equal(forceconstants.third.value, forceconstants2.third.value)
+    np.testing.assert_equal(
+        forceconstants.third.value.coords, forceconstants2.third.value.coords
+    )
+    np.testing.assert_equal(
+        forceconstants.third.value.data, forceconstants2.third.value.data
+    )
+    np.testing.assert_equal(
+        forceconstants.third.translation_support.translations,
+        forceconstants2.third.translation_support.translations,
+    )
 
 
 def test_qhgk_conductivity(phonons):
-    cond = Conductivity(phonons=phonons, method="qhgk", storage="memory",
-                        diffusivity_bandwidth=1.0).conductivity.sum(axis=0)
+    cond = Conductivity(
+        phonons=phonons, method="qhgk", storage="memory", diffusivity_bandwidth=1.0
+    ).conductivity.sum(axis=0)
     cond = np.abs(np.mean(cond.diagonal()))
     # Auto now uses pair-aware Wigner--Seitz IFC2/IFC3 interpolation.  The
     # previous goldens used one periodic representative for every atom pair.
@@ -56,13 +70,21 @@ def test_qhgk_conductivity(phonons):
 
 def test_rta_conductivity(phonons):
     cond = np.abs(
-        np.mean(Conductivity(phonons=phonons, method="rta", storage="memory").conductivity.sum(axis=0).diagonal())
+        np.mean(
+            Conductivity(phonons=phonons, method="rta", storage="memory")
+            .conductivity.sum(axis=0)
+            .diagonal()
+        )
     )
     np.testing.assert_allclose(cond, 12.840515, rtol=5e-3, atol=0.0)
 
 
 def test_inverse_conductivity(phonons):
     cond = np.abs(
-        np.mean(Conductivity(phonons=phonons, method="inverse", storage="memory").conductivity.sum(axis=0).diagonal())
+        np.mean(
+            Conductivity(phonons=phonons, method="inverse", storage="memory")
+            .conductivity.sum(axis=0)
+            .diagonal()
+        )
     )
     np.testing.assert_allclose(cond, 12.895325, rtol=5e-3, atol=0.0)

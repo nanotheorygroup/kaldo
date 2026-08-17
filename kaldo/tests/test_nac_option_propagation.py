@@ -38,7 +38,32 @@ def nac_phonons(tmp_path):
     return phonons, matrix
 
 
-@pytest.mark.parametrize("property_name", ["heat_capacity", "heat_capacity_2d", "population"])
+def test_q2r_blank_species_label_uses_auxiliary_identity_without_geometry_override():
+    """QE permits blank type labels in q2r; only that identity may be borrowed."""
+    forceconstants = ForceConstants.from_folder(
+        folder="kaldo/tests/nacl_phonopy",
+        supercell=[8, 8, 8],
+        only_second=True,
+        format="shengbte-qe",
+    )
+    second = forceconstants.second
+    header = second._qe_q2r_header
+
+    assert "" in header.symbols
+    assert tuple(second.atoms.get_chemical_symbols()) == ("Na", "Cl")
+    np.testing.assert_allclose(
+        second.atoms.cell,
+        header.cell_rows_bohr * 0.529177210903,
+    )
+    np.testing.assert_allclose(
+        second.atoms.positions,
+        header.positions_rows_bohr * 0.529177210903,
+    )
+
+
+@pytest.mark.parametrize(
+    "property_name", ["heat_capacity", "heat_capacity_2d", "population"]
+)
 def test_temperature_observables_propagate_nac_bvk_matrix(
     nac_phonons, monkeypatch, property_name
 ) -> None:
@@ -48,9 +73,7 @@ def test_temperature_observables_propagate_nac_bvk_matrix(
 
     class FakeHarmonicWithQTemp:
         def __init__(self, **kwargs):
-            observed.append(
-                (kwargs["nac_bvk_supercell_matrix"], kwargs["is_nac"])
-            )
+            observed.append((kwargs["nac_bvk_supercell_matrix"], kwargs["is_nac"]))
             n_modes = len(kwargs["second"].atoms) * 3
             self.heat_capacity = np.ones((1, n_modes))
             self.heat_capacity_2d = np.ones((n_modes, n_modes))

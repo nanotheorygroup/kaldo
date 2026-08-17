@@ -33,21 +33,25 @@ For nonzero irreducible-mode anharmonic rates, the kALDo/ShengBTE ratio spans
 `12.95545 W/(m K)` in kALDo and `12.739 W/(m K)` in ShengBTE, a `1.70%`
 difference on this very coarse mesh.
 
-The QE route exposes a representation distinction rather than a simple FC3
-error. ShengBTE's `phonon_espresso` routine reconstructs pair-specific
-Wigner--Seitz images for q2r IFC2. kALDo's current automatic nonpolar-q2r path
-uses the direct periodic representation. Both give the same frequencies on
-the commensurate `3 x 3 x 3` mesh (maximum difference `0.00196 rad/ps`), but
-the automatic kALDo velocity norms differ from ShengBTE by as much as
-`30.92 angstrom/ps`. An explicit kALDo Wigner--Seitz override reduces that to
-`0.193 angstrom/ps` and moves the median anharmonic-rate ratio from `1.150` to
-`1.0013`.
+The QE route is the regression for q2r interpolation. ShengBTE's
+`phonon_espresso` routine and kALDo's automatic q2r route both reconstruct
+pair-specific Wigner--Seitz images; a direct periodic transform is now only an
+explicit diagnostic in kALDo. The comparison compensates for one documented
+input convention: ShengBTE replaces the `28.08 amu` mass stored in the q2r
+file with its `28.0855099896 amu` natural-isotope average. Frequencies and
+velocities are rescaled analytically for that mass difference, so their tight
+tolerances continue to test interpolation rather than atomic-mass policy.
+On the matched adaptive-broadening calculation, the median anharmonic-rate
+ratio is `0.99993` (range `0.8590` to `1.1494`). The coarse-mesh scalar RTA
+conductivities are `0.8130 W/(m K)` in kALDo and `0.9662 W/(m K)` in
+ShengBTE. This larger final difference is reported explicitly rather than
+hidden by the close median mode rate.
 
-That QE result is a ShengBTE-compatibility oracle, not by itself a universal
-QE oracle: QE `matdyn.x` and ShengBTE can choose different off-mesh q2r
-interpolations. The raw data pin what ShengBTE computes and reveal why
-commensurate-frequency-only tests miss velocity and transport defects; they
-do not silently redefine the intended QE API.
+This remains a ShengBTE-compatibility oracle. Independent QE 7.6 off-grid
+frequency and Cartesian-velocity references are retained with the GaN q2r
+tests. Together they reveal why commensurate-frequency-only tests miss phase
+and transport defects without allowing one external program to define every
+input convention.
 
 The external job was Slurm job `5416312`; the convention-matched audit is in
 `agents/compare_shengbte_kaldo.py` and its final log is

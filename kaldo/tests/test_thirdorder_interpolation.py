@@ -27,8 +27,7 @@ def _third(value, support, positions=((0.0, 0.0, 0.0),), cell=None):
 
 
 def _single_entry(shape, translation_j, translation_k, datum=1.0):
-    coord = np.array([[0], [0], [translation_j], [0], [0],
-                      [translation_k], [0], [0]])
+    coord = np.array([[0], [0], [translation_j], [0], [0], [translation_k], [0], [0]])
     return COO(coord, np.array([datum]), shape=shape)
 
 
@@ -47,9 +46,7 @@ def test_wigner_seitz_ties_form_cartesian_product_with_conserved_weights():
 
     result = third.get_interpolation("wigner-seitz")
 
-    np.testing.assert_array_equal(
-        result.support.translations, [[-1, 0, 0], [1, 0, 0]]
-    )
+    np.testing.assert_array_equal(result.support.translations, [[-1, 0, 0], [1, 0, 0]])
     nonzero = result.value.data
     assert len(nonzero) == 4
     np.testing.assert_allclose(nonzero, np.full(4, 0.25), rtol=0, atol=1e-15)
@@ -99,13 +96,16 @@ def test_wigner_seitz_and_periodic_gauges_agree_at_commensurate_q():
     periodic = third.get_interpolation("periodic")
     wigner_seitz = third.get_interpolation("wigner-seitz")
 
-    for qj, qk in (([0, 0, 0], [0, 0, 0]),
-                   ([0.5, 0, 0], [0, 0, 0]),
-                   ([0.5, 0, 0], [0.5, 0, 0])):
+    for qj, qk in (
+        ([0, 0, 0], [0, 0, 0]),
+        ([0.5, 0, 0], [0, 0, 0]),
+        ([0.5, 0, 0], [0.5, 0, 0]),
+    ):
         np.testing.assert_allclose(
             _fourier_value(wigner_seitz, qj, qk),
             _fourier_value(periodic, qj, qk),
-            rtol=0, atol=1e-14,
+            rtol=0,
+            atol=1e-14,
         )
 
 
@@ -128,9 +128,7 @@ def test_explicit_periodic_override_folds_file_translations():
     grid = SupercellGrid(np.diag([2, 1, 1]))
     support = TranslationSupport([[0, 0, 0], [2, 0, 0]], grid, provenance="file")
     shape = (1, 3, 2, 1, 3, 2, 1, 3)
-    coords = np.array([
-        [0, 0], [0, 0], [0, 1], [0, 0], [0, 0], [0, 1], [0, 0], [0, 0]
-    ])
+    coords = np.array([[0, 0], [0, 0], [0, 1], [0, 0], [0, 0], [0, 1], [0, 0], [0, 0]])
     value = COO(coords, np.array([1.0, 2.0]), shape=shape)
     third = _third(value, support)
 
@@ -159,6 +157,80 @@ def test_invalid_mode_and_mismatched_axes_are_rejected():
         raise AssertionError("invalid interpolation mode was accepted")
 
 
+def test_nondiagonal_sparse_ifc3_projection_is_cached_and_remains_sparse():
+    """A skew quotient uses exact phases without constructing a dense IFC3.
+
+    This is deliberately structural rather than a timing assertion: one
+    nonzero source block may fan out only over its tied shortest images, the
+    compiled object is reused, and its Fourier projection agrees with the
+    compact periodic gauge on the supercell-commensurate mesh.
+    """
+    matrix = np.array([[2, 1, 0], [1, 2, 0], [0, 0, 1]], dtype=int)
+    grid = SupercellGrid(matrix)
+    support = TranslationSupport.periodic(grid)
+    n_atoms = 2
+    shape = (
+        n_atoms,
+        3,
+        support.size,
+        n_atoms,
+        3,
+        support.size,
+        n_atoms,
+        3,
+    )
+    coords = np.array([[0], [1], [1], [1], [2], [2], [0], [0]])
+    value = COO(coords, np.array([2.75]), shape=shape)
+    atoms_positions = ((0.0, 0.0, 0.0), (0.41, 0.23, 0.17))
+    atoms = Atoms(
+        "H2",
+        scaled_positions=atoms_positions,
+        cell=np.array([[2.1, 0.0, 0.0], [0.4, 1.8, 0.0], [0.2, 0.3, 2.4]]),
+        pbc=True,
+    )
+    replicated = (
+        support.supercell.representatives[:, None, :] @ np.asarray(atoms.cell)
+        + np.asarray(atoms.positions)[None, :, :]
+    )
+    third = ThirdOrder(
+        atoms=atoms,
+        replicated_positions=replicated,
+        supercell=matrix,
+        folder="",
+        value=value,
+        supercell_grid=grid,
+        translation_support=support,
+    )
+
+    periodic = third.get_interpolation("periodic")
+    wigner_seitz = third.get_interpolation("wigner-seitz")
+    assert third.get_interpolation("wigner-seitz") is wigner_seitz
+    assert isinstance(wigner_seitz.value, COO)
+    assert wigner_seitz.value.nnz < 64
+    np.testing.assert_allclose(
+        wigner_seitz.value.data.sum(), value.data.sum(), rtol=0.0, atol=1e-15
+    )
+    np.testing.assert_array_equal(wigner_seitz.support.supercell.matrix, matrix)
+
+    # M q is integer, hence translations differing by n M have identical
+    # phases and both gauges must give the same IFC3 Fourier projection.
+    qj = np.linalg.solve(matrix, np.array([1.0, 0.0, 0.0]))
+    qk = np.linalg.solve(matrix, np.array([0.0, 1.0, 0.0]))
+    np.testing.assert_allclose(
+        _fourier_value(wigner_seitz, qj, qk),
+        _fourier_value(periodic, qj, qk),
+        rtol=0.0,
+        atol=1e-14,
+    )
+
+    # Replacing the source tensor must invalidate the interpolation plan;
+    # cache identity cannot depend on mode and support alone.
+    third.value = COO(coords, np.array([5.5]), shape=shape)
+    replaced = third.get_interpolation("wigner-seitz")
+    assert replaced is not wigner_seitz
+    np.testing.assert_allclose(replaced.value.data.sum(), 5.5, rtol=0.0, atol=1e-15)
+
+
 def test_pair_gauge_tracks_independent_basis_images_in_skew_cell():
     """Each IFC3 leg must follow the periodic image of its own atom pair.
 
@@ -168,11 +240,13 @@ def test_pair_gauge_tracks_independent_basis_images_in_skew_cell():
     factor, not a change in the physical three-phonon matrix element.
     """
     cell = np.array([[3.0, 0.0, 0.0], [1.5, 2.598, 0.0], [0.2, 0.1, 4.0]])
-    scaled = np.array([
-        [0.05, 0.08, 0.11],
-        [0.42, 0.31, 0.17],
-        [0.19, 0.73, 0.29],
-    ])
+    scaled = np.array(
+        [
+            [0.05, 0.08, 0.11],
+            [0.42, 0.31, 0.17],
+            [0.19, 0.73, 0.29],
+        ]
+    )
     shifts = np.array([[1, 0, 0], [0, -1, 0], [1, 1, 0]], dtype=int)
     grid = SupercellGrid(np.eye(3, dtype=int))
     support = TranslationSupport.periodic(grid)
@@ -192,10 +266,7 @@ def test_pair_gauge_tracks_independent_basis_images_in_skew_cell():
     reference_fourier = _fourier_value(reference, qj, qk)
     translated_fourier = _fourier_value(translated, qj, qk)
     expected_gauge = np.exp(
-        2j * np.pi * (
-            qj @ (shifts[0] - shifts[1])
-            + qk @ (shifts[0] - shifts[2])
-        )
+        2j * np.pi * (qj @ (shifts[0] - shifts[1]) + qk @ (shifts[0] - shifts[2]))
     )
 
     np.testing.assert_allclose(
@@ -215,11 +286,13 @@ def test_wigner_seitz_fc3_magnitude_is_invariant_to_wrapped_origin_shift():
     change—not a change in the crystal or its scattering strength.
     """
     cell = np.array([[3.0, 0.0, 0.0], [1.4, 2.7, 0.0], [0.2, 0.1, 4.1]])
-    scaled = np.array([
-        [0.05, 0.08, 0.11],
-        [0.42, 0.31, 0.17],
-        [0.19, 0.73, 0.29],
-    ])
+    scaled = np.array(
+        [
+            [0.05, 0.08, 0.11],
+            [0.42, 0.31, 0.17],
+            [0.19, 0.73, 0.29],
+        ]
+    )
     origin_shift = np.array([0.73, 0.41, 0.67])
     wrapped = np.mod(scaled + origin_shift, 1.0)
     grid = SupercellGrid(np.eye(3, dtype=int))

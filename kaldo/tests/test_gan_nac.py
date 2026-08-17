@@ -8,17 +8,15 @@ group, a cell matrix that is not symmetric, and dynamical matrices that are
 sensitive to phase-convention errors that centrosymmetric crystals hide.
 
 Born charges and dielectric tensor are the AlmaBTE GaN_wurtzite reference
-values (BORN file, phonopy conventions). Frequency references were generated
-with phonopy 3.5.1 driven through its python API on the same force constants
-(built with _build_interleaved_fc) and the same NAC parameters, with
-nac_q_direction=[1, 0, 0] at Gamma. Tolerances reflect the current
-kALDo--Phonopy parity: the largest error in the pinned spectrum is about
-0.0101 cm^-1.
+values (BORN file, phonopy conventions). Frequency references were regenerated
+with Phonopy 4.3.1 from the authoritative q2r header structure, the same force
+constants (built with _build_interleaved_fc), and the same NAC parameters,
+with nac_q_direction=[1, 0, 0] at Gamma. The former table used the auxiliary
+POSCAR cell, which is not compatible with this q2r file.
 
 The velocity test is referee-free: analytic group velocities must equal
 2 pi times the slope of the code's own dispersion (dOmega/dq in A/ps).
 """
-
 
 import numpy as np
 import pytest
@@ -32,19 +30,78 @@ EPSILON = np.diag([5.5429220, 5.5429220, 5.8492550])
 Z_GA = np.diag([2.5749225, 2.5749225, 2.7477150])
 BORN = np.array([Z_GA, Z_GA, -Z_GA, -Z_GA])
 
-# phonopy 3.5.1 reference frequencies in cm^-1 (sorted), see module docstring
+# Phonopy 4.3.1 reference frequencies in cm^-1 (sorted), see module docstring.
 PHONOPY_REFERENCE = {
-    (0.0, 0.0, 0.0): [0.0000, 0.0000, 0.0000, 136.0944, 136.0944, 321.1559,
-                      506.5159, 529.3052, 536.6172, 536.6172, 659.9031, 707.7290],
-    (0.25, 0.0, 0.0): [101.7275, 109.3716, 165.8556, 204.4387, 220.2518, 290.7157,
-                       525.2281, 538.4809, 561.8045, 601.6669, 648.9626, 689.5510],
-    (0.0, 0.0, 0.25): [58.9540, 58.9540, 121.2431, 128.6243, 128.6243, 296.0839,
-                       529.8501, 529.8501, 535.0679, 535.0679, 665.9864, 691.8471],
-    (1.0 / 3.0, 1.0 / 3.0, 0.0): [198.9089, 201.8256, 209.2423, 241.0535, 271.5586,
-                                  272.2163, 580.0541, 580.8787, 615.6957, 617.6140,
-                                  621.5631, 654.0725],
-    (0.1, 0.1, 0.1): [80.3810, 81.2639, 134.4827, 155.4529, 197.9083, 295.4783,
-                      522.6978, 546.2738, 548.2819, 588.3804, 654.9988, 682.1429],
+    (0.0, 0.0, 0.0): [
+        0.0000,
+        0.0000,
+        0.0000,
+        136.0942,
+        136.0942,
+        321.1559,
+        506.5114,
+        529.3005,
+        536.6121,
+        536.6121,
+        659.8960,
+        703.6240,
+    ],
+    (0.25, 0.0, 0.0): [
+        102.4734,
+        110.6071,
+        169.5169,
+        202.0249,
+        221.1020,
+        290.2783,
+        525.1159,
+        537.1248,
+        562.3188,
+        603.8759,
+        649.4229,
+        687.8067,
+    ],
+    (0.0, 0.0, 0.25): [
+        58.9816,
+        58.9816,
+        121.7420,
+        128.6105,
+        128.6105,
+        296.2644,
+        529.8455,
+        529.8455,
+        535.0629,
+        535.0629,
+        666.0976,
+        692.4640,
+    ],
+    (1.0 / 3.0, 1.0 / 3.0, 0.0): [
+        201.1314,
+        201.1314,
+        208.5703,
+        242.9949,
+        272.1075,
+        272.1075,
+        580.5005,
+        580.5005,
+        616.2490,
+        618.3547,
+        618.3547,
+        654.9974,
+    ],
+    (0.1, 0.1, 0.1): [
+        82.5650,
+        88.3750,
+        149.6019,
+        156.6047,
+        187.2526,
+        297.5914,
+        519.9670,
+        539.0560,
+        550.6623,
+        579.4500,
+        655.0061,
+        692.7624,
+    ],
 }
 
 
@@ -75,8 +132,8 @@ def _nac_frequencies_cm(second, q_point):
 @pytest.mark.parametrize("q_point", list(PHONOPY_REFERENCE))
 def test_nac_frequencies_match_phonopy(gan_second, q_point):
     actual = _nac_frequencies_cm(gan_second, q_point)
-    # The references are printed to 1e-4 cm^-1; the observed worst case is
-    # about 0.0101 cm^-1. Keep a small absolute margin without relative slack.
+    # The references are printed to 1e-4 cm^-1. Keep a small absolute margin
+    # for the printed table without relative slack.
     np.testing.assert_allclose(actual, PHONOPY_REFERENCE[q_point], rtol=0.0, atol=0.02)
 
 
@@ -134,5 +191,9 @@ def test_nac_sij_diagonal_matches_velocity(gan_second):
         diagonal = np.real(np.diag(np.array(sij)))
         # kALDo normalizes the flux operator so that sij_nn = 8 pi^2 nu_n v_n
         # (the same 1/(8 pi^2 nu) scaling the group velocity uses).
-        np.testing.assert_allclose(diagonal / (8 * np.pi ** 2 * frequency),
-                                   velocity[:, axis], rtol=0.0, atol=1e-3)
+        np.testing.assert_allclose(
+            diagonal / (8 * np.pi**2 * frequency),
+            velocity[:, axis],
+            rtol=0.0,
+            atol=1e-3,
+        )
