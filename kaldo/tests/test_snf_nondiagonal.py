@@ -5,39 +5,38 @@ Tests for exact non-diagonal TDEP supercell quotient handling.
 ``SupercellGrid.class_id`` maps TDEP pair/triplet/quartet translations to
 periodic classes without a bounded search.
 
-The reference_si production fixture is non-diagonal (rhombohedral primitive
-+ cubic conventional ssposcar, det M = 108); it is env-var-gated because it
-is too large to vendor. Diagonal-supercell coverage of the same primitives
+The compact Si fixture is non-diagonal (rhombohedral primitive + one cubic
+conventional cell, det M = 4). Diagonal-supercell coverage of the same parser
 lives in test_parse_tdep_unified.py on the vendored si-tdep fixture.
 """
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
 import pytest
 
-# Production-only fixture: large DFT-quality non-diagonal Si IFCs.
-# Set KALDO_TEST_SI_PROD to enable.
-# See kaldo/tests/_paths.py for details on env-var-gated test fixtures.
-from kaldo.tests._paths import SI_PROD
+SI_CONVENTIONAL_DIR = Path(__file__).parent / "data" / "input" / "tdep-si-conventional"
+SI_CONVENTIONAL_MATRIX = np.array([[1, -1, 1], [1, 1, -1], [-1, 1, 1]], dtype=int)
 
 
-@pytest.mark.skipif(not SI_PROD.exists(), reason="non-diagonal Si fixture unavailable")
 def test_build_supercell_replica_mapping_si_nondiagonal():
-    """Si production (rhombo primitive + cubic 3x3x3 conv ssposcar, det M = 108).
+    """Compact Si (rhombohedral primitive + conventional cell, det M = 4).
 
-    The mapping must produce 108 unique replicas and reproduce every sc
+    The mapping must produce four unique replicas and reproduce every sc
     atom position mod the supercell lattice.
     """
     import ase.io
     from kaldo.interfaces.tdep_io import build_supercell_replica_mapping
 
-    uc = ase.io.read(str(SI_PROD / "infile.ucposcar"), format="vasp")
-    sc = ase.io.read(str(SI_PROD / "infile.ssposcar"), format="vasp")
+    uc = ase.io.read(str(SI_CONVENTIONAL_DIR / "infile.ucposcar"), format="vasp")
+    sc = ase.io.read(str(SI_CONVENTIONAL_DIR / "infile.ssposcar"), format="vasp")
     m = build_supercell_replica_mapping(uc, sc)
 
-    assert m["replica_table"].shape == (108, 3)
-    assert m["atom_of_sc"].shape == (216,)
+    np.testing.assert_array_equal(np.rint(m["M"]).astype(int), SI_CONVENTIONAL_MATRIX)
+    assert m["replica_table"].shape == (4, 3)
+    assert m["atom_of_sc"].shape == (8,)
     assert set(np.unique(m["atom_of_sc"]).tolist()) == {0, 1}
     # round-trip check
     uc_pos = np.asarray(uc.positions)
@@ -53,15 +52,14 @@ def test_build_supercell_replica_mapping_si_nondiagonal():
         assert np.max(np.abs(diff_frac)) < 1e-4
 
 
-@pytest.mark.skipif(not SI_PROD.exists(), reason="non-diagonal Si fixture unavailable")
 def test_wrap_lattice_vector_to_replica_si():
     """Arbitrary TDEP lattice vectors map to a unique replica id."""
     import ase.io
     from kaldo.grid import SupercellGrid
     from kaldo.interfaces.tdep_io import build_supercell_replica_mapping
 
-    uc = ase.io.read(str(SI_PROD / "infile.ucposcar"), format="vasp")
-    sc = ase.io.read(str(SI_PROD / "infile.ssposcar"), format="vasp")
+    uc = ase.io.read(str(SI_CONVENTIONAL_DIR / "infile.ucposcar"), format="vasp")
+    sc = ase.io.read(str(SI_CONVENTIONAL_DIR / "infile.ssposcar"), format="vasp")
     m = build_supercell_replica_mapping(uc, sc)
 
     # Origin
@@ -72,7 +70,7 @@ def test_wrap_lattice_vector_to_replica_si():
         idx = grid.class_id(R)
         assert idx >= 0, f"R={R} did not map to a replica"
         # And it's in range
-        assert 0 <= idx < 108
+        assert 0 <= idx < 4
 
 
 def _skewed_primitive():
