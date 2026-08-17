@@ -251,9 +251,10 @@ ForceConstants object and then use the :py:meth:`load` method of the SecondOrder
 needed.
 
 .. hint::
-   If you just want to check harmonic data first, use the "is_harmonic" argument when creating the ForceConstants object
-   to only load the second order IFCs. This can save considerable amounts of time if, for instance, you just need to
-   generate a phonon dispersion along a new path.
+   If you just want to check harmonic data first, use
+   ``ForceConstants.from_folder(..., only_second=True)``. This avoids loading
+   IFC3 and can save considerable time when, for example, generating a phonon
+   dispersion along a new path.
 
 
 .. hint::
@@ -316,10 +317,10 @@ Input Files and Formats
      - model2.fcs
      - model3.fcs
    * - tdep
-     - POSCAR/UCPOSCAR/SSPOSCAR
-     - xyz
-     - second.npy
-     - third.npz
+     - infile.ucposcar + infile.ssposcar
+     - vasp
+     - infile.forceconstant
+     - infile.forceconstant_thirdorder [#f3]_
    * - gpumd
      - gpumd_fc.npz (self-contained)
      - N/A (embedded)
@@ -333,6 +334,19 @@ Input Files and Formats
          look for a "POSCAR" file (ASE format "vasp"). If neither are found, it will raise an error.
 .. [#f2] ASE does not support the shengbte format (CONTROL file). You can create the atoms object manually or
          use the ``kaldo.interfaces.shengbte_io.import_control_file`` method.
+.. [#f3] Pass ``include_fourth=True`` to additionally load
+         ``infile.forceconstant_fourthorder``.
+
+Non-diagonal supercells
+=======================
+
+``supercell`` and ``third_supercell`` accept either diagonal repetition
+triples or integer ``3 x 3`` primitive-to-supercell expansion matrices. For
+TDEP, ``infile.ucposcar`` and ``infile.ssposcar`` define that matrix directly;
+kALDo retains literal translations from the force-constant files rather than
+collapsing them to one representative per periodic class. The optional
+``supercell_matrix`` argument can record an expected TDEP matrix, but the
+structure-derived value remains authoritative and a mismatch is reported.
 
 Polar harmonic inputs
 =====================

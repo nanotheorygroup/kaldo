@@ -84,10 +84,13 @@ tensors from VASP, ShengBTE, numpy, and similar inputs store one representative
 of each periodic supercell class; ``auto`` partitions those blocks over the
 pair-dependent Wigner--Seitz shortest images. Formats such as TDEP can record
 actual lattice translations for individual IFC terms, which ``auto`` retains
-directly. A nonpolar QE q2r body follows the native direct-periodic convention
-validated against ``matdyn.x``. A polar QE q2r body instead remains on the
-matched Wigner--Seitz/NAC path described above. The explicit
-``"wigner-seitz"`` and
+directly. Every QE q2r harmonic body uses the header geometry and
+pair-dependent Wigner--Seitz reconstruction validated against ``matdyn.x``,
+whether or not the optional polar metadata is present. For a polar q2r file,
+those same weights also keep the short-range body consistent with QE's
+long-range restoration. QE d3q IFC3 files are a separate representation:
+their explicit unrecentered cell indices retain d3q's native direct-periodic
+third-order gauge. The explicit ``"wigner-seitz"`` and
 ``"periodic"`` values override this source-aware choice and are never
 silently ignored. ``"periodic"`` is primarily a legacy diagnostic: with
 active NAC it raises an error because the short-range subtraction and

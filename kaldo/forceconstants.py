@@ -43,11 +43,11 @@ class ForceConstants:
     ----------
     atoms: Tabulated xyz files or ASE Atoms object
         The atoms to work on.
-    supercell: tuple[int, int, int], optional
-        Size of supercell given by the number of repetitions (l, m, n) of
-        the small unit cell in each direction.
+    supercell: tuple[int, int, int] or array-like (3, 3), optional
+        Diagonal repetitions ``(l, m, n)`` or an integer expansion matrix
+        whose determinant gives the number of primitive cells.
         Default: (1, 1, 1)
-    third_supercell: tuple[int, int, int], optional
+    third_supercell: tuple[int, int, int] or array-like (3, 3), optional
         Same as supercell, but for the third order force constant matrix.
         If not provided, it's copied from supercell.
         Default: ``self.supercell``
@@ -99,8 +99,8 @@ class ForceConstants:
     def __init__(
         self,
         atoms,
-        supercell: tuple[int, int, int] = (1, 1, 1),
-        third_supercell: tuple[int, int, int] | None = None,
+        supercell: tuple[int, int, int] | np.ndarray = (1, 1, 1),
+        third_supercell: tuple[int, int, int] | np.ndarray | None = None,
         folder: str = MAIN_FOLDER,
         distance_threshold: float | None = None,
         second_order: SecondOrder | None = None,
@@ -178,10 +178,10 @@ class ForceConstants:
     def from_folder(
         cls,
         folder: str,
-        supercell: tuple[int, int, int] = (1, 1, 1),
+        supercell: tuple[int, int, int] | np.ndarray = (1, 1, 1),
         format: str = "numpy",
         third_energy_threshold: float = 0.0,
-        third_supercell: tuple[int, int, int] | None = None,
+        third_supercell: tuple[int, int, int] | np.ndarray | None = None,
         is_acoustic_sum: bool = False,
         only_second: bool = False,
         include_fourth: bool = False,
@@ -212,9 +212,11 @@ class ForceConstants:
         ----------
         folder : str
             Chosen folder to load in system information.
-        supercell : (int, int, int), optional
-            Number of unit cells in each cartesian direction replicated to form the input structure.
-            Default is (1, 1, 1)
+        supercell : (int, int, int) or array-like (3, 3), optional
+            Diagonal repetitions or an integer primitive-to-supercell
+            expansion matrix. For TDEP, the matrix inferred from
+            ``infile.ucposcar`` and ``infile.ssposcar`` is authoritative.
+            Default: (1, 1, 1)
         format : 'numpy', 'eskm', 'lammps', 'vasp-sheng', 'qe-sheng', 'vasp-d3q', 'qe-d3q', 'hiphive', 'tdep', 'gpumd'
             Format of force constant information being loaded into ForceConstants object.
             Default is ``'numpy'``
@@ -225,16 +227,30 @@ class ForceConstants:
         distance_threshold : float, optional
             When calculating force constants, contributions from atoms further than the
             distance threshold will be ignored.
-        third_supercell : (int, int, int), optional
-            Takes in the unit cell for the third order force constant matrix.
-            Default is self.supercell
+        third_supercell : (int, int, int) or array-like (3, 3), optional
+            Supercell topology for the third-order force constants. If not
+            supplied, the resolved second-order topology is used.
+            Default: ``None``
         is_acoustic_sum : Bool, optional
             If true, the acoustic sum rule is applied to the dynamical matrix.
             Default is False
+        only_second : bool, optional
+            Load only harmonic force constants and leave IFC3 unconstructed.
+            Default: False
+        include_fourth : bool, optional
+            Also load ``infile.forceconstant_fourthorder``. Currently valid
+            only for ``format='tdep'`` and ignored when ``only_second=True``.
+            Default: False
         chunk_size : int, optional
             Number of entries to process per chunk when reading sparse third order files.
             Larger values use more memory but may be faster for very large files.
             Default: 100000
+        supercell_matrix : array-like (3, 3), optional
+            Expected integer expansion matrix for TDEP input. The structure
+            files define the authoritative matrix; a mismatch is reported and
+            the inferred matrix is used. Other formats normally express the
+            topology through ``supercell`` and ``third_supercell``.
+            Default: None
 
         Returns
         -------

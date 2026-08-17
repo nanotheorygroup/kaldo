@@ -53,17 +53,38 @@ tests. Together they reveal why commensurate-frequency-only tests miss phase
 and transport defects without allowing one external program to define every
 input convention.
 
-The external job was Slurm job `5416312`; the convention-matched audit is in
-`agents/compare_shengbte_kaldo.py` and its final log is
-`agents/slurm-compare-qe-ws-transport-5416412.out`.
+The exact ShengBTE revision, calculation settings, and SHA-256 hashes of every
+retained input and output are recorded in `manifest.json`. The executable
+comparison is
+[`test_shengbte_external_reference.py`](../../../test_shengbte_external_reference.py),
+which documents the unit, q-point, mass, and broadening conversions applied to
+the raw files.
 
 ## Regeneration
 
-Build ShengBTE as described in `agents/SHENGBTE_GUIDE.md`, allocate the desired
-number of Slurm MPI tasks, and run one case into a new empty directory:
+Obtain and check out the recorded upstream revision:
 
 ```bash
-module load mpi/openmpi-4.1.8
+git clone https://bitbucket.org/sousaw/shengbte.git /path/to/shengbte
+git -C /path/to/shengbte checkout b0d209068239c37fc86d2021efda131ad854f1c1
+```
+
+Build it using ShengBTE's upstream instructions. The retained calculation was
+built with GNU Fortran, OpenMPI 4.1.8, OpenBLAS, and spglib. Its `arch.make`
+selected `mpifort` and used these compiler flags:
+
+```text
+-O3 -fopenmp -fbacktrace -ffree-line-length-none -fallow-argument-mismatch
+```
+
+The resulting executable is normally `/path/to/shengbte/ShengBTE`.
+
+Allocate the desired number of MPI tasks and run each case into a new empty
+directory. The script copies the tracked `CONTROL` and IFC files into that
+directory before starting ShengBTE:
+
+```bash
+export SHENGBTE_BIN=/path/to/shengbte/ShengBTE
 SHENGBTE_MPI_RANKS=2 \
   kaldo/tests/data/input/shengbte-si-reference/run_reference.sh vasp /tmp/si-vasp-shengbte
 SHENGBTE_MPI_RANKS=2 \
