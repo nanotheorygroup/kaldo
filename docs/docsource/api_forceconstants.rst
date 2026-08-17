@@ -346,7 +346,12 @@ TDEP, ``infile.ucposcar`` and ``infile.ssposcar`` define that matrix directly;
 kALDo retains literal translations from the force-constant files rather than
 collapsing them to one representative per periodic class. The optional
 ``supercell_matrix`` argument can record an expected TDEP matrix, but the
-structure-derived value remains authoritative and a mismatch is reported.
+structure-derived value remains authoritative and a mismatch raises an error.
+TDEP is currently the complete non-diagonal route through
+``ForceConstants.from_folder``. Legacy compact IFC2 readers require diagonal
+repetitions; they raise a clear error rather than interpreting a matrix as a
+three-vector. The ShengBTE IFC3 interface itself also accepts an exact matrix
+when used independently.
 
 Polar harmonic inputs
 =====================

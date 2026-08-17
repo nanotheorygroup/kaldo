@@ -10,6 +10,7 @@ The reference_si production fixture is non-diagonal (rhombohedral primitive
 is too large to vendor. Diagonal-supercell coverage of the same primitives
 lives in test_parse_tdep_unified.py on the vendored si-tdep fixture.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -39,7 +40,8 @@ def test_build_supercell_replica_mapping_si_nondiagonal():
     assert m["atom_of_sc"].shape == (216,)
     assert set(np.unique(m["atom_of_sc"]).tolist()) == {0, 1}
     # round-trip check
-    uc_pos = np.asarray(uc.positions); uc_cell = np.asarray(uc.cell)
+    uc_pos = np.asarray(uc.positions)
+    uc_cell = np.asarray(uc.cell)
     sc_cell = np.asarray(sc.cell)
     inv_sc = np.linalg.inv(sc_cell)
     for i in range(len(sc)):
@@ -57,6 +59,7 @@ def test_wrap_lattice_vector_to_replica_si():
     import ase.io
     from kaldo.grid import SupercellGrid
     from kaldo.interfaces.tdep_io import build_supercell_replica_mapping
+
     uc = ase.io.read(str(SI_PROD / "infile.ucposcar"), format="vasp")
     sc = ase.io.read(str(SI_PROD / "infile.ssposcar"), format="vasp")
     m = build_supercell_replica_mapping(uc, sc)
@@ -80,11 +83,11 @@ def _skewed_primitive():
     (M = sc @ uc^-1 for ASE row-vector cells) changes the result.
     """
     from ase import Atoms
-    cell = np.array([[4.0, 0.0, 0.0],
-                     [1.3, 3.8, 0.0],
-                     [0.4, 0.9, 3.5]])
-    return Atoms("Si2", scaled_positions=[[0, 0, 0], [0.27, 0.31, 0.24]],
-                 cell=cell, pbc=True)
+
+    cell = np.array([[4.0, 0.0, 0.0], [1.3, 3.8, 0.0], [0.4, 0.9, 3.5]])
+    return Atoms(
+        "Si2", scaled_positions=[[0, 0, 0], [0.27, 0.31, 0.24]], cell=cell, pbc=True
+    )
 
 
 def test_non_commuting_tiling_recovers_true_m():
@@ -118,8 +121,9 @@ def test_non_commuting_tiling_recovers_true_m():
         R = mapping["replica_vector_of_sc"][i]
         diff = rsc - (prim.positions[j] + R @ uc_cell)
         f = diff @ inv_sc
-        np.testing.assert_allclose(f, np.rint(f), atol=1e-6,
-                                   err_msg=f"sc atom {i} not on the lattice")
+        np.testing.assert_allclose(
+            f, np.rint(f), atol=1e-6, err_msg=f"sc atom {i} not on the lattice"
+        )
 
     # Wrapping any replica shifted by a supercell lattice translation
     # (rows of M0 in the primitive basis) must recover the same replica.
@@ -130,9 +134,9 @@ def test_non_commuting_tiling_recovers_true_m():
         for s in ([1, 0, 0], [0, 1, 0], [-1, 1, -1]):
             R_shifted = R + np.array(s) @ M0
             found = grid.class_id(R_shifted)
-            assert found == expected, (
-                f"replica {R} + {s}@M wrapped to {found}, expected {expected}"
-            )
+            assert (
+                found == expected
+            ), f"replica {R} + {s}@M wrapped to {found}, expected {expected}"
 
 
 def test_anisotropic_diagonal_on_skewed_cell_resolves_diagonal(tmp_path):
@@ -150,3 +154,26 @@ def test_anisotropic_diagonal_on_skewed_cell_resolves_diagonal(tmp_path):
 
     _, _, diagonal_supercell = resolve_tdep_supercell(str(tmp_path))
     assert diagonal_supercell == (3, 2, 1)
+
+
+def test_explicit_tdep_supercell_matrix_is_an_exact_contract(tmp_path):
+    """A supplied TDEP matrix must be integer and match the structure files."""
+    import ase.io
+    from ase.build import make_supercell
+    from kaldo.interfaces.tdep_io import resolve_tdep_supercell
+
+    primitive = _skewed_primitive()
+    matrix = np.array([[2, 1, 0], [0, 2, 0], [0, 0, 2]])
+    supercell = make_supercell(primitive, matrix)
+    ase.io.write(tmp_path / "infile.ucposcar", primitive, format="vasp")
+    ase.io.write(tmp_path / "infile.ssposcar", supercell, format="vasp")
+
+    with pytest.raises(ValueError, match="integer 3x3"):
+        resolve_tdep_supercell(
+            str(tmp_path), supercell_matrix=matrix.astype(float) + 0.25
+        )
+    with pytest.raises(ValueError, match="does not match"):
+        resolve_tdep_supercell(str(tmp_path), supercell_matrix=np.diag([2, 2, 2]))
+
+    _, _, diagonal = resolve_tdep_supercell(str(tmp_path), supercell_matrix=matrix)
+    assert diagonal is None

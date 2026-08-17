@@ -52,9 +52,9 @@ class SecondOrder(ForceConstant, Storable):
         self, value: ArrayLike | None, is_acoustic_sum: bool = False, *kargs, **kwargs
     ):
         """Initialize IFCs and optionally enforce the translational sum rule."""
-        # apply acoustic sum rule before initialize in forceconstnat
-        # (value is None for the empty object used to compute force constants
-        # later; calculate() applies the sum rule itself in that case)
+        # Apply the acoustic sum rule before the base class validates and
+        # stores the tensor. ``value`` is None for an empty finite-difference
+        # object; calculate() applies the rule after generating IFCs instead.
         self.is_acoustic_sum = is_acoustic_sum
         if is_acoustic_sum and value is not None:
             value = acoustic_sum_rule(value)
@@ -62,7 +62,6 @@ class SecondOrder(ForceConstant, Storable):
         super().__init__(value=value, *kargs, **kwargs)
 
         self.n_modes = self.atoms.positions.shape[0] * 3
-        self._list_of_replicas = None  # TODO: why overwrite _list_of_replicas here?
         self._nac_precomputed_cache = {}
         self._nac_short_range_force_constants_cache = {}
         self.storage = "numpy"
@@ -231,13 +230,21 @@ class SecondOrder(ForceConstant, Storable):
         cls,
         atoms: Atoms,
         grid_type: str,
-        supercell: tuple[int, int, int] = None,
+        supercell: tuple[int, int, int] | np.ndarray = None,
         value: ArrayLike | None = None,
         is_acoustic_sum: bool = False,
         folder: str = "kALDo",
         translation_support=None,
         ifc_interpolation_hint=None,
     ):
+        """Construct an IFC2 container on a physical supercell topology.
+
+        ``supercell`` determines periodic equivalence, whereas
+        ``translation_support`` determines the ordered Fourier axis stored by
+        ``value``.  They normally coincide for compact finite-displacement
+        data but deliberately differ for literal file translations and
+        Wigner--Seitz interpolation.
+        """
         # acoustic sum rule will be applied later in SecondOrder.__init__ if applicable
         ifc = super().from_supercell(
             atoms=atoms,
@@ -255,7 +262,7 @@ class SecondOrder(ForceConstant, Storable):
     def load(
         cls,
         folder: str,
-        supercell: tuple[int, int, int] = (1, 1, 1),
+        supercell: tuple[int, int, int] | np.ndarray = (1, 1, 1),
         format: str = "numpy",
         is_acoustic_sum: bool = False,
         supercell_matrix: np.ndarray | None = None,
@@ -269,8 +276,11 @@ class SecondOrder(ForceConstant, Storable):
         ----------
         folder : str
             Specifies where to load the data files.
-        supercell : tuple[int, int, int]
-            The supercell for the third order force constant matrix.
+        supercell : tuple[int, int, int] or ndarray
+            Diagonal repetitions or an integer 3 by 3 supercell matrix for
+            the second-order force constants. Matrix topology is currently
+            supported by the TDEP loader; other file formats require a
+            diagonal three-vector.
             Default: (1, 1, 1)
         format : str
             Format of the second order force constant information being loaded into SecondOrder object.
@@ -279,10 +289,9 @@ class SecondOrder(ForceConstant, Storable):
             If true, the acoustic sum rule is applied to the dynamical matrix.
             Default: False
         supercell_matrix : np.ndarray, optional
-            3x3 integer supercell expansion matrix. Accepted for API symmetry
-            with ``ForceConstants.from_folder``; for ``format='tdep'`` the
-            (possibly non-diagonal) supercell is inferred from
-            ``infile.ucposcar`` / ``infile.ssposcar`` instead.
+            Expected 3x3 integer supercell expansion matrix. For TDEP the
+            structure files remain authoritative, and a supplied matrix must
+            match their inferred (possibly non-diagonal) tiling.
             Default: None
 
         Returns
@@ -290,6 +299,28 @@ class SecondOrder(ForceConstant, Storable):
         second_order : SecondOrder object
             A new instance of the SecondOrder class
         """
+
+        supplied_matrix = np.asarray(supercell)
+        if supplied_matrix.shape == (3, 3) and format != "tdep":
+            diagonal = np.diag(supplied_matrix)
+            if np.array_equal(supplied_matrix, np.diag(diagonal)):
+                # Legacy readers operate on repetition triples. A diagonal
+                # matrix carries exactly the same topology and is losslessly
+                # normalized here; only genuine non-diagonal topology is
+                # unsupported.
+                rounded = np.rint(diagonal)
+                if not np.allclose(diagonal, rounded, rtol=0, atol=1e-12) or np.any(
+                    rounded <= 0
+                ):
+                    raise ValueError(
+                        "diagonal supercell matrix entries must be positive integers"
+                    )
+                supercell = tuple(int(value) for value in rounded)
+            else:
+                raise ValueError(
+                    f"format={format!r} does not encode a non-diagonal IFC2 "
+                    "topology; use format='tdep' or a diagonal supercell"
+                )
 
         match format:
             case "numpy":
@@ -384,8 +415,9 @@ class SecondOrder(ForceConstant, Storable):
                     logging.info("Trying to open POSCAR")
                     atoms = ase.io.read(config_file)
 
-                # Create a finite difference object
-                # TODO: we need to read the grid type here
+                # CONTROL declares only the supercell dimensions. The QE and
+                # VASP readers below each define their replica flattening
+                # order explicitly when the tensor is reshaped.
                 n_replicas = np.prod(supercell)
                 n_unit_atoms = atoms.positions.shape[0]
                 qe_header = None
@@ -564,6 +596,7 @@ class SecondOrder(ForceConstant, Storable):
 
     @property
     def supercell_replicas(self):
+        """Cartesian translations of the physical supercell representatives."""
         try:
             return self._supercell_replicas
         except AttributeError:
@@ -572,6 +605,7 @@ class SecondOrder(ForceConstant, Storable):
 
     @property
     def supercell_positions(self):
+        """Primitive-cell positions replicated over the physical supercell."""
         try:
             return self._supercell_positions
         except AttributeError:
@@ -580,6 +614,7 @@ class SecondOrder(ForceConstant, Storable):
 
     @property
     def dynmat(self):
+        """Mass-rescaled IFC2 tensor on the stored translation support."""
         try:
             return self._dynmat
         except AttributeError:
@@ -797,6 +832,13 @@ class SecondOrder(ForceConstant, Storable):
             pass
 
     def calculate_dynmat(self):
+        """Return mass-rescaled IFC2 in kALDo's dynamical-matrix units.
+
+        The real-space translation axes and storage gauge are unchanged here;
+        interpolation is performed later by :class:`HarmonicWithQ`.  Only the
+        two atom axes are divided by ``sqrt(m_i m_j)`` and the force-constant
+        energy units are converted for the phonon eigensolver.
+        """
         evtotenjovermol = units.mol / (10 * units.J)
         mass = self.atoms.get_masses()
         shape = self.value.shape

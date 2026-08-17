@@ -1,9 +1,12 @@
-"""
-kaldo
-Anharmonic Lattice Dynamics
+"""Three-phonon phase space, IFC3 projection, and collision kernels.
 
-This module contains functions for calculating anharmonic properties of phonons
-in both amorphous and crystalline materials.
+Crystal scattering has two logically separate sums. Reciprocal-grid momentum
+conservation selects allowed mode triplets and a broadened delta approximates
+energy conservation. Independently, each of the two real-space IFC3
+translation axes contributes its Fourier phase. ``sparse_potential_mu`` is the
+boundary where those source-aware phases and the three phonon eigenvectors are
+contracted; the remaining routines form phase space, linewidths, and the
+linearized collision operator from the projected matrix elements.
 """
 
 import numpy as np
@@ -12,7 +15,11 @@ import tensorflow as tf
 from opt_einsum import contract
 from kaldo.helpers.logger import get_logger, log_size
 from kaldo.helpers.tools import timeit
-from kaldo.controllers.dirac_kernel import gaussian_delta, triangular_delta, lorentz_delta
+from kaldo.controllers.dirac_kernel import (
+    gaussian_delta,
+    triangular_delta,
+    lorentz_delta,
+)
 
 logging = get_logger()
 
@@ -22,8 +29,33 @@ HBAR = units._hbar
 THZ_TO_MEV = units.J * HBAR * 2 * np.pi * 1e15
 
 
-def calculate_ps_and_gamma(sparse_phase, sparse_potential, population, is_balanced, n_phonons, is_amorphous,
-                           is_gamma_tensor_enabled=False, hbar_factor=1):
+def calculate_ps_and_gamma(
+    sparse_phase,
+    sparse_potential,
+    population,
+    is_balanced,
+    n_phonons,
+    is_amorphous,
+    is_gamma_tensor_enabled=False,
+    hbar_factor=1,
+):
+    """Accumulate three-phonon phase space and linewidths for every mode.
+
+    ``sparse_phase[nu][channel]`` stores the broadened energy-conservation
+    delta on the allowed ``(nu', nu'')`` pairs. ``sparse_potential`` has the
+    same sparse indices and contains the frequency-normalized
+    ``|V^(3)_{nu,nu',nu''}|^2``. Channel zero is decay
+    ``nu -> nu' + nu''`` and channel one is absorption
+    ``nu + nu' -> nu''``. The Bose population factor is supplied by
+    :func:`population_delta`.
+
+    The first two output columns are phase space and total anharmonic
+    linewidth. When ``is_gamma_tensor_enabled`` is true, the remaining
+    ``n_phonons`` columns retain the linearized collision operator used by the
+    iterative BTE. ``is_amorphous`` remains in the signature for compatibility
+    with the common amorphous/crystal caller; sparse index semantics are now
+    identical for both representations.
+    """
     # Set up the output array
     if is_gamma_tensor_enabled:
         shape = (n_phonons, 2 + n_phonons)
@@ -40,19 +72,25 @@ def calculate_ps_and_gamma(sparse_phase, sparse_potential, population, is_balanc
                 continue
 
             # Extract indices - both cases use the same 2D format now
-            nup_vec, nupp_vec = tf.unstack(sparse_phase[nu_single][is_plus].indices, axis=1)
+            nup_vec, nupp_vec = tf.unstack(
+                sparse_phase[nu_single][is_plus].indices, axis=1
+            )
             sparse_phase_nu = sparse_phase[nu_single][is_plus].values
             # Apply hbar_factor to potential values for classical/quantum
             sparse_pot_nu = sparse_potential[nu_single][is_plus].values * hbar_factor
-            
+
             # Use direct indexing for both cases
             population_1 = tf.gather(population, nup_vec)
             population_2 = tf.gather(population, nupp_vec)
-                
-            single_pop_delta = population_delta(is_plus, population_1, population_2, population_0, is_balanced)
+
+            single_pop_delta = population_delta(
+                is_plus, population_1, population_2, population_0, is_balanced
+            )
 
             # Accumulate phase space and gamma
-            ps_and_gamma[nu_single, 0] += tf.reduce_sum(sparse_phase_nu * single_pop_delta)
+            ps_and_gamma[nu_single, 0] += tf.reduce_sum(
+                sparse_phase_nu * single_pop_delta
+            )
             contrib = sparse_pot_nu * sparse_phase_nu * single_pop_delta
             ps_and_gamma[nu_single, 1] += tf.reduce_sum(contrib)
 
@@ -67,29 +105,78 @@ def calculate_ps_and_gamma(sparse_phase, sparse_potential, population, is_balanc
                 else:
                     ps_and_gamma[nu_single, 2:] += result_nup
                 ps_and_gamma[nu_single, 2:] += result_nupp
-                    
+
     return ps_and_gamma
 
 
 def sparse_potential_mu(
-    nu_single, evect_tf, sparse_phase, index_k, mu, n_k_points, n_modes, is_plus, is_sparse,
-    index_kpp_full, _chi_k, second_minus, second_minus_chi, third_tf,
-    n_translations, omega, hbar
+    nu_single,
+    evect_tf,
+    sparse_phase,
+    index_k,
+    mu,
+    n_k_points,
+    n_modes,
+    is_plus,
+    is_sparse,
+    index_kpp_full,
+    _chi_k,
+    second_minus,
+    second_minus_chi,
+    third_tf,
+    n_translations,
+    omega,
+    hbar,
 ):
-    """Project IFC3 using its translation support, not the physical cell count.
+    """Project IFC3 onto one initial phonon and all allowed partner modes.
 
     Wigner--Seitz interpolation and file-provided translations may require
     more Fourier translations than the ``|det(M)|`` periodic classes of the
     finite-displacement supercell.  The two IFC3 legs share an ordered support
     of size ``n_translations``; only this dimension belongs in the phase and
     tensor reshapes below.
+
+    The real-space contraction is
+    ``sum_Rj,Rk Phi3 exp(2*pi*i*(q'.Rj + q''.Rk))``. Integer translations, not
+    basis offsets, appear in these phases because the atomic basis is already
+    carried by the phonon eigenvectors. Adding basis positions here would mix
+    eigenvector gauges and reintroduce origin dependence.
+
+    Parameters
+    ----------
+    nu_single, index_k, mu : int
+        Flattened and ``(q, branch)`` ids of the initial phonon.
+    evect_tf : Tensor
+        Mass-rescaled eigenvectors with shape ``(n_q, n_modes, n_modes)``.
+    sparse_phase : SparseTensor
+        Allowed partner indices for one decay or absorption channel.
+    is_plus : bool
+        Select absorption when true and decay when false.
+    third_tf : Tensor or SparseTensor
+        IFC3 reshaped so its two translation axes each have length
+        ``n_translations``.
+    _chi_k : Tensor
+        Fourier phases ``exp(2*pi*i*q.R)`` with shape
+        ``(n_q, n_translations)``.
+    n_translations : int
+        Size of the compiled or literal IFC3 translation support.
+    omega : array-like
+        Positive angular frequencies in kALDo's internal units.
+
+    Returns
+    -------
+    tensorflow.SparseTensor
+        Frequency-normalized squared matrix elements on exactly the indices
+        supplied by ``sparse_phase``.
     """
     nup_vec, nupp_vec = tf.unstack(sparse_phase.indices, axis=1)
 
     index_kp_vec, mup_vec = tf.unravel_index(nup_vec, (n_k_points, n_modes))
     index_kpp_vec, mupp_vec = tf.unravel_index(nupp_vec, (n_k_points, n_modes))
 
-    second, second_chi = (evect_tf, _chi_k) if is_plus else (second_minus, second_minus_chi)
+    second, second_chi = (
+        (evect_tf, _chi_k) if is_plus else (second_minus, second_minus_chi)
+    )
     third = tf.math.conj(tf.gather(evect_tf, index_kpp_full))
     third_chi = tf.math.conj(tf.gather(_chi_k, index_kpp_full))
 
@@ -97,9 +184,13 @@ def sparse_potential_mu(
     chi_prod = tf.reshape(chi_prod, (n_k_points, n_translations**2))
 
     if is_sparse:
-        third_nu_tf = tf.sparse.sparse_dense_matmul(third_tf, evect_tf[index_k, :, mu, tf.newaxis])
+        third_nu_tf = tf.sparse.sparse_dense_matmul(
+            third_tf, evect_tf[index_k, :, mu, tf.newaxis]
+        )
     else:
-        third_nu_tf = contract("ijk,i->jk", third_tf, evect_tf[index_k, :, mu], backend="tensorflow")
+        third_nu_tf = contract(
+            "ijk,i->jk", third_tf, evect_tf[index_k, :, mu], backend="tensorflow"
+        )
         third_nu_tf = tf.reshape(
             third_nu_tf, (n_translations * n_translations, n_modes, n_modes)
         )
@@ -119,36 +210,59 @@ def sparse_potential_mu(
     scaled_potential = tf.tensordot(chi_prod, third_nu_tf, (1, 0))
     scaled_potential = tf.einsum("kij,kim->kjm", scaled_potential, second)
     scaled_potential = tf.einsum("kjm,kjn->kmn", scaled_potential, third)
-    scaled_potential = tf.gather_nd(scaled_potential, tf.stack([index_kp_vec, mup_vec, mupp_vec], axis=-1))
+    scaled_potential = tf.gather_nd(
+        scaled_potential, tf.stack([index_kp_vec, mup_vec, mupp_vec], axis=-1)
+    )
 
     pot_times_dirac = tf.abs(scaled_potential) ** 2
-    pot_times_dirac = (tf.cast(pot_times_dirac, dtype=tf.float64) * np.pi * hbar/ 4 * GAMMA_TO_THZ / omega.flatten()[nu_single]
-                       / n_k_points)
-    pot_times_dirac = pot_times_dirac / tf.gather(omega.flatten(), nup_vec) / tf.gather(omega.flatten(), nupp_vec)
+    pot_times_dirac = (
+        tf.cast(pot_times_dirac, dtype=tf.float64)
+        * np.pi
+        * hbar
+        / 4
+        * GAMMA_TO_THZ
+        / omega.flatten()[nu_single]
+        / n_k_points
+    )
+    pot_times_dirac = (
+        pot_times_dirac
+        / tf.gather(omega.flatten(), nup_vec)
+        / tf.gather(omega.flatten(), nupp_vec)
+    )
 
     # Return as sparse tensor using the same indices as sparse_phase
     sparse_potential_tensor = tf.SparseTensor(
         indices=sparse_phase.indices,
         values=pot_times_dirac,
-        dense_shape=sparse_phase.dense_shape
+        dense_shape=sparse_phase.dense_shape,
     )
     return sparse_potential_tensor
 
 
-
 def population_delta(is_plus, population_1, population_2, population_0, is_balanced):
+    """Return the Bose occupation factor for one three-phonon channel.
+
+    ``is_plus`` selects absorption; false selects decay. ``is_balanced`` uses
+    the symmetrized detailed-balance form required by the linearized collision
+    operator instead of the direct RTA population difference.
+    """
     if is_plus:
         population_delta = population_1 - population_2
         if is_balanced:
             population_delta = 0.5 * (population_1 + 1) * population_2 / population_0
-            population_delta += 0.5 * population_1 * (population_2 + 1) / (1 + population_0)
+            population_delta += (
+                0.5 * population_1 * (population_2 + 1) / (1 + population_0)
+            )
     else:
         population_delta = 0.5 * (1 + population_1 + population_2)
         if is_balanced:
             population_delta = 0.25 * population_1 * population_2 / population_0
-            population_delta += 0.25 * (population_1 + 1) * (population_2 + 1) / (1 + population_0)
+            population_delta += (
+                0.25 * (population_1 + 1) * (population_2 + 1) / (1 + population_0)
+            )
 
     return population_delta
+
 
 def calculate_dirac_delta_crystal(
     omega,
@@ -161,7 +275,7 @@ def calculate_dirac_delta_crystal(
     is_plus,
     n_k_points,
     n_modes,
-    default_delta_threshold=2
+    default_delta_threshold=2,
 ):
     """
     Calculate the Dirac delta function for crystalline materials.
@@ -186,7 +300,9 @@ def calculate_dirac_delta_crystal(
 
     second_sign = int(is_plus) * 2 - 1
     omegas_difference = tf.abs(
-        omega[index_k, mu] + second_sign * omega[:, :, tf.newaxis] - tf.gather(omega, index_kpp_full)[:, tf.newaxis, :]
+        omega[index_k, mu]
+        + second_sign * omega[:, :, tf.newaxis]
+        - tf.gather(omega, index_kpp_full)[:, tf.newaxis, :]
     )
 
     condition = (
@@ -206,23 +322,31 @@ def calculate_dirac_delta_crystal(
     coords_1 = tf.stack((index_kp_vec, mup_vec), axis=-1)
     coords_2 = tf.stack((index_kpp_vec, mupp_vec), axis=-1)
     omegas_difference_tf = (
-        omega[index_k, mu] + second_sign * tf.gather_nd(omega, coords_1) - tf.gather_nd(omega, coords_2)
+        omega[index_k, mu]
+        + second_sign * tf.gather_nd(omega, coords_1)
+        - tf.gather_nd(omega, coords_2)
     )
 
     if sigma_tf.shape != []:
         coords_3 = tf.stack((index_kp_vec, mup_vec, mupp_vec), axis=-1)
         sigma_tf = tf.gather_nd(sigma_tf, coords_3)
     dirac_delta_tf = broadening_function(omegas_difference_tf, 2 * np.pi * sigma_tf)
-    
+
     # Convert to flattened indices to match amorphous format (n_phonons, n_phonons)
     nup_indices = tf.cast(index_kp_vec * n_modes + mup_vec, tf.int64)
     nupp_indices = tf.cast(index_kpp_vec * n_modes + mupp_vec, tf.int64)
-    
-    sparse_phase = tf.sparse.SparseTensor(tf.stack([
-        nup_indices,
-        nupp_indices,
-    ], axis=-1), dirac_delta_tf,
-        [n_k_points * n_modes, n_k_points * n_modes])
+
+    sparse_phase = tf.sparse.SparseTensor(
+        tf.stack(
+            [
+                nup_indices,
+                nupp_indices,
+            ],
+            axis=-1,
+        ),
+        dirac_delta_tf,
+        [n_k_points * n_modes, n_k_points * n_modes],
+    )
 
     return sparse_phase
 
@@ -235,7 +359,8 @@ def calculate_dirac_delta_amorphous(
     sigma_tf,
     broadening_shape,
     n_phonons,
-    default_delta_threshold=2):
+    default_delta_threshold=2,
+):
     """
     Calculate the Dirac delta function for amorphous materials.
 
@@ -262,9 +387,10 @@ def calculate_dirac_delta_amorphous(
     else:
         raise ValueError("Broadening function not implemented")
 
-
     second_sign = int(is_plus) * 2 - 1
-    omegas_difference = np.abs(omega[0, mu] + second_sign * omega[0, :, np.newaxis] - omega[0, np.newaxis, :])
+    omegas_difference = np.abs(
+        omega[0, mu] + second_sign * omega[0, :, np.newaxis] - omega[0, np.newaxis, :]
+    )
     condition = (
         (omegas_difference < delta_threshold * 2 * np.pi * sigma_tf)
         & (physical_mode[0, :, np.newaxis])
@@ -278,14 +404,22 @@ def calculate_dirac_delta_amorphous(
     mup_vec = interactions[:, 0]
     mupp_vec = interactions[:, 1]
 
-    omegas_difference_tf = tf.abs(omega[0, mu] + second_sign * omega[0, mup_vec] - omega[0, mupp_vec])
+    omegas_difference_tf = tf.abs(
+        omega[0, mu] + second_sign * omega[0, mup_vec] - omega[0, mupp_vec]
+    )
     sparse_phase = broadening_function(omegas_difference_tf, 2 * np.pi * sigma_tf)
 
-    sparse_phase = tf.sparse.SparseTensor(tf.stack([
-        tf.cast(mup_vec, tf.int64),
-        tf.cast(mupp_vec, tf.int64),
-    ], axis=-1), sparse_phase,
-        [n_phonons, n_phonons])
+    sparse_phase = tf.sparse.SparseTensor(
+        tf.stack(
+            [
+                tf.cast(mup_vec, tf.int64),
+                tf.cast(mupp_vec, tf.int64),
+            ],
+            axis=-1,
+        ),
+        sparse_phase,
+        [n_phonons, n_phonons],
+    )
 
     return sparse_phase
 
@@ -298,6 +432,7 @@ def calculate_dirac_delta_amorphous(
 # ShengBTE: A solver of the Boltzmann transport equation for phonons.
 # Comput. Phys. Commun. 185, 1747-1758 (2014).
 # doi:10.1016/j.cpc.2014.02.015
+
 
 def calculate_broadening_shengbte(velocity_tf, cell_inv, k_size, index_kpp_vec):
     """
@@ -338,9 +473,14 @@ def calculate_broadening_shengbte(velocity_tf, cell_inv, k_size, index_kpp_vec):
     the Boltzmann transport equation for phonons.* Comput. Phys. Commun.
     **185**, 1747-1758 (2014). doi:10.1016/j.cpc.2014.02.015
     """
-    velocity_difference = velocity_tf[:, :, tf.newaxis, :] - tf.gather(velocity_tf, index_kpp_vec)[:, tf.newaxis, :, :]
+    velocity_difference = (
+        velocity_tf[:, :, tf.newaxis, :]
+        - tf.gather(velocity_tf, index_kpp_vec)[:, tf.newaxis, :, :]
+    )
     delta_k = cell_inv / k_size
-    base_sigma = tf.reduce_sum((tf.tensordot(velocity_difference, delta_k, [-1, 1])) ** 2, axis=-1)
+    base_sigma = tf.reduce_sum(
+        (tf.tensordot(velocity_difference, delta_k, [-1, 1])) ** 2, axis=-1
+    )
     base_sigma = tf.sqrt(base_sigma / 6.0)
     return base_sigma
 
@@ -470,8 +610,9 @@ def calculate_bz_cell_radius(cell_inv, n_k_points):
     return (3.0 / (V_primitive * float(n_k_points) * 4.0 * np.pi)) ** (1.0 / 3.0)
 
 
-def calculate_broadening_tdep(velocity, frequency, cell_inv, n_k_points,
-                              smearing_prefactor=1.0):
+def calculate_broadening_tdep(
+    velocity, frequency, cell_inv, n_k_points, smearing_prefactor=1.0
+):
     """
     TDEP-style adaptive broadening: per-mode σ, |v|-based, gauge-invariant.
 
@@ -518,7 +659,9 @@ def combine_sigma_triplet_tdep(sigma_mode, index_k, mu, index_kpp_full):
     Returns:
         tf.Tensor, shape (n_k, n_m, n_m): triplet σ indexed by (q', μ', μ'').
     """
-    sig1_sq = sigma_mode[index_k, mu] ** 2                               # scalar
-    sig2_sq = sigma_mode[:, :, tf.newaxis] ** 2                          # (n_k, n_m, 1)
-    sig3_sq = tf.gather(sigma_mode, index_kpp_full)[:, tf.newaxis, :] ** 2  # (n_k, 1, n_m)
+    sig1_sq = sigma_mode[index_k, mu] ** 2  # scalar
+    sig2_sq = sigma_mode[:, :, tf.newaxis] ** 2  # (n_k, n_m, 1)
+    sig3_sq = (
+        tf.gather(sigma_mode, index_kpp_full)[:, tf.newaxis, :] ** 2
+    )  # (n_k, 1, n_m)
     return tf.sqrt(sig1_sq + sig2_sq + sig3_sq)

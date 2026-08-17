@@ -1,3 +1,12 @@
+"""Exact reciprocal meshes and real-space translation topology.
+
+The classes in this module deliberately separate three objects that older
+kALDo code represented with one ambiguous grid: reciprocal q-point addresses,
+periodic supercell equivalence classes, and the translations actually stored
+on an IFC tensor axis.  Keeping them distinct prevents reciprocal ordering or
+``|det(M)|`` from silently changing a real-space Fourier representation.
+"""
+
 from dataclasses import dataclass, field
 from fractions import Fraction
 from hashlib import sha256
@@ -14,11 +23,26 @@ def _integer_determinant_and_adjugate(matrix):
         - a[1] * (b[0] * c[2] - b[2] * c[0])
         + a[2] * (b[0] * c[1] - b[1] * c[0])
     )
-    adjugate = np.array([
-        [b[1] * c[2] - b[2] * c[1], a[2] * c[1] - a[1] * c[2], a[1] * b[2] - a[2] * b[1]],
-        [b[2] * c[0] - b[0] * c[2], a[0] * c[2] - a[2] * c[0], a[2] * b[0] - a[0] * b[2]],
-        [b[0] * c[1] - b[1] * c[0], a[1] * c[0] - a[0] * c[1], a[0] * b[1] - a[1] * b[0]],
-    ], dtype=object)
+    adjugate = np.array(
+        [
+            [
+                b[1] * c[2] - b[2] * c[1],
+                a[2] * c[1] - a[1] * c[2],
+                a[1] * b[2] - a[2] * b[1],
+            ],
+            [
+                b[2] * c[0] - b[0] * c[2],
+                a[0] * c[2] - a[2] * c[0],
+                a[2] * b[0] - a[0] * b[2],
+            ],
+            [
+                b[0] * c[1] - b[1] * c[0],
+                a[1] * c[0] - a[0] * c[1],
+                a[0] * b[1] - a[1] * b[0],
+            ],
+        ],
+        dtype=object,
+    )
     return determinant, adjugate
 
 
@@ -27,7 +51,7 @@ def _readonly_integer_matrix(value, name):
     array = np.asarray(value)
     if array.shape[-1:] != (3,) or array.ndim != 2:
         raise ValueError(f"{name} must have shape (n, 3)")
-    if not np.allclose(array, np.rint(array)):
+    if not np.allclose(array, np.rint(array), rtol=0, atol=1e-12):
         raise ValueError(f"{name} must contain integer lattice coordinates")
     array = np.array(np.rint(array), dtype=np.int64, copy=True)
     array.setflags(write=False)
@@ -50,8 +74,13 @@ class QGrid:
 
     def __post_init__(self):
         """Validate the mesh and materialize its deterministic addresses."""
-        shape = tuple(int(n) for n in self.shape)
-        if len(shape) != 3 or any(n <= 0 for n in shape):
+        supplied_shape = np.asarray(self.shape)
+        if supplied_shape.shape != (3,) or not np.allclose(
+            supplied_shape, np.rint(supplied_shape), rtol=0, atol=1e-12
+        ):
+            raise ValueError("shape must contain three positive integers")
+        shape = tuple(int(n) for n in np.rint(supplied_shape))
+        if any(n <= 0 for n in shape):
             raise ValueError("shape must contain three positive integers")
         if self.order not in ("C", "F"):
             raise ValueError("order must be 'C' or 'F'")
@@ -118,7 +147,9 @@ class SupercellGrid:
     def __post_init__(self):
         """Build exact quotient representatives and their class lookup."""
         matrix = np.asarray(self.matrix)
-        if matrix.shape != (3, 3) or not np.allclose(matrix, np.rint(matrix)):
+        if matrix.shape != (3, 3) or not np.allclose(
+            matrix, np.rint(matrix), rtol=0, atol=1e-12
+        ):
             raise ValueError("matrix must be a nonsingular integer 3x3 matrix")
         matrix = np.array(np.rint(matrix), dtype=np.int64)
         determinant, adjugate = _integer_determinant_and_adjugate(matrix)
@@ -128,10 +159,14 @@ class SupercellGrid:
             raise ValueError("order must be 'C' or 'F'")
         modulus = abs(determinant)
 
-        if np.count_nonzero(matrix - np.diag(np.diag(matrix))) == 0 and np.all(np.diag(matrix) > 0):
+        if np.count_nonzero(matrix - np.diag(np.diag(matrix))) == 0 and np.all(
+            np.diag(matrix) > 0
+        ):
             shape = tuple(int(n) for n in np.diag(matrix))
             ids = np.arange(modulus)
-            representatives = np.asarray(np.unravel_index(ids, shape, order=self.order)).T
+            representatives = np.asarray(
+                np.unravel_index(ids, shape, order=self.order)
+            ).T
         else:
             # Grow an enumeration region until every quotient key is present.
             # This is finite because the quotient contains exactly |det M| classes.
@@ -173,7 +208,7 @@ class SupercellGrid:
         """Return the exact adjugate-modulo key of an integer translation."""
         translation = np.asarray(translation)
         if translation.shape != (3,) or not np.allclose(
-            translation, np.rint(translation)
+            translation, np.rint(translation), rtol=0, atol=1e-12
         ):
             raise ValueError("translation must be an integer vector with shape (3,)")
         translation = np.asarray(np.rint(translation), dtype=np.int64)
@@ -207,12 +242,12 @@ class TranslationSupport:
         """Validate literal translations and classify them without folding."""
         translations = _readonly_integer_matrix(self.translations, "translations")
         if self.provenance not in ("periodic", "file", "wigner-seitz"):
-            raise ValueError(
-                "provenance must be 'periodic', 'file', or 'wigner-seitz'"
-            )
+            raise ValueError("provenance must be 'periodic', 'file', or 'wigner-seitz'")
         if len({tuple(vector) for vector in translations}) != len(translations):
             raise ValueError("translations must not contain exact duplicates")
-        class_ids = np.asarray([self.supercell.class_id(r) for r in translations], dtype=np.int64)
+        class_ids = np.asarray(
+            [self.supercell.class_id(r) for r in translations], dtype=np.int64
+        )
         class_ids.setflags(write=False)
         object.__setattr__(self, "translations", translations)
         object.__setattr__(self, "class_ids", class_ids)
@@ -227,12 +262,19 @@ class TranslationSupport:
         Wigner--Seitz interpolation is invariant to which representative of a
         class supplied the starting block.
         """
-        grid = supercell if isinstance(supercell, SupercellGrid) else SupercellGrid(supercell, order=order)
+        grid = (
+            supercell
+            if isinstance(supercell, SupercellGrid)
+            else SupercellGrid(supercell, order=order)
+        )
         numerators = grid.representatives @ grid._adjugate
-        supercell_shifts = np.asarray([
-            [round(Fraction(int(value), grid._determinant)) for value in row]
-            for row in numerators
-        ], dtype=np.int64)
+        supercell_shifts = np.asarray(
+            [
+                [round(Fraction(int(value), grid._determinant)) for value in row]
+                for row in numerators
+            ],
+            dtype=np.int64,
+        )
         centered = grid.representatives - supercell_shifts @ grid.matrix
         return cls(centered, grid, provenance="periodic")
 
@@ -279,7 +321,9 @@ class WignerSeitzImages:
     cell: NDArray[np.float64] = field(repr=False)
     super_lattice: NDArray[np.float64] = field(repr=False)
     tolerance: float = 1e-5
-    _inverse_super_lattice: NDArray[np.float64] = field(repr=False, compare=False, default=None)
+    _inverse_super_lattice: NDArray[np.float64] = field(
+        repr=False, compare=False, default=None
+    )
     _smallest_singular: float = field(repr=False, compare=False, default=None)
     _cache: dict = field(default_factory=dict, repr=False, compare=False)
 

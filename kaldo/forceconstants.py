@@ -21,14 +21,25 @@ MAIN_FOLDER = "displacement"
 
 
 def _normalize_supercell(supercell: tuple[int, int, int] | np.ndarray | None):
+    """Return an exact diagonal triple or integer expansion matrix.
+
+    Supercell indices define a finite lattice quotient and therefore cannot be
+    rounded approximately. Length-three repetitions must also be positive;
+    general matrices are checked for nonsingularity by ``SupercellGrid``.
+    """
     if supercell is None:
         return None
     array = np.asarray(supercell)
     if array.shape == (3,):
-        return tuple(int(value) for value in array)
+        rounded = np.rint(array).astype(int)
+        if not np.allclose(array, rounded, rtol=0, atol=1e-12):
+            raise ValueError("supercell repetitions must be integer-valued")
+        if np.any(rounded <= 0):
+            raise ValueError("supercell repetitions must be positive")
+        return tuple(int(value) for value in rounded)
     if array.shape == (3, 3):
         rounded = np.rint(array).astype(int)
-        if not np.allclose(array, rounded):
+        if not np.allclose(array, rounded, rtol=0, atol=1e-12):
             raise ValueError("supercell matrix must be integer-valued")
         return rounded
     raise ValueError("supercell must be a length-3 diagonal or integer 3x3 matrix")
@@ -141,6 +152,7 @@ class ForceConstants:
 
     @property
     def second(self):
+        """Second-order IFC container, created lazily when necessary."""
         if self._second is None:
             # initialize an empty SecondOrder object for computing force constants later.
             self._second = SecondOrder.from_supercell(
@@ -154,6 +166,7 @@ class ForceConstants:
 
     @property
     def third(self):
+        """Third-order IFC container, created lazily when necessary."""
         if self._third is None:
             self._third = ThirdOrder.from_supercell(
                 self.atoms,
@@ -214,7 +227,9 @@ class ForceConstants:
             Chosen folder to load in system information.
         supercell : (int, int, int) or array-like (3, 3), optional
             Diagonal repetitions or an integer primitive-to-supercell
-            expansion matrix. For TDEP, the matrix inferred from
+            expansion matrix. ``format='tdep'`` is the complete matrix-aware
+            combined IFC2/IFC3 file route; legacy compact readers require a
+            diagonal supercell. For TDEP, the matrix inferred from
             ``infile.ucposcar`` and ``infile.ssposcar`` is authoritative.
             Default: (1, 1, 1)
         format : 'numpy', 'eskm', 'lammps', 'vasp-sheng', 'qe-sheng', 'vasp-d3q', 'qe-d3q', 'hiphive', 'tdep', 'gpumd'
@@ -247,9 +262,9 @@ class ForceConstants:
             Default: 100000
         supercell_matrix : array-like (3, 3), optional
             Expected integer expansion matrix for TDEP input. The structure
-            files define the authoritative matrix; a mismatch is reported and
-            the inferred matrix is used. Other formats normally express the
-            topology through ``supercell`` and ``third_supercell``.
+            files define the authoritative matrix; a mismatch raises an error.
+            Other formats normally express the topology through ``supercell``
+            and ``third_supercell``.
             Default: None
 
         Returns

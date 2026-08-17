@@ -1,7 +1,10 @@
-"""
-kaldo
-Anharmonic Lattice Dynamics
+"""High-level harmonic and anharmonic phonon observables.
 
+``Phonons`` owns the reciprocal mesh, selects the real-space IFC interpolation
+requested by the user, and orchestrates q-resolved harmonic calculations and
+three-phonon projection. Geometry and source translation provenance remain on
+the force-constant objects; numerical scattering kernels remain in
+``kaldo.controllers.anharmonic``.
 """
 
 import functools
@@ -225,13 +228,21 @@ def _compute_kpoint_projection(
     is_sparse,
     kpoint_maps,
 ):
-    """Compute sparse_phase and sparse_potential for all modes at one k-point.
+    """Project both three-phonon channels for every mode at one q point.
 
-    All inputs are numpy arrays (picklable). TF tensors are created internally.
-    Returns a list of n_modes entries, each being:
-        (phase_data_list, potential_data_list)
-    where each *_data_list is [is_plus_0, is_plus_1] with entries as
-    (indices, values, dense_shape) numpy tuples or None.
+    ``third_sparse_data`` and ``chi_k_np`` already share the selected IFC3
+    translation support of length ``n_translations``. For each initial branch,
+    exact reciprocal-grid arithmetic supplies the momentum partner q'', the
+    broadening kernel selects energy-conserving ``(q',mu',mu'')`` triplets,
+    and :func:`kaldo.controllers.anharmonic.sparse_potential_mu` contracts the
+    corresponding IFC3 matrix elements.
+
+    All arguments are NumPy objects or scalars so this function can run in a
+    process worker. TensorFlow tensors are local to the worker and are
+    converted back to ``(indices, values, dense_shape)`` payloads before the
+    process boundary. The result contains one ``(phase, potential)`` pair per
+    initial branch, each with decay and absorption entries (or ``None`` when
+    no physical triplet survives the energy window).
     """
     # Reconstruct TF tensors from numpy
     evect_tf = tf.cast(tf.convert_to_tensor(evect_np), dtype=tf.complex128)
@@ -492,10 +503,12 @@ class Phonons(Storable):
         More reference can be found: M. Berglund, M.E. Wieser, Isotopic compositions of the elements 2009 (IUPAC technical report), Pure Appl. Chem. 83 (2011) 397–410.
         Default: None
     is_symmetrizing_frequency : bool, optional
-        TODO: add more doc here
+        Reserved compatibility option. It is retained in the public
+        constructor but is not currently applied to computed frequencies.
         Default: False
     is_antisymmetrizing_velocity : bool, optional
-        TODO: add more doc here
+        Reserved compatibility option. It is retained in the public
+        constructor but is not currently applied to computed velocities.
         Default: False
     include_isotopes: bool, optional.
         Defines if you want to include isotopic scattering bandwidths.
@@ -1317,6 +1330,7 @@ class Phonons(Storable):
         label="<temperature>/<statistics>/<third_bandwidth>/<broadening_shape>/<broadening_kernel>/<is_balanced>/<use_q_symmetry>"
     )
     def _ps_and_gamma(self):
+        """Return per-mode phase space and total anharmonic linewidth."""
         store_format = (
             self._store_formats.get("_ps_gamma_and_gamma_tensor", "numpy")
             if self.storage == "formatted"
@@ -1339,6 +1353,7 @@ class Phonons(Storable):
         label="<temperature>/<statistics>/<third_bandwidth>/<broadening_shape>/<broadening_kernel>/<is_balanced>/<use_q_symmetry>"
     )
     def _ps_gamma_and_gamma_tensor(self):
+        """Return phase space, linewidth, and the linearized collision tensor."""
         ps_gamma_and_gamma_tensor = self._select_algorithm_for_phase_space_and_gamma(
             is_gamma_tensor_enabled=True
         )
@@ -1691,6 +1706,12 @@ class Phonons(Storable):
         return f_grid, p_dos
 
     def _allowed_third_phonons_index(self, index_q, is_plus):
+        """Return exact mesh ids satisfying three-phonon momentum conservation.
+
+        For every ``q'`` the reciprocal grid returns ``q+q'`` for absorption
+        and ``q-q'`` for decay, wrapped by integer mesh arithmetic. No floating
+        tolerance or real-space supercell representation enters this mapping.
+        """
         return self._reciprocal_grid.momentum_partner_ids(index_q, is_plus)
 
     @property
@@ -1710,6 +1731,14 @@ class Phonons(Storable):
             return self.__ir_kgrid_data
 
     def _select_algorithm_for_phase_space_and_gamma(self, is_gamma_tensor_enabled=True):
+        """Contract projected IFC3 data into scattering observables.
+
+        The sparse projection already contains the selected IFC translation
+        convention. This method adds population factors, q-mesh normalization,
+        and—when requested—the linearized collision tensor. With q symmetry,
+        only irreducible initial q points were projected; their scalar results
+        and partner-mode tensor blocks are replicated here.
+        """
         self.n_k_points = np.prod(self.kpts)
         self.n_phonons = self.n_k_points * self.n_modes
         self.is_gamma_tensor_enabled = is_gamma_tensor_enabled
@@ -1859,6 +1888,20 @@ class Phonons(Storable):
 
     @timeit
     def _project_crystal(self):
+        """Project source-aware IFC3 onto all allowed crystal phonon triplets.
+
+        The selected interpolation object owns both the rank-eight IFC3 tensor
+        and the ordered translation support used by its two Fourier legs. A
+        literal file or Wigner--Seitz compilation may have support size
+        ``S != |det(M)|``; every reshape and phase contraction in this method
+        therefore uses ``S`` and never the physical replica count.
+
+        Sparse IFCs remain sparse until the normal-mode contraction. Work is
+        distributed over initial q points, with optional per-q restart files
+        namespaced by interpolation provenance and support digest. The return
+        value is the pair ``(sparse_phase, sparse_potential)`` consumed by
+        :func:`kaldo.controllers.anharmonic.calculate_ps_and_gamma`.
+        """
         # IFC3 interpolation may expand the translation axes beyond the
         # |det(M)| periodic classes. Keep that support size distinct from the
         # physical replica count throughout the Fourier projection.

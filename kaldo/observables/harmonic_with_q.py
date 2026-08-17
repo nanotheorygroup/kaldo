@@ -647,56 +647,72 @@ class HarmonicWithQ(Observable, Storable):
 
     @lazy_property(label="<q_point>")
     def frequency(self):
+        """Signed phonon frequencies at this q point, in THz."""
         frequency = self.calculate_frequency()[np.newaxis, :]
         return frequency
 
     @lazy_property(label="<q_point>")
     def velocity(self):
+        """Group velocities at this q point, in angstrom THz (100 m/s)."""
         velocity = self.calculate_velocity()
         return velocity
 
     @lazy_property(label="<q_point>")
     def participation_ratio(self):
+        """Mode participation ratios at this q point."""
         participation_ratio = self.calculate_participation_ratio()
         return participation_ratio
 
     @lazy_property(label="<q_point>")
     def _dynmat_derivatives_x(self):
+        """Cartesian x derivative of the dynamical matrix."""
         return self.calculate_dynmat_derivatives(direction=0)
 
     @lazy_property(label="<q_point>")
     def _dynmat_derivatives_y(self):
+        """Cartesian y derivative of the dynamical matrix."""
         return self.calculate_dynmat_derivatives(direction=1)
 
     @lazy_property(label="<q_point>")
     def _dynmat_derivatives_z(self):
+        """Cartesian z derivative of the dynamical matrix."""
         return self.calculate_dynmat_derivatives(direction=2)
 
     @lazy_property(label="<q_point>")
     def _dynmat_fourier(self):
+        """Dynamical matrix obtained from the resolved IFC interpolation."""
         dynmat_fourier = self.calculate_dynmat_fourier()
         return dynmat_fourier
 
     @lazy_property(label="<q_point>")
     def _eigensystem(self):
+        """Eigenvalues and column eigenvectors of the dynamical matrix."""
         return self.calculate_eigensystem(only_eigenvals=False)
 
     @lazy_property(label="<q_point>")
     def _sij_x(self):
+        """Heat-flux operator for the Cartesian x direction."""
         _sij = self.calculate_sij(direction=0)
         return _sij
 
     @lazy_property(label="<q_point>")
     def _sij_y(self):
+        """Heat-flux operator for the Cartesian y direction."""
         _sij = self.calculate_sij(direction=1)
         return _sij
 
     @lazy_property(label="<q_point>")
     def _sij_z(self):
+        """Heat-flux operator for the Cartesian z direction."""
         _sij = self.calculate_sij(direction=2)
         return _sij
 
     def calculate_frequency(self):
+        """Diagonalize the dynamical matrix and return signed THz frequencies.
+
+        Negative dynamical-matrix eigenvalues represent imaginary modes.  kALDo
+        retains their sign instead of discarding that stability information.
+        """
         eigenvals = self.calculate_eigensystem(only_eigenvals=True)
         frequency = np.abs(eigenvals) ** 0.5 * np.sign(eigenvals) / (np.pi * 2.0)
         return frequency.real
@@ -728,6 +744,12 @@ class HarmonicWithQ(Observable, Storable):
         return self._ifc_interpolation_plan
 
     def _calculate_nac_dynmat_derivatives(self, direction):
+        """Return one Cartesian derivative of the full polar dynamical matrix.
+
+        The NAC kernel is evaluated by a centered finite difference in Cartesian
+        reciprocal space.  This differentiates the long-range correction and
+        the short-range IFC contribution in the same Fourier convention.
+        """
         static_data = self._build_nac_static_data_runtime()
         mapping = self._build_nac_mapping_runtime(static_data)
         data = self._calculate_nac_velocity_direction_data(
@@ -753,6 +775,18 @@ class HarmonicWithQ(Observable, Storable):
         return derivative
 
     def calculate_sij(self, direction):
+        """Project a dynamical-matrix derivative into the phonon eigenbasis.
+
+        For crystal modes this computes ``e_m^dagger (dD/dq) e_n``.  The
+        diagonal imaginary part, combined with ``1/sqrt(omega_m omega_n)`` in
+        :meth:`calculate_velocity`, gives the group velocity.  The full matrix
+        is also the heat-flux operator used by diffusivity calculations.
+
+        Parameters
+        ----------
+        direction : int
+            Cartesian derivative direction: 0, 1, or 2.
+        """
         q_point = self.q_point
         shape = (3 * self.atoms.positions.shape[0], 3 * self.atoms.positions.shape[0])
         if self.is_amorphous and (self.q_point == np.array([0, 0, 0])).all():
@@ -794,12 +828,28 @@ class HarmonicWithQ(Observable, Storable):
         return sij
 
     def calculate_velocity(self):
+        """Return mode group velocities from the diagonal heat-flux operator.
+
+        Ordinary IFCs use the analytic pair-aware Fourier derivative.  Polar
+        calculations use the NAC finite-difference derivative so that the
+        nonanalytic and short-range terms follow one consistent q-space path.
+        """
         if self.is_nac:
             return self._calculate_nac_velocity_data()["gv_scaled"][np.newaxis, ...]
         frequency = self.frequency[0]
         velocity = np.zeros((self.n_modes, 3))
+        # A real group velocity is defined only for stable positive-frequency
+        # modes. Historically the signed square root produced NaNs for
+        # imaginary modes and a later tf.where converted them to zero. Build
+        # that physical mask explicitly so unstable and translational modes do
+        # not enter undefined arithmetic or emit a warning.
+        inverse_sqrt_frequency = np.zeros_like(frequency, dtype=float)
+        positive_frequency = frequency > 0
+        inverse_sqrt_frequency[positive_frequency] = 1 / np.sqrt(
+            frequency[positive_frequency]
+        )
         inverse_sqrt_freq = tf.cast(
-            tf.convert_to_tensor(1 / np.sqrt(frequency)), tf.complex128
+            tf.convert_to_tensor(inverse_sqrt_frequency), tf.complex128
         )
         if self.is_amorphous:
             inverse_sqrt_freq = tf.cast(inverse_sqrt_freq, tf.float64)
@@ -829,6 +879,7 @@ class HarmonicWithQ(Observable, Storable):
         return velocity[np.newaxis, ...]
 
     def _calculate_nac_eigensystem(self, only_eigenvals=False):
+        """Diagonalize the full NAC-corrected dynamical matrix."""
         dyn_s = self._calculate_nac_dynamical_matrix()
         if only_eigenvals:
             return np.linalg.eigvalsh(dyn_s).real
@@ -844,6 +895,7 @@ class HarmonicWithQ(Observable, Storable):
         return tf.convert_to_tensor(dynamical)
 
     def calculate_eigensystem(self, only_eigenvals):
+        """Return eigenvalues, optionally together with column eigenvectors."""
         if self.is_nac:
             return self._calculate_nac_eigensystem(only_eigenvals=only_eigenvals)
         dyn_s = self._dynmat_fourier
@@ -857,6 +909,7 @@ class HarmonicWithQ(Observable, Storable):
         return esystem
 
     def calculate_participation_ratio(self):
+        """Return the inverse atomic localization measure for every mode."""
         n_atoms = self.n_modes // 3
         eigenvectors = self._eigensystem[1:, :]
         eigenvectors = tf.transpose(eigenvectors)

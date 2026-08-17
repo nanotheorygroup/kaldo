@@ -51,6 +51,7 @@ def _readline_or_raise(fh, context):
 # SNF-style supercell enumeration (for non-diagonal primitive -> ssposcar)
 # ---------------------------------------------------------------------------
 
+
 def build_supercell_replica_mapping(primitive_atoms, supercell_atoms, tol=1e-4):
     """Map TDEP ssposcar atoms to (primitive_atom_index, lattice_vector).
 
@@ -66,9 +67,9 @@ def build_supercell_replica_mapping(primitive_atoms, supercell_atoms, tol=1e-4):
     * ``replica_id_of_sc`` : (n_sc,) int — index into replica_table for
       each sc atom.
 
-    Wraps replica vectors to their minimum-image form under the supercell
-    lattice so the replica table covers only n_rep = n_sc / n_uc unique
-    lattice points.
+    Classifies the structure into exactly ``n_rep = n_sc / n_uc`` physical
+    periodic representatives. Minimum-image selection is intentionally left
+    to the pair-aware IFC interpolation layer.
     """
     uc_pos = np.asarray(primitive_atoms.positions)
     uc_cell = np.asarray(primitive_atoms.cell)
@@ -95,8 +96,9 @@ def build_supercell_replica_mapping(primitive_atoms, supercell_atoms, tol=1e-4):
         # Try each primitive atom: rsc = uc_pos[j] + R @ uc_cell + k @ sc_cell
         # For each j, solve R = (rsc - uc_pos[j]) @ inv_uc in primitive basis;
         # then wrap through the supercell lattice (R might point outside one
-        # period of the ssposcar). We want the R that lives inside the
-        # Wigner-Seitz cell of the supercell (min-image).
+        # period of the ssposcar). This selects one exact quotient
+        # representative; pair-dependent Wigner--Seitz images are constructed
+        # later by the IFC interpolation layer.
         for j in range(n_uc):
             R_frac_prim = (rsc - uc_pos[j]) @ inv_uc
             # Wrap into the [0, 1)^3 Brillouin zone of the SUPERCELL lattice,
@@ -114,44 +116,22 @@ def build_supercell_replica_mapping(primitive_atoms, supercell_atoms, tol=1e-4):
                 replica_vector_of_sc[i] = R_int
                 break
         if atom_of_sc[i] == -1:
-            raise ValueError(
-                f"sc atom {i} at {rsc} did not map to any primitive atom"
-            )
+            raise ValueError(f"sc atom {i} at {rsc} did not map to any primitive atom")
 
-    # Build deduplicated replica table (atom 0's replicas = all unique R)
+    # Build a physical representative table (one exact quotient class each).
+    # Pair-specific shortest images are an IFC interpolation concern and are
+    # deliberately not imposed on this physical topology table.
     uniq_rs, inverse = np.unique(
-        replica_vector_of_sc, axis=0, return_inverse=True,
+        replica_vector_of_sc,
+        axis=0,
+        return_inverse=True,
     )
     n_rep_expected = n_sc // n_uc
     if len(uniq_rs) != n_rep_expected:
         raise ValueError(
             f"expected {n_rep_expected} unique replicas, got {len(uniq_rs)}"
         )
-    # Re-wrap each replica to the Cartesian-norm-minimal form under the
-    # supercell lattice. An entry R from the [0,1) sc-fractional wrap can
-    # equivalently be R - k @ M for any integer k; we pick k that minimizes
-    # ||R @ uc_cell||. This matches the TDEP IFC file convention (signed,
-    # small) and keeps exp(iq.R) phases correct on q-meshes smaller than the
-    # supercell.
-    uniq_rs_min = np.zeros_like(uniq_rs)
-    M_rows = np.rint(M).astype(int)
-    shifts = np.array(
-        [[a, b, c] for a in (-1, 0, 1) for b in (-1, 0, 1) for c in (-1, 0, 1)],
-        dtype=int,
-    )
-    for idx, R in enumerate(uniq_rs):
-        best_R = R
-        best_norm = np.linalg.norm(R @ uc_cell)
-        for s in shifts:
-            if not np.any(s):
-                continue
-            R_shift = R - s @ M_rows
-            norm = np.linalg.norm(R_shift @ uc_cell)
-            if norm < best_norm - 1e-8:
-                best_R = R_shift
-                best_norm = norm
-        uniq_rs_min[idx] = best_R
-    replica_table = uniq_rs_min.astype(int)
+    replica_table = uniq_rs.astype(int)
     replica_id_of_sc = inverse
 
     return dict(
@@ -167,13 +147,14 @@ def build_supercell_replica_mapping(primitive_atoms, supercell_atoms, tol=1e-4):
 # Shared helpers for the TDEP observable loaders
 # ---------------------------------------------------------------------------
 
+
 def resolve_tdep_supercell(folder, supercell=(1, 1, 1), supercell_matrix=None):
     """Read ``infile.ucposcar`` / ``infile.ssposcar`` and resolve the tiling.
 
     The two structure files fully define the primitive-to-supercell mapping
-    M = ucposcar^-1 * ssposcar, so it is trusted over the redundant
-    ``supercell`` / ``supercell_matrix`` kwargs (a mismatching ``supercell``
-    logs a warning, a supplied ``supercell_matrix`` an info message).
+    ``M = cell_sc @ inverse(cell_uc)`` in ASE's row-vector convention, so it
+    is trusted over the redundant ``supercell`` argument. An explicitly
+    supplied ``supercell_matrix`` is a validation contract and must match.
 
     Shared by the ``format='tdep'`` cases of SecondOrder / ThirdOrder /
     FourthOrder ``load``.
@@ -199,12 +180,17 @@ def resolve_tdep_supercell(folder, supercell=(1, 1, 1), supercell_matrix=None):
         )
 
     if supercell_matrix is not None:
-        given = np.rint(np.asarray(supercell_matrix)).astype(int)
+        supplied = np.asarray(supercell_matrix)
+        if supplied.shape != (3, 3) or not np.allclose(
+            supplied, np.rint(supplied), rtol=0, atol=1e-12
+        ):
+            raise ValueError("supercell_matrix must be an integer 3x3 matrix")
+        given = np.rint(supplied).astype(int)
         if not np.array_equal(given, M_int):
-            logging.warning(
-                f"format='tdep': supercell_matrix=\n{given}\ndoes not match the tiling\n"
-                f"{M_int}\ninferred from infile.ucposcar/infile.ssposcar; "
-                "using the inferred value."
+            raise ValueError(
+                f"format='tdep': supercell_matrix=\n{given}\ndoes not match "
+                f"the tiling\n{M_int}\ninferred from "
+                "infile.ucposcar/infile.ssposcar"
             )
 
     if np.any(M_int != np.diag(np.diag(M_int))):
@@ -242,8 +228,9 @@ def build_nondiag_observable_kwargs(uc, sc):
     """
     mapping = build_supercell_replica_mapping(uc, sc)
     supercell_grid = SupercellGrid(np.rint(mapping["M"]).astype(np.int64))
-    rep_pos = (mapping["replica_table"] @ np.asarray(uc.cell))[:, None, :] \
-              + np.asarray(uc.positions)[None, :, :]
+    rep_pos = (mapping["replica_table"] @ np.asarray(uc.cell))[:, None, :] + np.asarray(
+        uc.positions
+    )[None, :, :]
     return dict(
         atoms=uc,
         replicated_positions=rep_pos.reshape(-1, 3),
@@ -265,6 +252,7 @@ def attach_snf_metadata(observable, mapping):
 
 # --------------------------------
 # Second order force constant method
+
 
 def parse_tdep_forceconstant(
     fc_file: str = "infile.forceconstants",
@@ -349,7 +337,9 @@ def parse_tdep_forceconstant(
             na = int(_readline_or_raise(f, "IFC2 atom count").split()[0])
             _cutoff = float(_readline_or_raise(f, "IFC2 cutoff").split()[0])
             if na != n_uc:
-                raise AssertionError(f"IFC2 file n_atoms={na} != primitive n_atoms={n_uc}")
+                raise AssertionError(
+                    f"IFC2 file n_atoms={na} != primitive n_atoms={n_uc}"
+                )
             for a1 in range(n_uc):
                 n_nbr = int(_readline_or_raise(f, "IFC2 neighbor count").split()[0])
                 for _ in range(n_nbr):
@@ -358,10 +348,13 @@ def parse_tdep_forceconstant(
                         _readline_or_raise(f, "IFC2 lattice vector").split(),
                         "IFC2 lattice vector",
                     )
-                    phi = np.array([
-                        _readline_or_raise(f, "IFC2 tensor block").split()
-                        for _ in range(3)
-                    ], dtype=float)
+                    phi = np.array(
+                        [
+                            _readline_or_raise(f, "IFC2 tensor block").split()
+                            for _ in range(3)
+                        ],
+                        dtype=float,
+                    )
                     records.append((a1, a2, R, phi))
                     translations.append(R)
         support = _file_translation_support(translations, supercell_grid)
@@ -391,7 +384,8 @@ def parse_tdep_forceconstant(
                     a2 = int(f.readline().split()[0]) - 1
                     lv = np.array(f.readline().split(), dtype=float)
                     phi = np.array(
-                        [f.readline().split() for _ in range(3)], dtype=float,
+                        [f.readline().split() for _ in range(3)],
+                        dtype=float,
                     )
                     R = np.round(lv).astype(int)
                     rep_id = grid.class_id(R)
@@ -436,7 +430,6 @@ def parse_tdep_forceconstant(
                     if np.sum(r_diff) < tol:
                         force_constants[i1, ii, :, :] += phi
 
-    
     force_constants = remap_force_constants(
         force_constants, uc, sc, symmetrize=symmetrize
     )
@@ -510,9 +503,7 @@ def remap_force_constants(
         diff = supercell.positions - a1.position
         p2s = np.where(np.linalg.norm(diff, axis=1) < tol)[0][0]
         spos = supercell.positions
-        sc_r[aa], _ = get_distances(
-            [spos[p2s]], spos, cell=supercell.cell, pbc=True
-        )
+        sc_r[aa], _ = get_distances([spos[p2s]], spos, cell=supercell.cell, pbc=True)
 
     primitive.cell = primitive_cell
     map2prim = _map2prim(primitive, new_supercell)
@@ -534,9 +525,7 @@ def remap_force_constants(
             norms = np.linalg.norm(r_diff, axis=1)
             below_tolerance = np.where(norms < tol)
 
-            fc_out[a1, below_tolerance, :, :] += force_constants[
-                uc_index, sc_a2, :, :
-            ]
+            fc_out[a1, below_tolerance, :, :] += force_constants[uc_index, sc_a2, :, :]
 
     # Convert to 2D format if requested
     if two_dim:
@@ -545,9 +534,7 @@ def remap_force_constants(
         # Check symmetry
         violation = np.linalg.norm(fc_out - fc_out.T)
         if violation > 1e-5:
-            logging.warning(
-                f"Force constants are not symmetric by {violation:.2e}."
-            )
+            logging.warning(f"Force constants are not symmetric by {violation:.2e}.")
             if symmetrize:
                 logging.info("Symmetrize force constants.")
                 fc_out = 0.5 * (fc_out + fc_out.T)
@@ -645,8 +632,11 @@ def _map2prim(primitive: Atoms, supercell: Atoms, tol: float = 1e-5) -> list:
         raise AssertionError(f"Inconsistent mapping counts: {counts}")
 
     return map2prim
+
+
 # --------------------------------
 # Third order force constant method
+
 
 def parse_tdep_third_forceconstant(
     fc_filename: str,
@@ -679,7 +669,9 @@ def parse_tdep_third_forceconstant(
     """
     if supercell_grid is not None:
         if supercell is not None or grid is not None:
-            raise ValueError("supercell_grid= is mutually exclusive with supercell= and grid=")
+            raise ValueError(
+                "supercell_grid= is mutually exclusive with supercell= and grid="
+            )
     elif (supercell is None) == (grid is None):
         raise ValueError(
             "parse_tdep_third_forceconstant requires exactly one of"
@@ -699,7 +691,9 @@ def parse_tdep_third_forceconstant(
             na = int(_readline_or_raise(f, "IFC3 atom count").split()[0])
             _cutoff = float(_readline_or_raise(f, "IFC3 cutoff").split()[0])
             if na != n_uc:
-                raise AssertionError(f"IFC3 file n_atoms={na} != primitive n_atoms={n_uc}")
+                raise AssertionError(
+                    f"IFC3 file n_atoms={na} != primitive n_atoms={n_uc}"
+                )
             for a1 in range(n_uc):
                 n_trips = int(_readline_or_raise(f, "IFC3 triplet count").split()[0])
                 for _ in range(n_trips):
@@ -707,13 +701,17 @@ def parse_tdep_third_forceconstant(
                     a2 = int(_readline_or_raise(f, "IFC3 second atom").split()[0]) - 1
                     a3 = int(_readline_or_raise(f, "IFC3 third atom").split()[0]) - 1
                     if i1 != a1:
-                        raise ValueError(f"IFC3 record at outer atom {a1} has central index i1={i1} (expected {a1})")
+                        raise ValueError(
+                            f"IFC3 record at outer atom {a1} has central index i1={i1} (expected {a1})"
+                        )
                     R1 = _integer_lattice_vector(
                         _readline_or_raise(f, "IFC3 central lattice vector").split(),
                         "IFC3 central lattice vector",
                     )
                     if np.any(R1):
-                        raise ValueError(f"IFC3 R1 lattice vector must be zero, got {R1}")
+                        raise ValueError(
+                            f"IFC3 R1 lattice vector must be zero, got {R1}"
+                        )
                     R2 = _integer_lattice_vector(
                         _readline_or_raise(f, "IFC3 lattice vector").split(), "IFC3 R2"
                     )
@@ -744,7 +742,9 @@ def parse_tdep_third_forceconstant(
         if coordinates:
             tensor = COO(
                 np.asarray(coordinates, dtype=np.int64).T,
-                np.asarray(values, dtype=float), shape=shape, has_duplicates=True,
+                np.asarray(values, dtype=float),
+                shape=shape,
+                has_duplicates=True,
             )
         else:
             tensor = COO(np.empty((8, 0), dtype=np.int64), np.empty(0), shape=shape)
@@ -753,16 +753,15 @@ def parse_tdep_third_forceconstant(
     n_rep = grid.size
 
     dense = np.zeros(
-        (n_uc, 3, n_rep, n_uc, 3, n_rep, n_uc, 3), dtype=float,
+        (n_uc, 3, n_rep, n_uc, 3, n_rep, n_uc, 3),
+        dtype=float,
     )
 
     with open(fc_filename) as f:
         na = int(f.readline().split()[0])
         _cutoff = float(f.readline().split()[0])
         if na != n_uc:
-            raise AssertionError(
-                f"IFC3 file n_atoms={na} != primitive n_atoms={n_uc}"
-            )
+            raise AssertionError(f"IFC3 file n_atoms={na} != primitive n_atoms={n_uc}")
         for a1 in range(n_uc):
             n_trips = int(f.readline().split()[0])
             for _ in range(n_trips):
@@ -780,8 +779,12 @@ def parse_tdep_third_forceconstant(
                         f"IFC3 R1 lattice vector for central atom {a1} is"
                         f" {_lv1} (expected [0,0,0]); file is malformed."
                     )
-                lv2 = np.array(_readline_or_raise(f, "IFC3 lattice vector").split(), dtype=float)
-                lv3 = np.array(_readline_or_raise(f, "IFC3 lattice vector").split(), dtype=float)
+                lv2 = np.array(
+                    _readline_or_raise(f, "IFC3 lattice vector").split(), dtype=float
+                )
+                lv3 = np.array(
+                    _readline_or_raise(f, "IFC3 lattice vector").split(), dtype=float
+                )
                 flat = np.empty(27)
                 idx = 0
                 while idx < 27:
@@ -803,6 +806,7 @@ def parse_tdep_third_forceconstant(
 
 # --------------------------------
 # Fourth order force constant method
+
 
 def parse_tdep_fourth_forceconstant(
     fc_filename: str,
@@ -839,19 +843,28 @@ def parse_tdep_fourth_forceconstant(
     if isinstance(primitive, Atoms):
         uc = primitive
     else:
-        uc = ase.io.read(primitive, format='vasp')
+        uc = ase.io.read(primitive, format="vasp")
     n_uc = len(uc)
     n_rep = grid.size
 
     shape = (
-        n_uc, 3, n_rep,
-        n_uc, 3, n_rep,
-        n_uc, 3, n_rep,
-        n_uc, 3,
+        n_uc,
+        3,
+        n_rep,
+        n_uc,
+        3,
+        n_rep,
+        n_uc,
+        3,
+        n_rep,
+        n_uc,
+        3,
     )
 
     def _read_vec3(fh):
-        return np.array(_readline_or_raise(fh, "IFC4 lattice vector").split(), dtype=float)
+        return np.array(
+            _readline_or_raise(fh, "IFC4 lattice vector").split(), dtype=float
+        )
 
     def _read_phi4(fh):
         flat = np.empty(81)
@@ -874,15 +887,13 @@ def parse_tdep_fourth_forceconstant(
     d = np.arange(3)
     da, db, dc, dd = (x.ravel() for x in np.meshgrid(d, d, d, d, indexing="ij"))
 
-    coord_cols = []   # list of (11, 81) int arrays, one per quartet
-    values = []       # list of (81,) float arrays
+    coord_cols = []  # list of (11, 81) int arrays, one per quartet
+    values = []  # list of (81,) float arrays
     with open(fc_filename) as fh:
         na = int(fh.readline().split()[0])
         _cutoff = float(fh.readline().split()[0])
         if na != n_uc:
-            raise AssertionError(
-                f"IFC4 file n_atoms={na} != n_uc={n_uc}"
-            )
+            raise AssertionError(f"IFC4 file n_atoms={na} != n_uc={n_uc}")
         for a1 in range(n_uc):
             n_quartets = int(fh.readline().split()[0])
             for _ in range(n_quartets):
@@ -914,10 +925,17 @@ def parse_tdep_fourth_forceconstant(
                 r4_id = grid.class_id(R4_int)
 
                 block = np.empty((11, 81), dtype=np.int64)
-                block[0] = a1;    block[1] = da;  block[2] = r2_id
-                block[3] = i2;    block[4] = db;  block[5] = r3_id
-                block[6] = i3;    block[7] = dc;  block[8] = r4_id
-                block[9] = i4;    block[10] = dd
+                block[0] = a1
+                block[1] = da
+                block[2] = r2_id
+                block[3] = i2
+                block[4] = db
+                block[5] = r3_id
+                block[6] = i3
+                block[7] = dc
+                block[8] = r4_id
+                block[9] = i4
+                block[10] = dd
                 coord_cols.append(block)
                 values.append(phi.ravel())
 

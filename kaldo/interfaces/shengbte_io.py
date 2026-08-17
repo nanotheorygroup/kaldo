@@ -13,7 +13,12 @@ logging = get_logger()
 
 
 def _resolve_lattice_translation(cell_position, cell_inv, source):
-    """Convert a Cartesian offset to its literal integer lattice translation."""
+    """Convert a Cartesian offset to its literal primitive-lattice vector.
+
+    ShengBTE writes cell offsets in Cartesian Angstrom.  Retaining the exact
+    integer vector, rather than reducing it modulo the supercell, is essential
+    for off-commensurate IFC3 phases.
+    """
     frac = cell_position.dot(cell_inv)
     if np.max(np.abs(frac - np.round(frac))) > 1e-3:
         raise ValueError(
@@ -37,10 +42,26 @@ def read_third_order_matrix(
 
     Parameters
     ----------
-    return_support
+    third_file : str
+        Path to the ShengBTE ``FORCE_CONSTANTS_3RD``-style file.
+    atoms : ase.Atoms
+        Primitive structure whose row-vector cell converts Cartesian file
+        offsets into integer lattice translations.
+    supercell : tuple of int or ndarray
+        Diagonal repetitions or the exact 3 by 3 integer supercell matrix.
+        It defines periodic equivalence but does not truncate file support.
+    order : {"C", "F"}
+        Ordering used for the compact periodic topology.
+    return_support : bool
         When true, return ``(tensor, TranslationSupport)`` so the caller can
         preserve the literal translation axes. The compatibility return is
         the sparse tensor alone.
+
+    Returns
+    -------
+    sparse.COO or tuple
+        Rank-8 IFC3 tensor, optionally paired with its literal translation
+        support.  Numerical IFC units are preserved exactly as stored.
     """
     n_unit_atoms = atoms.positions.shape[0]
     supercell_matrix = np.asarray(supercell)

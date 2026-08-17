@@ -2,6 +2,7 @@
 
 import numpy as np
 from ase import Atoms
+import pytest
 from sparse import COO
 
 from kaldo.grid import SupercellGrid, TranslationSupport
@@ -141,6 +142,18 @@ def test_explicit_periodic_override_folds_file_translations():
     np.testing.assert_allclose(periodic.value.data.sum(), 3.0, rtol=0, atol=0)
     assert wigner_seitz.resolved_mode == "wigner-seitz"
     np.testing.assert_allclose(wigner_seitz.value.data.sum(), 3.0, rtol=0, atol=1e-15)
+
+
+def test_legacy_export_rejects_unserializable_translation_support(tmp_path):
+    """Legacy IFC3 files must not silently discard literal translation axes."""
+    grid = SupercellGrid(np.diag([2, 1, 1]))
+    support = TranslationSupport([[0, 0, 0], [2, 0, 0]], grid, provenance="file")
+    shape = (1, 3, 2, 1, 3, 2, 1, 3)
+    third = _third(_single_entry(shape, 1, 1), support)
+    third.folder = str(tmp_path)
+
+    with pytest.raises(ValueError, match="cannot preserve.*translation support"):
+        third.save(format="sparse")
 
 
 def test_invalid_mode_and_mismatched_axes_are_rejected():

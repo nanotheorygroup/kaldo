@@ -1,3 +1,11 @@
+"""Third-order IFC storage, loading, and source-aware interpolation.
+
+IFC3 has two independently phased real-space legs.  This module preserves the
+translations supplied by each interface, or compiles compact periodic blocks
+onto pair-specific Wigner--Seitz images, before the anharmonic controller
+projects the tensor into phonon modes.
+"""
+
 from dataclasses import dataclass
 
 from kaldo.grid import TranslationSupport, WignerSeitzImages
@@ -116,6 +124,17 @@ def detect_path(files: list[str], folder: str = ""):
 
 
 class ThirdOrder(ForceConstant):
+    """Third-order IFCs with explicit translation axes for both outer legs.
+
+    The canonical tensor layout is ``(i,a,Rj,j,b,Rk,k,c)``. ``Rj`` and
+    ``Rk`` index :attr:`translation_support`, not the physical replica count.
+    Legacy rank-three sparse storage is accepted at load time and reshaped
+    without densification when interpolation begins.
+
+    :meth:`get_interpolation` returns an immutable plan rather than mutating
+    the source tensor. This preserves literal file provenance and allows
+    explicit periodic or Wigner--Seitz diagnostics to coexist safely.
+    """
 
     def get_interpolation(self, mode="auto"):
         """Compile IFC3 for the requested real-space interpolation rule.
@@ -306,7 +325,7 @@ class ThirdOrder(ForceConstant):
     def load(
         cls,
         folder: str,
-        supercell: tuple[int, int, int] = (1, 1, 1),
+        supercell: tuple[int, int, int] | np.ndarray = (1, 1, 1),
         format: str = "sparse",
         third_energy_threshold: float = 0.0,
         chunk_size: int = 100000,
@@ -322,8 +341,11 @@ class ThirdOrder(ForceConstant):
         ----------
         folder : str
             Specifies where to load the data files.
-        supercell : tuple[int, int, int]
-            The supercell for the third order force constant matrix.
+        supercell : tuple[int, int, int] or ndarray
+            Diagonal repetitions or an integer 3 by 3 supercell matrix for
+            the third-order force constants. TDEP and ShengBTE-style literal
+            IFC3 readers support matrices; compact legacy formats require a
+            diagonal three-vector.
             Default: (1, 1, 1)
         format : str
             Format of the third order force constant information being loaded into ForceConstant object.
@@ -337,10 +359,9 @@ class ThirdOrder(ForceConstant):
             Larger values use more memory but may be faster for very large files.
             Default: 100000
         supercell_matrix : np.ndarray, optional
-            3x3 integer supercell expansion matrix. Accepted for API symmetry
-            with ``ForceConstants.from_folder``; for ``format='tdep'`` the
-            (possibly non-diagonal) supercell is inferred from
-            ``infile.ucposcar`` / ``infile.ssposcar`` instead.
+            Expected 3x3 integer supercell expansion matrix. For TDEP the
+            structure files remain authoritative, and a supplied matrix must
+            match their inferred (possibly non-diagonal) tiling.
             Default: None
         atoms_override : ase.Atoms, optional
             Authoritative primitive structure supplied by an already loaded
@@ -353,6 +374,31 @@ class ThirdOrder(ForceConstant):
         third_order : ThirdOrder object
             A new instance of the ThirdOrder class
         """
+
+        matrix_capable_formats = {
+            "tdep",
+            "vasp-sheng",
+            "shengbte",
+            "qe-sheng",
+            "shengbte-qe",
+        }
+        supplied_matrix = np.asarray(supercell)
+        if supplied_matrix.shape == (3, 3) and format not in matrix_capable_formats:
+            diagonal = np.diag(supplied_matrix)
+            if np.array_equal(supplied_matrix, np.diag(diagonal)):
+                rounded = np.rint(diagonal)
+                if not np.allclose(diagonal, rounded, rtol=0, atol=1e-12) or np.any(
+                    rounded <= 0
+                ):
+                    raise ValueError(
+                        "diagonal supercell matrix entries must be positive integers"
+                    )
+                supercell = tuple(int(value) for value in rounded)
+            else:
+                raise ValueError(
+                    f"format={format!r} does not encode a non-diagonal IFC3 "
+                    "topology; use TDEP/ShengBTE input or a diagonal supercell"
+                )
 
         match format:
             case "sparse" | "numpy":
@@ -512,10 +558,8 @@ class ThirdOrder(ForceConstant):
                     grid_type=grid_type,
                     supercell=supercell,
                     value=third_order,
-                    # d3q writes explicit,
-                    # unrecentered cell
-                    # indices; retain that
-                    # native direct gauge.
+                    # d3q writes explicit unrecentered cell indices; retain
+                    # that native direct Fourier gauge.
                     ifc_interpolation_hint=(
                         "periodic"
                         if format
@@ -652,14 +696,41 @@ class ThirdOrder(ForceConstant):
         return third_order
 
     def save(self, filename="THIRD", format="sparse", min_force=1e-6):
+        """Export a compact periodic IFC3 tensor in a legacy file format.
+
+        The existing ESKM and sparse/numpy formats do not serialize an
+        arbitrary ``TranslationSupport``. Export is therefore permitted only
+        when the tensor axes exactly match the physical compact support;
+        literal file translations or Wigner--Seitz-expanded tensors would be
+        irreversibly mislabelled and are rejected.
+
+        Parameters
+        ----------
+        filename : str
+            ESKM output name. Sparse/numpy output retains the historical
+            fixed filenames in ``self.folder``.
+        format : {"eskm", "sparse", "numpy"}
+            Legacy target representation.
+        min_force : float
+            Norm threshold used when writing ESKM text blocks.
+        """
+        if format in ("eskm", "sparse", "numpy"):
+            compact_support = TranslationSupport.periodic(self.supercell_grid)
+            if self.translation_support.provenance != "periodic" or not np.array_equal(
+                self.translation_support.translations,
+                compact_support.translations,
+            ):
+                raise ValueError(
+                    f"format={format!r} cannot preserve this IFC3 translation "
+                    "support; export requires compact periodic axes"
+                )
         folder = self.folder
         filename = folder + "/" + filename
         n_atoms = self.atoms.positions.shape[0]
         match format:
             case "eskm":
                 logging.info("Exporting third in eskm format")
-                n_replicas = self.n_replicas
-                n_replicated_atoms = n_atoms * n_replicas
+                n_replicated_atoms = n_atoms * self.n_translations
                 tenjovermoltoev = 10 * units.J / units.mol
                 third = (
                     self.value.reshape(
@@ -702,8 +773,8 @@ class ThirdOrder(ForceConstant):
                     folder + "/" + THIRD_ORDER_FILE_SPARSE,
                     self.value.reshape(
                         (
-                            n_atoms * 3 * self.n_replicas * n_atoms * 3,
-                            self.n_replicas * n_atoms * 3,
+                            n_atoms * 3 * self.n_translations * n_atoms * 3,
+                            self.n_translations * n_atoms * 3,
                         )
                     ).to_scipy_sparse(),
                 )

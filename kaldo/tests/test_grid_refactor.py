@@ -25,15 +25,19 @@ def test_q_grid_order_and_exact_time_reversal_partner():
     )
 
 
+@pytest.mark.parametrize("shape", [(2.5, 2, 2), (2, 0, 2), (2, -1, 2)])
+def test_q_grid_rejects_noninteger_or_nonpositive_shapes(shape):
+    with pytest.raises(ValueError, match="three positive integers"):
+        QGrid(shape)
+
+
 def test_q_grid_matches_legacy_enumeration_and_momentum_convention():
     """Keep historical point ids while replacing float momentum arithmetic."""
     for shape in ((1, 1, 1), (2, 3, 4), (3, 2, 5)):
         for order in ("C", "F"):
             grid = QGrid(shape, order=order)
             ids = np.arange(np.prod(shape))
-            legacy_addresses = np.asarray(
-                np.unravel_index(ids, shape, order=order)
-            ).T
+            legacy_addresses = np.asarray(np.unravel_index(ids, shape, order=order)).T
             np.testing.assert_array_equal(grid.addresses, legacy_addresses)
             np.testing.assert_allclose(
                 grid.fractional_points,
@@ -102,9 +106,7 @@ def test_translation_support_keeps_repeated_periodic_classes_distinct():
 
 
 def test_periodic_support_preserves_centered_direct_fourier_gauge():
-    support = TranslationSupport.periodic(
-        SupercellGrid(np.diag([5, 1, 1]), order="C")
-    )
+    support = TranslationSupport.periodic(SupercellGrid(np.diag([5, 1, 1]), order="C"))
     np.testing.assert_array_equal(
         support.translations,
         [[0, 0, 0], [1, 0, 0], [2, 0, 0], [-2, 0, 0], [-1, 0, 0]],
@@ -132,7 +134,9 @@ def test_forceconstant_keeps_physical_replicas_separate_from_ifc_support(tmp_pat
 
     assert len(forceconstant.replicated_atoms) == 2
     assert forceconstant.n_translations == 3
-    np.testing.assert_array_equal(forceconstant.replicated_atoms.positions, positions.reshape(-1, 3))
+    np.testing.assert_array_equal(
+        forceconstant.replicated_atoms.positions, positions.reshape(-1, 3)
+    )
     np.testing.assert_array_equal(forceconstant.list_of_replicas, support.translations)
 
 
@@ -148,6 +152,37 @@ def test_forceconstant_rejects_incomplete_physical_replica_classes(tmp_path):
             supercell_grid=grid,
             folder=str(tmp_path),
         )
+
+
+@pytest.mark.parametrize(
+    "supercell",
+    [
+        (2.5, 1, 1),
+        (0, 1, 1),
+        (-2, 1, 1),
+    ],
+)
+def test_forceconstants_rejects_noninteger_or_nonpositive_repetitions(
+    tmp_path, supercell
+):
+    """A diagonal supercell is an exact positive lattice quotient."""
+    from kaldo.forceconstants import ForceConstants
+
+    atoms = Atoms("Si", positions=[[0.0, 0.0, 0.0]], cell=np.eye(3), pbc=True)
+    with pytest.raises(ValueError, match="supercell repetitions"):
+        ForceConstants(atoms, supercell=supercell, folder=str(tmp_path))
+
+
+def test_legacy_file_readers_reject_ambiguous_nondiagonal_topology(tmp_path):
+    """A matrix must not reach loaders that flatten it as three repetitions."""
+    from kaldo.observables.secondorder import SecondOrder
+    from kaldo.observables.thirdorder import ThirdOrder
+
+    matrix = np.array([[2, 1, 0], [0, 2, 0], [0, 0, 1]])
+    with pytest.raises(ValueError, match="does not encode a non-diagonal IFC2"):
+        SecondOrder.load(str(tmp_path), supercell=matrix, format="numpy")
+    with pytest.raises(ValueError, match="does not encode a non-diagonal IFC3"):
+        ThirdOrder.load(str(tmp_path), supercell=matrix, format="numpy")
 
 
 def test_wigner_seitz_images_find_skew_cell_shortest_vector():
@@ -166,7 +201,9 @@ def test_wigner_seitz_images_find_skew_cell_shortest_vector():
                 brute_force.append(displacement + np.array([a, b, c]) @ cell)
     expected_norm = min(np.linalg.norm(vector) for vector in brute_force)
 
-    np.testing.assert_allclose(np.linalg.norm(actual, axis=1), expected_norm, atol=1e-12)
+    np.testing.assert_allclose(
+        np.linalg.norm(actual, axis=1), expected_norm, atol=1e-12
+    )
     # Componentwise fractional wrapping would select (-0.29, -0.035, 0),
     # while the Cartesian minimum is obtained through the skew lattice.
     assert not np.allclose(actual[0], [-0.29, -0.035, 0.0])
@@ -188,11 +225,13 @@ def test_wigner_seitz_images_retain_ties_with_normalized_weights():
 
 def test_wigner_seitz_ties_tolerate_rounded_hexagonal_cell():
     """Printed lattice decimals must not split a symmetry-required tie."""
-    cell = np.array([
-        [1.0, 0.0, 0.0],
-        [-0.5 + 1.0e-7, np.sqrt(3.0) / 2.0, 0.0],
-        [0.0, 0.0, 2.0],
-    ])
+    cell = np.array(
+        [
+            [1.0, 0.0, 0.0],
+            [-0.5 + 1.0e-7, np.sqrt(3.0) / 2.0, 0.0],
+            [0.0, 0.0, 2.0],
+        ]
+    )
     grid = SupercellGrid(np.diag([5, 5, 1]))
     support = TranslationSupport([[1, -2, 0]], grid)
     images = WignerSeitzImages.build(support, [[0.0, 0.0, 0.0]], cell)
