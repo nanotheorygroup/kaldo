@@ -160,3 +160,16 @@ def test_wigner_seitz_rejects_nonperiodic_lattice_direction(tmp_path):
             tmp_path,
             ifc_interpolation="wigner-seitz",
         )
+
+
+def test_is_nw_does_not_silently_enable_axis_only_ifc_images(tmp_path):
+    """The nanowire mode mask must not masquerade as partial-PBC physics."""
+    forceconstants = _forceconstants(pbc=(False, False, True))
+
+    with pytest.raises(ValueError, match="is_nw=True.*axis-only periodic"):
+        _phonons(
+            forceconstants,
+            tmp_path,
+            is_nw=True,
+            ifc_interpolation="wigner-seitz",
+        )

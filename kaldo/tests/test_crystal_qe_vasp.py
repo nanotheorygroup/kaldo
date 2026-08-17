@@ -152,8 +152,10 @@ def test_qe_si_rta_is_invariant_to_wrapped_crystal_origin(phonons):
     legacy implementation, so frequencies alone could not detect the bug.
     This QE fixture is intentional: unlike the ESKM fixture, its literal IFC3
     support has nonzero weight outside the 27 compact representatives.
-    Historically the wrapped origin shift below changed RTA conductivity by
-    about 56 percent even though frequencies agreed to roughly 1e-14.
+    The original origin-shift reproducer did not relabel both IFC translation
+    legs and therefore cannot support a quantitative historical percentage.
+    This regression applies the exact gauge transformation and tests the
+    physical invariant directly rather than retaining that stale number.
     """
     translated = _translated_qe_si_phonons()
 

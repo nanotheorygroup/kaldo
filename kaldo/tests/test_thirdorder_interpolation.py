@@ -1,5 +1,7 @@
 """Scientific contracts for provenance-aware third-order IFC interpolation."""
 
+from pathlib import Path
+
 import numpy as np
 from ase import Atoms
 import pytest
@@ -9,7 +11,7 @@ from kaldo.grid import SupercellGrid, TranslationSupport
 from kaldo.observables.thirdorder import ThirdOrder
 
 
-def _third(value, support, positions=((0.0, 0.0, 0.0),), cell=None):
+def _third(value, support, positions=((0.0, 0.0, 0.0),), cell=None, folder=""):
     cell = np.eye(3) if cell is None else np.asarray(cell, dtype=float)
     atoms = Atoms("H" * len(positions), positions=positions, cell=cell, pbc=True)
     replicated = (
@@ -20,7 +22,7 @@ def _third(value, support, positions=((0.0, 0.0, 0.0),), cell=None):
         atoms=atoms,
         replicated_positions=replicated,
         supercell=tuple(np.diag(support.supercell.matrix)),
-        folder="",
+        folder=folder,
         value=value,
         supercell_grid=support.supercell,
         translation_support=support,
@@ -87,6 +89,48 @@ def test_legacy_rank3_sparse_storage_is_normalized_without_densifying():
     assert periodic.value.shape == rank8_shape
     assert wigner_seitz.value.ndim == 8
     np.testing.assert_allclose(wigner_seitz.value.data.sum(), 2.0, rtol=0, atol=1e-15)
+
+
+def test_gamma_contraction_sums_literal_translation_axes_exactly():
+    """Gamma-only amorphous projection depends on the IFC3 zeroth moment."""
+    grid = SupercellGrid(np.diag([2, 1, 1]))
+    support = TranslationSupport([[0, 0, 0], [2, 0, 0]], grid, provenance="file")
+    shape = (1, 3, 2, 1, 3, 2, 1, 3)
+    coords = np.array(
+        [
+            [0, 0, 0],
+            [0, 0, 0],
+            [0, 1, 1],
+            [0, 0, 0],
+            [0, 0, 0],
+            [0, 0, 1],
+            [0, 0, 0],
+            [0, 0, 0],
+        ]
+    )
+    value = COO(coords, np.array([1.0, 2.0, 4.0]), shape=shape)
+    third = _third(value, support)
+
+    gamma = third.gamma_contracted_value()
+
+    assert isinstance(gamma, COO)
+    assert gamma.shape == (3, 3, 3)
+    np.testing.assert_allclose(gamma[0, 0, 0], 7.0, rtol=0.0, atol=0.0)
+    assert gamma.nnz == 1
+
+
+def test_sparse_save_keeps_replicated_atoms_inside_output_folder(tmp_path):
+    """The native IFC3 artifact set must not leak a path by string joining."""
+    grid = SupercellGrid(np.eye(3, dtype=int))
+    support = TranslationSupport.periodic(grid)
+    shape = (1, 3, 1, 1, 3, 1, 1, 3)
+    third = _third(_single_entry(shape, 0, 0), support, folder=str(tmp_path))
+
+    third.save("third")
+
+    assert (tmp_path / "third.npz").is_file()
+    assert (tmp_path / "replicated_atoms_third.xyz").is_file()
+    assert not Path(str(tmp_path) + "replicated_atoms_third.xyz").exists()
 
 
 def test_wigner_seitz_and_periodic_gauges_agree_at_commensurate_q():

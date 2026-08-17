@@ -400,6 +400,10 @@ class HarmonicWithQ(Observable, Storable):
         self.is_nw = is_nw
         if (q_point == [0, 0, 0]).all():
             if self.is_nw:
+                # A free one-dimensional object has longitudinal, torsional,
+                # and two flexural acoustic branches. ``is_nw`` changes only
+                # this physical-mode mask; it does not alter IFC periodicity,
+                # image geometry, or conductivity normalization.
                 self.physical_mode[0, :4] = False
             else:
                 self.physical_mode[0, :3] = False
@@ -909,13 +913,22 @@ class HarmonicWithQ(Observable, Storable):
         return esystem
 
     def calculate_participation_ratio(self):
-        """Return the inverse atomic localization measure for every mode."""
+        """Return the real inverse atomic localization measure for every mode.
+
+        For normalized mode ``s``, the atomic weight is
+        ``p_si=sum_alpha |e_s,i,alpha|^2`` and the returned ratio is
+        ``1 / (N * sum_i p_si^2)``.  Taking the real modulus explicitly keeps
+        the public observable real even though the common eigenvector
+        container is complex at crystal q points and at amorphous Gamma.
+        """
         n_atoms = self.n_modes // 3
         eigenvectors = self._eigensystem[1:, :]
         eigenvectors = tf.transpose(eigenvectors)
         eigenvectors = np.reshape(eigenvectors, (self.n_modes, n_atoms, 3))
         conjugate = tf.math.conj(eigenvectors)
-        participation_ratio = tf.math.reduce_sum(eigenvectors * conjugate, axis=2)
+        participation_ratio = tf.math.reduce_sum(
+            tf.math.real(eigenvectors * conjugate), axis=2
+        )
         participation_ratio = tf.math.square(participation_ratio)
         participation_ratio = tf.math.reciprocal(
             tf.math.reduce_sum(participation_ratio, axis=1) * n_atoms

@@ -197,6 +197,26 @@ class ThirdOrder(ForceConstant):
         cache[cache_key] = result
         return result
 
+    def gamma_contracted_value(self):
+        """Return IFC3 summed over both real-space translation axes.
+
+        At Gamma the two IFC3 Fourier phases are identically one. The exact
+        tensor consumed by a Gamma-only amorphous calculation is therefore
+        ``sum_Rj,Rk Phi(Rj,Rk)``. Performing that reduction on the canonical
+        rank-eight representation supports compact, literal, and expanded
+        translation supports without confusing their size with the physical
+        replica count.
+
+        Returns
+        -------
+        sparse.COO or numpy.ndarray
+            Tensor with shape ``(3*n_atoms, 3*n_atoms, 3*n_atoms)`` in the
+            historical ``(central, partner-j, partner-k)`` mode ordering.
+        """
+        rank8 = _rank8_ifc3(self.value, len(self.atoms), self.n_translations)
+        n_modes = 3 * len(self.atoms)
+        return rank8.sum(axis=(2, 5)).reshape((n_modes, n_modes, n_modes))
+
     @staticmethod
     def _fold_periodic_classes(value, support):
         """Coalesce both IFC3 translation axes into exact quotient classes."""
@@ -313,11 +333,24 @@ class ThirdOrder(ForceConstant):
         compiled = _coalesced_coo(
             output_coords, output_data, tuple(shape), folded.dtype
         )
-        if not np.allclose(
-            np.sum(compiled.data), np.sum(folded.data), rtol=1e-13, atol=1e-13
-        ):
+        # Redistribution must preserve the Gamma zeroth moment separately for
+        # every Cartesian (i,a,j,b,k,c) block.  A comparison of one global
+        # signed sum is ill-conditioned for physical IFC3 tensors because the
+        # acoustic sum rule makes that scalar nearly zero through cancellation.
+        # Reducing only the two translation axes tests the actual invariant
+        # without densifying the six remaining atom/Cartesian axes.
+        source_gamma = folded.sum(axis=(2, 5))
+        compiled_gamma = compiled.sum(axis=(2, 5))
+        gamma_error = compiled_gamma - source_gamma
+        error = float(np.max(np.abs(gamma_error.data))) if gamma_error.nnz else 0.0
+        scale = max(
+            float(np.max(np.abs(source_gamma.data))) if source_gamma.nnz else 0.0,
+            1.0,
+        )
+        if error > 5e-13 * scale:
             raise ValueError(
-                "Wigner-Seitz IFC3 compilation did not conserve total weight"
+                "Wigner-Seitz IFC3 compilation did not conserve the per-block "
+                "Gamma translation sum"
             )
         return compiled, compiled_support
 
@@ -766,7 +799,7 @@ class ThirdOrder(ForceConstant):
                                             out_file.write("\n")
                 logging.info("Done exporting third.")
             case "sparse" | "numpy":
-                config_file = folder + REPLICATED_ATOMS_THIRD_FILE
+                config_file = os.path.join(folder, REPLICATED_ATOMS_THIRD_FILE)
                 ase.io.write(config_file, self.replicated_atoms, format="extxyz")
 
                 save_npz(

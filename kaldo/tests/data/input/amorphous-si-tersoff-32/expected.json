@@ -1,0 +1,76 @@
+{
+  "generator_version": 2,
+  "ase_version": "3.29.0",
+  "numpy_version": "2.4.6",
+  "seed": 20260817,
+  "n_atoms": 32,
+  "density_kg_m3": 2329.95851952075,
+  "cell_length_angstrom": 8.620023270258201,
+  "potential_energy_eV": -141.55980587094416,
+  "max_force_eV_per_A": 4.143517672120746e-06,
+  "tersoff_reference": "J. Tersoff, Phys. Rev. B 37, 6991 (1988)",
+  "protocol": {
+    "time_step_fs": 0.5,
+    "melt_temperature_K": 3500.0,
+    "final_temperature_K": 300.0,
+    "melt_steps": 4000,
+    "quench_steps": 10000,
+    "equilibration_steps": 2000,
+    "relax_fmax_eV_per_A": 1e-05,
+    "ifc2_displacement_angstrom": 0.001,
+    "ifc3_displacement_angstrom": 0.001,
+    "ifc3_distance_threshold_angstrom": 3.25
+  },
+  "sha256": {
+    "amorphous_si_32.extxyz": "e88d58870cb0b239c890fa7a2859def55c886d5f6ddb00dddd4d197ca708fb8f",
+    "replicated_atoms.xyz": "576e2f2b6e085045cba1774dfef400047b9c554660447e63ee52bff0d4eeb7a8",
+    "replicated_atoms_third.xyz": "576e2f2b6e085045cba1774dfef400047b9c554660447e63ee52bff0d4eeb7a8",
+    "second.npy": "d48fdf1867249dc893ac0350b6208bfc2d2fc0ad044ce4d11b50e881c423d4f9",
+    "third.npz": "eb2a35d6d7da3cef09a7d104c72807008e2f0c7dcba0001b358e91443c6154db"
+  },
+  "reference_finalizer_version": 1,
+  "origin_shift_fractional": [
+    0.53,
+    0.37,
+    0.29
+  ],
+  "boundary_weight": {
+    "ifc2_nonzero_boundary_pairs": 316,
+    "ifc2_boundary_l1_fraction": 0.22306883561227914,
+    "ifc3_nonzero_boundary_entries": 41995,
+    "ifc3_boundary_l1_fraction": 0.3388925575451034
+  },
+  "ifc3_probe_q_points": [
+    [
+      0.17,
+      0.11,
+      0.07
+    ],
+    [
+      -0.09,
+      0.13,
+      0.05
+    ]
+  ],
+  "references": {
+    "legacy_origin_flux_relative_change": 1.6197096604183019,
+    "qhgk_tensor_W_mK": [
+      [
+        0.4304291605949402,
+        0.017248068004846573,
+        0.09624980390071869
+      ],
+      [
+        0.017248068004846573,
+        0.3531743884086609,
+        -0.04349258169531822
+      ],
+      [
+        0.09624980390071869,
+        -0.04349258169531822,
+        0.38729894161224365
+      ]
+    ],
+    "legacy_origin_qhgk_trace_relative_change": 0.06705400347709656
+  }
+}

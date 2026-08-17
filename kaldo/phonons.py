@@ -517,7 +517,12 @@ class Phonons(Storable):
         Defines if you want to truncate the energy-conservation delta
         in the isotopic scattering computation. Default is True.
     is_nw: bool, optional
-        Defines if you would like to assume the system is a nanowire.
+        Treat the four lowest Gamma modes as the acoustic subspace of a
+        nanowire (one longitudinal, one torsional, and two flexural modes).
+        This flag does not define partial periodic boundary conditions,
+        restrict IFC image searches to a wire axis, select a conductivity
+        component, or assign an effective cross-sectional area. True
+        partially periodic IFC interpolation is not currently implemented.
         Default: False
     n_workers : int, optional
         Number of worker processes used for per-q projection calculations.
@@ -686,9 +691,15 @@ class Phonons(Storable):
         if self.ifc_interpolation_resolved == "wigner-seitz" and not np.all(
             np.asarray(self.atoms.pbc, dtype=bool)
         ):
+            nanowire_context = (
+                " is_nw=True only changes the four-mode Gamma acoustic "
+                "mask; it does not enable axis-only periodic IFC images."
+                if self.is_nw
+                else ""
+            )
             raise ValueError(
                 "Wigner--Seitz IFC interpolation requires periodic boundary "
-                "conditions in all three lattice directions."
+                "conditions in all three lattice directions." + nanowire_context
             )
         self._second_support_digest = (
             self.forceconstants.second.translation_support.digest
@@ -1000,7 +1011,22 @@ class Phonons(Storable):
                 nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix,
             )
 
-            eigensystem[ik] = phonon._eigensystem
+            phonon_eigensystem = phonon._eigensystem
+            if self._is_amorphous:
+                # The common harmonic interpolation container is complex so
+                # it can represent crystal q points.  At the sole amorphous
+                # Gamma point the Hermitian matrix and its chosen eigenvectors
+                # are real to roundoff; make that physical boundary explicit
+                # instead of relying on NumPy's warning-producing cast.
+                imaginary = np.max(np.abs(np.imag(phonon_eigensystem)))
+                scale = max(np.max(np.abs(phonon_eigensystem)), 1.0)
+                if imaginary > 1e-12 * scale:
+                    raise ValueError(
+                        "amorphous Gamma eigensystem has a non-negligible "
+                        "imaginary component"
+                    )
+                phonon_eigensystem = np.real(phonon_eigensystem)
+            eigensystem[ik] = phonon_eigensystem
 
         return eigensystem
 
@@ -1789,32 +1815,50 @@ class Phonons(Storable):
 
     @timeit
     def _project_amorphous(self):
-        """
-        Project anharmonic properties for amorphous materials.
+        """Project Gamma-only IFC3 onto amorphous normal modes.
 
-        Args:
-            self: Phonon object containing material properties
+        A periodically repeated amorphous cell is treated as one large unit
+        cell sampled only at Gamma. Every integer-translation phase is then
+        one, so literal or pair-image IFC3 blocks enter only through their sum
+        over the two translation axes. Folding that sum here is exact and does
+        not invoke the off-Gamma IFC3 interpolation compiler.
 
-        Returns:
-            np.ndarray: Array containing projected properties
+        This does *not* make real-space image geometry irrelevant to amorphous
+        transport. The heat-flux operator uses the first Cartesian moment of
+        IFC2 and therefore obtains pair-specific nearest displacements from
+        :class:`HarmonicWithQ`. Gamma frequencies contain only the zeroth IFC2
+        moment and can remain unchanged when that displacement is wrong.
+
+        Returns
+        -------
+        sparse_phase, sparse_potential : tuple[list, list]
+            Energy-conservation entries and squared three-phonon potentials
+            for each Gamma mode and absorption/emission channel.
         """
         frequency = self.frequency
         omega = 2 * np.pi * frequency
-        n_replicas = self.forceconstants.n_replicas
         rescaled_eigenvectors = self._rescaled_eigenvectors.astype(float)
         evect_tf = tf.convert_to_tensor(rescaled_eigenvectors[0])
-        coords = self.forceconstants.third.value.coords
+
+        third = self.forceconstants.third
+        # Sum the independently translated j and k legs because q'=q''=0.
+        # The resulting rank-three tensor follows the historical
+        # (central, partner-j, partner-k) mode ordering.
+        gamma_third = third.gamma_contracted_value()
+        if not hasattr(gamma_third, "coords"):
+            from sparse import COO
+
+            gamma_third = COO.from_numpy(np.asarray(gamma_third))
+        coords = gamma_third.coords
         coords = np.vstack([coords[1], coords[2], coords[0]])
         coords = tf.cast(coords.T, dtype=tf.int64)
-        data = self.forceconstants.third.value.data
+        data = gamma_third.data
         third_tf = tf.SparseTensor(
             coords,
             data,
-            (self.n_modes * n_replicas, self.n_modes * n_replicas, self.n_modes),
+            (self.n_modes, self.n_modes, self.n_modes),
         )
-        third_tf = tf.sparse.reshape(
-            third_tf, ((self.n_modes * n_replicas) ** 2, self.n_modes)
-        )
+        third_tf = tf.sparse.reshape(third_tf, (self.n_modes**2, self.n_modes))
         physical_mode = self.physical_mode.reshape((self.n_k_points, self.n_modes))
         logging.info("Projection started")
         hbar = units._hbar
@@ -1862,9 +1906,7 @@ class Phonons(Storable):
                 third_nu_tf = tf.sparse.sparse_dense_matmul(
                     third_tf, tf.reshape(evect_tf[:, nu_single], (n_modes, 1))
                 )
-                third_nu_tf = tf.reshape(
-                    third_nu_tf, (n_modes * n_replicas, n_modes * n_replicas)
-                )
+                third_nu_tf = tf.reshape(third_nu_tf, (n_modes, n_modes))
                 scaled_potential_tf = tf.einsum(
                     "ij,in,jm->nm", third_nu_tf, evect_tf, evect_tf
                 )
