@@ -28,6 +28,7 @@ logging = get_logger()
 # Utility functions (public)
 # ---------------------------------------------------------------------------
 
+
 def acoustic_sum_rule(dynmat):
     """Apply kALDo's onsite translational sum-rule correction in place."""
     n_unit = dynmat[0].shape[0]
@@ -79,9 +80,8 @@ class SecondOrder(ForceConstant, Storable):
         proves subtraction occurred but does not contain enough native data to
         reconstruct it safely.
         """
-        if (
-            self.atoms.info.get("dipole_subtracted_fc", False)
-            and getattr(self, "_qe_q2r_header", None) is None
+        if self.atoms.info.get("dipole_subtracted_fc", False) and not getattr(
+            getattr(self, "_qe_q2r_header", None), "has_zstar", False
         ):
             raise NotImplementedError(
                 "These force constants are marked as QE dipole-subtracted, but "
@@ -103,7 +103,7 @@ class SecondOrder(ForceConstant, Storable):
         """
         self._refuse_dipole_subtracted_fc()
         matrix = nac.normalize_bvk_supercell_matrix(nac_bvk_supercell_matrix)
-        if getattr(self, "_qe_q2r_header", None) is not None:
+        if getattr(getattr(self, "_qe_q2r_header", None), "has_zstar", False):
             # A q2r file written with epsil=.true. already contains QE's
             # short-range IFCs. Do not run Gonze subtraction or share its cache.
             return nac._build_interleaved_fc(self)
@@ -178,7 +178,7 @@ class SecondOrder(ForceConstant, Storable):
         the corresponding QE subtraction before writing the IFC body.
         """
         self._refuse_dipole_subtracted_fc()
-        if getattr(self, "_qe_q2r_header", None) is not None:
+        if getattr(getattr(self, "_qe_q2r_header", None), "has_zstar", False):
             return nac._build_interleaved_fc(self)
         if "dielectric" not in self.atoms.info or "charges" not in self.atoms.arrays:
             raise ValueError(
@@ -396,11 +396,19 @@ class SecondOrder(ForceConstant, Storable):
                         if not os.path.isfile(filename):
                             raise FileNotFoundError(f"File {filename} not found.")
                         qe_header = qe_io.read_q2r_header(filename)
-                        _second_order, supercell, charges = qe_io.read_second_order_qe_matrix(
-                            filename
+                        # q2r's header fixes the lattice and atom order used
+                        # by every IFC block. Do not let an independently
+                        # relaxed CONTROL/POSCAR silently reinterpret them.
+                        qe_io.validate_q2r_auxiliary_structure(qe_header, atoms)
+                        atoms = qe_header.to_ase_atoms(auxiliary=atoms)
+                        n_unit_atoms = len(atoms)
+                        _second_order, supercell, charges = (
+                            qe_io.read_second_order_qe_matrix(
+                                filename, header=qe_header
+                            )
                         )
                         n_replicas = np.prod(supercell)
-                        if not charges is None:
+                        if qe_header.has_zstar:
                             atoms.info["dielectric"] = charges[0, :, :]
                             atoms.set_array("charges", charges[1:, :, :], shape=(3, 3))
                             # q2r subtracts the dipole-dipole part before the back
@@ -435,25 +443,16 @@ class SecondOrder(ForceConstant, Storable):
                     grid_type=grid_type,
                     supercell=supercell,
                     value=_second_order[np.newaxis, ...],
-                    # Nonpolar q2r is validated against matdyn.x's direct
-                    # periodic transform.  Inspect the tensor values, not only
-                    # the q2r section flag: some files carry a syntactically
-                    # present but identically-zero Born-charge block.  Polar
-                    # q2r deliberately has no hint because its subtracted body
-                    # and long-range restoration use matched WS/NAC geometry.
+                    # q2r's native lattice and atom order define a pair-aware
+                    # shortest-image interpolation whether or not its optional
+                    # macroscopic Z* section is present.
                     is_acoustic_sum=True,
                     ifc_interpolation_hint=(
-                        "periodic"
-                        if qe_header is not None
-                        and (
-                            charges is None
-                            or not np.any(np.abs(charges[1:]) > 1.0e-8)
-                        )
-                        else None
+                        "wigner-seitz" if qe_header is not None else None
                     ),
                     folder=folder,
                 )
-                if qe_header is not None and qe_header.has_zstar:
+                if qe_header is not None:
                     second_order._qe_q2r_header = qe_header
 
             case "hiphive":
@@ -511,25 +510,36 @@ class SecondOrder(ForceConstant, Storable):
                 )
                 fc_file = os.path.join(folder, "infile.forceconstant")
 
-                matrix = np.rint(np.asarray(sc.cell) @ np.linalg.inv(np.asarray(uc.cell))).astype(int)
+                matrix = np.rint(
+                    np.asarray(sc.cell) @ np.linalg.inv(np.asarray(uc.cell))
+                ).astype(int)
                 physical_grid = SupercellGrid(matrix, order="C")
                 d2, support = parse_tdep_forceconstant(
-                    fc_file=fc_file, primitive=uc, supercell_grid=physical_grid,
+                    fc_file=fc_file,
+                    primitive=uc,
+                    supercell_grid=physical_grid,
                     return_support=True,
                 )
                 if diagonal_supercell is None:
                     kw = build_nondiag_observable_kwargs(uc, sc)
                     mapping = kw.pop("_mapping")
                     second_order = SecondOrder(
-                        value=d2, is_acoustic_sum=is_acoustic_sum, folder=folder,
-                        translation_support=support, **kw
+                        value=d2,
+                        is_acoustic_sum=is_acoustic_sum,
+                        folder=folder,
+                        translation_support=support,
+                        **kw,
                     )
                     return attach_snf_metadata(second_order, mapping)
 
                 supercell = diagonal_supercell
                 second_order = SecondOrder.from_supercell(
-                    atoms=uc, supercell=supercell, grid_type="C", value=d2,
-                    is_acoustic_sum=is_acoustic_sum, folder=folder,
+                    atoms=uc,
+                    supercell=supercell,
+                    grid_type="C",
+                    value=d2,
+                    is_acoustic_sum=is_acoustic_sum,
+                    folder=folder,
                     translation_support=support,
                 )
 

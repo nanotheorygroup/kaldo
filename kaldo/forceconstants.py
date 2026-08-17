@@ -2,6 +2,7 @@
 kaldo
 Anharmonic Lattice Dynamics
 """
+
 import numpy as np
 from kaldo.grid import SupercellGrid
 from kaldo.observables.secondorder import SecondOrder
@@ -13,9 +14,10 @@ from kaldo.observables.harmonic_with_q import (
     _HarmonicIFCInterpolation,
 )
 import ase.units as units
+
 logging = get_logger()
 
-MAIN_FOLDER = 'displacement'
+MAIN_FOLDER = "displacement"
 
 
 def _normalize_supercell(supercell: tuple[int, int, int] | np.ndarray | None):
@@ -93,22 +95,27 @@ class ForceConstants:
 
 
     """
-    def __init__(self,
-                 atoms,
-                 supercell: tuple[int, int, int] = (1, 1, 1),
-                 third_supercell: tuple[int, int, int] | None = None,
-                 folder: str = MAIN_FOLDER,
-                 distance_threshold: float | None = None,
-                 second_order: SecondOrder | None = None,
-                 third_order: ThirdOrder | None = None,
-                 fourth_order: FourthOrder | None = None,
-                 is_acoustic_sum: bool = False):
+
+    def __init__(
+        self,
+        atoms,
+        supercell: tuple[int, int, int] = (1, 1, 1),
+        third_supercell: tuple[int, int, int] | None = None,
+        folder: str = MAIN_FOLDER,
+        distance_threshold: float | None = None,
+        second_order: SecondOrder | None = None,
+        third_order: ThirdOrder | None = None,
+        fourth_order: FourthOrder | None = None,
+        is_acoustic_sum: bool = False,
+    ):
 
         # Store the user defined information to the object
         self.atoms = atoms
         self.supercell = _normalize_supercell(supercell)
         normalized_third = _normalize_supercell(third_supercell)
-        self.third_supercell = self.supercell if normalized_third is None else normalized_third
+        self.third_supercell = (
+            self.supercell if normalized_third is None else normalized_third
+        )
         self.n_atoms = atoms.positions.shape[0]
         self.n_modes = self.n_atoms * 3
         if second_order is not None:
@@ -130,26 +137,30 @@ class ForceConstants:
         self._fourth = fourth_order
 
         if distance_threshold is not None:
-            logging.info('Using folded IFC matrices.')
+            logging.info("Using folded IFC matrices.")
 
     @property
     def second(self):
         if self._second is None:
             # initialize an empty SecondOrder object for computing force constants later.
-            self._second = SecondOrder.from_supercell(self.atoms,
-                                                      supercell=self.supercell,
-                                                      grid_type='C',
-                                                      is_acoustic_sum=self.is_acoustic_sum,
-                                                      folder=self.folder)
+            self._second = SecondOrder.from_supercell(
+                self.atoms,
+                supercell=self.supercell,
+                grid_type="C",
+                is_acoustic_sum=self.is_acoustic_sum,
+                folder=self.folder,
+            )
         return self._second
 
     @property
     def third(self):
         if self._third is None:
-            self._third = ThirdOrder.from_supercell(self.atoms,
-                                                    supercell=self.third_supercell,
-                                                    grid_type='C',
-                                                    folder=self.folder)
+            self._third = ThirdOrder.from_supercell(
+                self.atoms,
+                supercell=self.third_supercell,
+                grid_type="C",
+                folder=self.folder,
+            )
         return self._third
 
     @property
@@ -164,18 +175,20 @@ class ForceConstants:
         return self._fourth
 
     @classmethod
-    def from_folder(cls,
-                    folder: str,
-                    supercell: tuple[int, int, int] = (1, 1, 1),
-                    format: str = 'numpy',
-                    third_energy_threshold: float = 0.,
-                    third_supercell: tuple[int, int, int] | None = None,
-                    is_acoustic_sum: bool = False,
-                    only_second: bool = False,
-                    include_fourth: bool = False,
-                    distance_threshold: float | None = None,
-                    chunk_size: int = 100000,
-                    supercell_matrix: np.ndarray | None = None):
+    def from_folder(
+        cls,
+        folder: str,
+        supercell: tuple[int, int, int] = (1, 1, 1),
+        format: str = "numpy",
+        third_energy_threshold: float = 0.0,
+        third_supercell: tuple[int, int, int] | None = None,
+        is_acoustic_sum: bool = False,
+        only_second: bool = False,
+        include_fourth: bool = False,
+        distance_threshold: float | None = None,
+        chunk_size: int = 100000,
+        supercell_matrix: np.ndarray | None = None,
+    ):
         """
         Create a finite difference object from a folder
 
@@ -233,7 +246,7 @@ class ForceConstants:
 
         # Validate include_fourth early so we don't waste time loading IFC2/3
         # only to discover the format is wrong.
-        if include_fourth and format != 'tdep':
+        if include_fourth and format != "tdep":
             raise ValueError(
                 f"include_fourth=True is only supported for format='tdep'"
                 f" (got format={format!r})"
@@ -242,11 +255,13 @@ class ForceConstants:
         effective_second_format = format
         effective_third_format = format
 
-        second_order = SecondOrder.load(folder=folder,
-                                        supercell=supercell,
-                                        format=effective_second_format,
-                                        is_acoustic_sum=is_acoustic_sum,
-                                        supercell_matrix=supercell_matrix)
+        second_order = SecondOrder.load(
+            folder=folder,
+            supercell=supercell,
+            format=effective_second_format,
+            is_acoustic_sum=is_acoustic_sum,
+            supercell_matrix=supercell_matrix,
+        )
         atoms = second_order.atoms
         resolved_supercell = _normalize_supercell(second_order.supercell)
 
@@ -256,12 +271,25 @@ class ForceConstants:
         )
 
         if not only_second:
-            third_order = ThirdOrder.load(folder=folder,
-                                          supercell=target_third_supercell,
-                                          format=effective_third_format,
-                                          third_energy_threshold=third_energy_threshold,
-                                          chunk_size=chunk_size,
-                                          supercell_matrix=supercell_matrix)
+            third_order = ThirdOrder.load(
+                folder=folder,
+                supercell=target_third_supercell,
+                format=effective_third_format,
+                third_energy_threshold=third_energy_threshold,
+                chunk_size=chunk_size,
+                supercell_matrix=supercell_matrix,
+                atoms_override=(
+                    second_order.atoms
+                    if effective_third_format
+                    in (
+                        "qe-sheng",
+                        "shengbte-qe",
+                        "qe-d3q",
+                        "shengbte-d3q",
+                    )
+                    else None
+                ),
+            )
             target_third_supercell = _normalize_supercell(third_order.supercell)
 
         fourth_order = None
@@ -269,20 +297,24 @@ class ForceConstants:
             # Fourth-order loading is opt-in because most existing datasets
             # ship only IFC2 + IFC3. Today only format='tdep' is wired
             # (validated at the top of this method).
-            fourth_order = FourthOrder.load(folder=folder,
-                                            supercell=target_third_supercell,
-                                            format='tdep',
-                                            supercell_matrix=supercell_matrix)
+            fourth_order = FourthOrder.load(
+                folder=folder,
+                supercell=target_third_supercell,
+                format="tdep",
+                supercell_matrix=supercell_matrix,
+            )
 
-        return cls(atoms=atoms,
-                   supercell=resolved_supercell,
-                   third_supercell=target_third_supercell,
-                   folder=folder,
-                   distance_threshold=distance_threshold,
-                   second_order=second_order,
-                   third_order=third_order,
-                   fourth_order=fourth_order,
-                   is_acoustic_sum=is_acoustic_sum)
+        return cls(
+            atoms=atoms,
+            supercell=resolved_supercell,
+            third_supercell=target_third_supercell,
+            folder=folder,
+            distance_threshold=distance_threshold,
+            second_order=second_order,
+            third_order=third_order,
+            fourth_order=fourth_order,
+            is_acoustic_sum=is_acoustic_sum,
+        )
 
     def elastic_prop(self):
         """
@@ -315,7 +347,7 @@ class ForceConstants:
         d1, d2 = interpolation.real_space_moments(self.distance_threshold)
 
         # Compute Gamma tensor as eq.6
-        h0 = HarmonicWithQ(np.array([0, 0, 0]), self.second, storage='numpy')
+        h0 = HarmonicWithQ(np.array([0, 0, 0]), self.second, storage="numpy")
 
         # Optical eigenvectors
         e_mu = np.array(h0._eigensystem[1:, :]).reshape((n_unit, 3, 3 * n_unit))
@@ -324,10 +356,7 @@ class ForceConstants:
         w_mu = np.abs(np.array(h0._eigensystem[0, :])) ** 0.5
 
         gamma = np.einsum(
-            'iav,jbv,v->iajb',
-            e_mu[:, :, 3:],
-            e_mu[:, :, 3:],
-            1 / w_mu[3:] ** 2
+            "iav,jbv,v->iajb", e_mu[:, :, 3:], e_mu[:, :, 3:], 1 / w_mu[3:] ** 2
         )
 
         # Compute component square bracket (`b`) and round bracket (`r`) terms
@@ -335,24 +364,16 @@ class ForceConstants:
 
         # Square bracket term, eq.4
         # [ij, kl] = b_{ijkl} = 1/(2 v_c) \sum_{n,m} \sqrt{M_n} \sqrt{M_m} D^{nm}_{ij,kl}^{(2)}
-        sqrt_masses = masses ** 0.5
+        sqrt_masses = masses**0.5
         b = (1 / (2 * volume)) * np.einsum(
-            'n,m,nimjkl->ijkl',
-            sqrt_masses,
-            sqrt_masses,
-            d2
+            "n,m,nimjkl->ijkl", sqrt_masses, sqrt_masses, d2
         ).real
 
         # Include mass in first order term
-        d1r = np.einsum('nhmij,m->nhmij', d1, sqrt_masses)
+        d1r = np.einsum("nhmij,m->nhmij", d1, sqrt_masses)
 
         # Round bracket term, eq.5, mass is included in d1r
-        r = -(1 / volume) * np.einsum(
-            'nhmij,nhrp,rpskl->ijkl',
-            d1r,
-            gamma,
-            d1r
-        ).real
+        r = -(1 / volume) * np.einsum("nhmij,nhrp,rpskl->ijkl", d1r, gamma, d1r).real
 
         # Compute elastic constants C_{ij,kl} as eq.3
         cijkl = np.zeros((3, 3, 3, 3))
@@ -361,8 +382,10 @@ class ForceConstants:
                 for k in range(3):
                     for l in range(3):
                         cijkl[i, j, k, l] = (
-                            b[i, k, j, l] + b[j, k, i, l] -
-                            b[i, j, k, l] + r[i, j, k, l]
+                            b[i, k, j, l]
+                            + b[j, k, i, l]
+                            - b[i, j, k, l]
+                            + r[i, j, k, l]
                         )
 
         # Unit conversion constants

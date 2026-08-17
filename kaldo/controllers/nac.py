@@ -191,7 +191,10 @@ class _QERigidIonKernel:
         charges, dielectric screening, and masses describe the same primitive
         cell. Mixing any of these from another calculation changes the field.
         """
-        if self.at_columns.shape != (3, 3) or abs(np.linalg.det(self.at_columns)) < 1e-14:
+        if (
+            self.at_columns.shape != (3, 3)
+            or abs(np.linalg.det(self.at_columns)) < 1e-14
+        ):
             raise QENACError("q2r lattice must be a nonsingular 3x3 matrix")
         if self.tau.ndim != 2 or self.tau.shape[1] != 3:
             raise QENACError("q2r positions must have shape (natom, 3)")
@@ -252,7 +255,9 @@ class _QERigidIonKernel:
         a, b, c = bounds
         return np.asarray(
             [
-                i * self.bg_columns[:, 0] + j * self.bg_columns[:, 1] + k * self.bg_columns[:, 2]
+                i * self.bg_columns[:, 0]
+                + j * self.bg_columns[:, 1]
+                + k * self.bg_columns[:, 2]
                 for i in range(-a, a + 1)
                 for j in range(-b, b + 1)
                 for k in range(-c, c + 1)
@@ -275,7 +280,12 @@ class _QERigidIonKernel:
         # 4*pi/V is the reciprocal-space Coulomb prefactor; the exponential is
         # Ewald damping and 1/geg is the screened Coulomb propagator.
         return float(
-            sign * E2_RY * FOUR_PI / self.volume_bohr3 * np.exp(-geg / (4 * self.alpha)) / geg
+            sign
+            * E2_RY
+            * FOUR_PI
+            / self.volume_bohr3
+            * np.exp(-geg / (4 * self.alpha))
+            / geg
         )
 
     def _charge_projection(self, vector: _FLOAT) -> _FLOAT:
@@ -340,7 +350,9 @@ class _QERigidIonKernel:
             return np.asarray(qpoint @ self.bg_columns.T, dtype=float)
         raise QENACError(f"unsupported q coordinate convention {coordinates!r}")
 
-    def is_gamma(self, qpoint: Sequence[float], coordinates: _QCoordinates = "crystal") -> bool:
+    def is_gamma(
+        self, qpoint: Sequence[float], coordinates: _QCoordinates = "crystal"
+    ) -> bool:
         """Test for Gamma modulo a reciprocal vector, including skewed cells.
 
         q and q+G describe the same crystal momentum. Testing reduced integer
@@ -391,13 +403,17 @@ class _QERigidIonKernel:
         q = self.to_cartesian(direction_cartesian, "qe_cartesian")
         norm = float(np.linalg.norm(q))
         if norm == 0:
-            return np.zeros((self.atom_count, 3, self.atom_count, 3), dtype=np.complex128)
+            return np.zeros(
+                (self.atom_count, 3, self.atom_count, 3), dtype=np.complex128
+            )
         # Only the approach direction matters in the q -> 0 limit; its length
         # cancels between numerator and dielectric denominator.
         q /= norm
         qeq = float(q @ self.dielectric @ q)
         if qeq < 1e-8:
-            return np.zeros((self.atom_count, 3, self.atom_count, 3), dtype=np.complex128)
+            return np.zeros(
+                (self.atom_count, 3, self.atom_count, 3), dtype=np.complex128
+            )
         projected_charge = self._charge_projection(q)
         # D_NA is proportional to (q.Z_i*) (q.Z_j*) / (q.epsilon.q). This is
         # the direction-dependent macroscopic field responsible for LO--TO
@@ -406,7 +422,9 @@ class _QERigidIonKernel:
             FOUR_PI
             * E2_RY
             / (qeq * self.volume_bohr3)
-            * np.einsum("ai,bj->aibj", projected_charge, projected_charge, optimize=True)
+            * np.einsum(
+                "ai,bj->aibj", projected_charge, projected_charge, optimize=True
+            )
         )
 
     def correction(
@@ -536,7 +554,9 @@ def _get_minimum_g_rad(reciprocal_lattice, g_cutoff, g_rad=100):
                 for c in (-1, 0, 1):
                     if (a, b, c) == (0, 0, 0):
                         continue
-                    norm = np.linalg.norm(reciprocal_lattice @ np.array([a, b, c], dtype=float))
+                    norm = np.linalg.norm(
+                        reciprocal_lattice @ np.array([a, b, c], dtype=float)
+                    )
                     if norm * trial_g_rad < g_cutoff:
                         return trial_g_rad + 1
     return g_rad
@@ -698,9 +718,10 @@ def _get_dd_base_many(
     norms = np.linalg.norm(g_plus_q, axis=2)
     active = norms >= tolerance
     ewald_weights = np.zeros_like(screened_norms, dtype=np.complex128)
-    ewald_weights[active] = np.exp(
-        -screened_norms[active] / (4.0 * lambda_ * lambda_)
-    ) / screened_norms[active]
+    ewald_weights[active] = (
+        np.exp(-screened_norms[active] / (4.0 * lambda_ * lambda_))
+        / screened_norms[active]
+    )
     reciprocal_dyads = np.einsum(
         "qgi,qgj,qg->qgij", g_plus_q, g_plus_q, ewald_weights, optimize=True
     )
@@ -722,10 +743,9 @@ def _get_dd_base_many(
         )
         # Only singular G+q entries receive this limit; ordinary finite-q
         # terms retain their screened Ewald dyads.
-        reciprocal_dyads += (
-            (~active)[..., np.newaxis, np.newaxis]
-            * directional_dyads[:, np.newaxis, :, :]
-        )
+        reciprocal_dyads += (~active)[..., np.newaxis, np.newaxis] * directional_dyads[
+            :, np.newaxis, :, :
+        ]
     return np.einsum("qgab,gij->qiajb", reciprocal_dyads, pair_phase, optimize=True)
 
 
@@ -741,7 +761,9 @@ def _recip_dipole_dipole_q0(g_list, born, dielectric, positions, lambda_, tolera
     zero = np.zeros(3, dtype="double")
     # No approach direction is supplied: this is the analytic q=0 drift used
     # to balance translations, not the directional nonanalytic Gamma term.
-    dd_tmp1 = _get_dd_base(g_list, zero, None, dielectric, positions, lambda_, tolerance)
+    dd_tmp1 = _get_dd_base(
+        g_list, zero, None, dielectric, positions, lambda_, tolerance
+    )
     dd_tmp2 = _multiply_borns(dd_tmp1, born)
     dd_q0 = dd_tmp2.sum(axis=2)
     dd_q0 = 0.5 * (dd_q0 + np.transpose(dd_q0.conj(), (0, 2, 1)))
@@ -793,9 +815,7 @@ def _qe_corrections_to_ws_gauge(corrections, q_reds, scaled_positions):
         scaled_positions[np.newaxis, :, :] - scaled_positions[:, np.newaxis, :]
     )
     phases = np.exp(
-        2j
-        * np.pi
-        * np.einsum("qa,ija->qij", q_reds, pair_displacements, optimize=True)
+        2j * np.pi * np.einsum("qa,ija->qij", q_reds, pair_displacements, optimize=True)
     )
     transformed = blocks * phases[:, :, np.newaxis, :, np.newaxis]
     return transformed.reshape(len(q_reds), 3 * atom_count, 3 * atom_count)
@@ -850,7 +870,9 @@ def _short_range_dynamical_matrix(
     # primitive atom pair.
     phase_factors = np.einsum("spl,l->sp", phase_weights, phase_all, optimize=True)
     if target_mask is None:
-        target_mask = (s2p_map[:, np.newaxis] == p2s_map[np.newaxis, :]).astype(np.complex128)
+        target_mask = (s2p_map[:, np.newaxis] == p2s_map[np.newaxis, :]).astype(
+            np.complex128
+        )
     # A compact FC already has a primitive source-atom axis. For a full FC,
     # p2s_map selects the representative source atom in the origin cell.
     fc_source = fc if is_compact_fc else fc[p2s_map]
@@ -891,11 +913,15 @@ def _short_range_dynamical_matrix_many(
     if phase_weights is None:
         phase_weights = _build_segment_phase_weights(multi, len(svecs))
     # Form q.R for every requested q and every shortest real-space vector.
-    phase_all = np.exp(2j * np.pi * np.einsum("qa,sa->qs", q_reds, svecs, optimize=True))
+    phase_all = np.exp(
+        2j * np.pi * np.einsum("qa,sa->qs", q_reds, svecs, optimize=True)
+    )
     # Average all shortest-path phases for every q-point and primitive/supercell pair.
     phase_factors = np.einsum("spl,ql->qsp", phase_weights, phase_all, optimize=True)
     if target_mask is None:
-        target_mask = (s2p_map[:, np.newaxis] == p2s_map[np.newaxis, :]).astype(np.complex128)
+        target_mask = (s2p_map[:, np.newaxis] == p2s_map[np.newaxis, :]).astype(
+            np.complex128
+        )
     if mass_matrix is None:
         mass_matrix = np.sqrt(np.outer(masses, masses))
     fc_source = fc if is_compact_fc else fc[p2s_map]
@@ -907,7 +933,9 @@ def _short_range_dynamical_matrix_many(
     )
     dm_blocks = np.einsum("qisab,sj->qijab", weighted_fc, target_mask, optimize=True)
     dm_blocks /= mass_matrix[np.newaxis, :, :, np.newaxis, np.newaxis]
-    dm = np.transpose(dm_blocks, (0, 1, 3, 2, 4)).reshape(len(q_reds), num_patom * 3, num_patom * 3)
+    dm = np.transpose(dm_blocks, (0, 1, 3, 2, 4)).reshape(
+        len(q_reds), num_patom * 3, num_patom * 3
+    )
     return 0.5 * (dm + np.swapaxes(dm.conj(), 1, 2))
 
 
@@ -995,9 +1023,9 @@ def _ordered_compact_translations(atoms, supercell_matrix, symprec=1e-5):
                 fractional_coordinate = coordinate % 1.0
                 if fractional_coordinate > 1e-10:
                     for denominator in range(1, 64):
-                        rational = round(
-                            fractional_coordinate * denominator
-                        ) / denominator
+                        rational = (
+                            round(fractional_coordinate * denominator) / denominator
+                        )
                         if abs(rational - fractional_coordinate) < 1e-8:
                             max_basis_denominator = max(
                                 max_basis_denominator, denominator
@@ -1009,6 +1037,7 @@ def _ordered_compact_translations(atoms, supercell_matrix, symprec=1e-5):
             return _diagonal_supercell_sort_key(item[1], sort_factor)
 
     else:
+
         def sort_key(item):
             return tuple(np.round(item[1], 10)[::-1])
 
@@ -1377,17 +1406,13 @@ def _build_interleaved_fc(second_order):
     supercell_grid = second_order.supercell_grid
     n_replicas = supercell_grid.size
     if native_fc.shape[2] != support.size:
-        raise ValueError(
-            "second-order IFC translation axis does not match its support"
-        )
+        raise ValueError("second-order IFC translation axis does not match its support")
 
     # NAC operates on the periodic Born--von Karman classes. Literal file
     # translations are first combined class by class; their distinction is
     # meaningful for an ordinary direct Fourier sum, but the Gonze subtraction
     # and QE restoration both require the defining commensurate grid.
-    folded_fc = np.zeros(
-        (n_atom, 3, n_replicas, n_atom, 3), dtype=native_fc.dtype
-    )
+    folded_fc = np.zeros((n_atom, 3, n_replicas, n_atom, 3), dtype=native_fc.dtype)
     for source_id, class_id in enumerate(support.class_ids):
         folded_fc[:, :, class_id, :, :] += native_fc[:, :, source_id, :, :]
 
@@ -1474,7 +1499,9 @@ def _build_supercell_matrix_mapping(
     for i_atom in range(n_atom):
         for i_translation, (shift, _) in enumerate(translations):
             index = i_atom * n_translation + i_translation
-            supercell_scaled = ((primitive_scaled[i_atom] + shift) @ primitive_matrix) % 1.0
+            supercell_scaled = (
+                (primitive_scaled[i_atom] + shift) @ primitive_matrix
+            ) % 1.0
             supercell_scaled[np.isclose(supercell_scaled, 1.0, atol=symprec)] = 0.0
             supercell_scaled_positions[index] = supercell_scaled
             primitive_shifts[index] = shift
@@ -1502,11 +1529,17 @@ def _build_supercell_matrix_mapping(
             delta = explicit_positions - expected_position
             delta -= np.rint(delta)
             distances = np.linalg.norm(delta @ supercell_cell, axis=1)
-            compatible = available & (explicit_symbols == primitive_symbols[s2pp_map[index]])
+            compatible = available & (
+                explicit_symbols == primitive_symbols[s2pp_map[index]]
+            )
             distances[~compatible] = np.inf
             match = int(np.argmin(distances))
-            if not np.isfinite(distances[match]) or distances[match] > max(10 * symprec, 1e-6):
-                raise ValueError("could not match replicated atoms to the NAC compact order")
+            if not np.isfinite(distances[match]) or distances[match] > max(
+                10 * symprec, 1e-6
+            ):
+                raise ValueError(
+                    "could not match replicated atoms to the NAC compact order"
+                )
             reordered_positions[index] = explicit_positions[match]
             available[match] = False
         supercell_scaled_positions = reordered_positions
@@ -1538,7 +1571,9 @@ def _build_supercell_matrix_mapping(
     multi = np.zeros((len(supercell_scaled_positions), n_atom, 2), dtype=np.int64)
     for i_s, supercell_position in enumerate(reduced_positions):
         for i_p, primitive_position in enumerate(primitive_positions_in_supercell):
-            candidates_reduced = supercell_position - primitive_position + lattice_points
+            candidates_reduced = (
+                supercell_position - primitive_position + lattice_points
+            )
             distances = np.linalg.norm(candidates_reduced @ reduced_cell, axis=1)
             min_distance = distances.min()
             start = len(svecs)
@@ -1620,7 +1655,9 @@ def ensure_kernel_cache(static_data, mapping):
         # Equal weights implement the Wigner--Seitz average over all periodic
         # images tied for the shortest distance of a given atom pair.
         phase_svecs = mapping.get("phase_svecs", mapping["svecs"])
-        mapping["phase_weights"] = _build_segment_phase_weights(mapping["multi"], len(phase_svecs))
+        mapping["phase_weights"] = _build_segment_phase_weights(
+            mapping["multi"], len(phase_svecs)
+        )
     if "target_mask" not in mapping:
         # This incidence matrix tells the Fourier contraction which supercell
         # images represent each primitive target atom.
@@ -1645,16 +1682,20 @@ def build_static_data(second, matrix=None):
     """
     atoms = second.atoms
     qe_header = getattr(second, "_qe_q2r_header", None)
-    if qe_header is not None:
+    if qe_header is not None and qe_header.has_zstar:
         # Unlike the Gonze path below, a polar q2r body already contains
         # short-range IFCs. Prepare only the QE rigid-ion restoration data;
         # do not construct or subtract the Gonze dipole-dipole terms.
         qe_kernel = _QERigidIonKernel.from_header(qe_header)
         if len(atoms) != qe_kernel.atom_count:
-            raise QENACError("q2r atom count does not match the SecondOrder primitive cell")
+            raise QENACError(
+                "q2r atom count does not match the SecondOrder primitive cell"
+            )
         qe_cell = qe_kernel.cell_rows_angstrom
         if not np.allclose(np.asarray(atoms.cell), qe_cell, rtol=2e-7, atol=2e-7):
-            raise QENACError("q2r lattice does not match the SecondOrder primitive cell")
+            raise QENACError(
+                "q2r lattice does not match the SecondOrder primitive cell"
+            )
         return {
             "convention": _QE_Q2R,
             "qe_kernel": qe_kernel,
@@ -1665,8 +1706,12 @@ def build_static_data(second, matrix=None):
             # Store the column-action reciprocal transform: ``B @ q_red``.
             # ASE exposes reciprocal basis vectors as rows, whose transpose is
             # required by the controller's matrix-vector convention.
-            "reciprocal_lattice": np.linalg.inv(np.array(atoms.cell.array, dtype=float, copy=True)),
-            "supercell_cell": np.array(second.replicated_atoms.cell.array, dtype=float, copy=True),
+            "reciprocal_lattice": np.linalg.inv(
+                np.array(atoms.cell.array, dtype=float, copy=True)
+            ),
+            "supercell_cell": np.array(
+                second.replicated_atoms.cell.array, dtype=float, copy=True
+            ),
             "masses": np.array(qe_kernel.masses_amu, dtype=float, copy=True),
             "q_direction_tolerance": np.array(QE_GAMMA_TOLERANCE),
         }
@@ -1687,7 +1732,9 @@ def build_static_data(second, matrix=None):
     masses = np.array(atoms.get_masses(), dtype=float, copy=True)
     matrix = normalize_bvk_supercell_matrix(matrix)
     if matrix is None:
-        supercell_cell = np.array(second.replicated_atoms.cell.array, dtype=float, copy=True)
+        supercell_cell = np.array(
+            second.replicated_atoms.cell.array, dtype=float, copy=True
+        )
     else:
         supercell_cell = np.array(matrix @ primitive_cell, dtype=float, copy=True)
     # The Coulomb prefactor scales as 4*pi/V of the primitive cell; using a
@@ -1707,7 +1754,9 @@ def build_static_data(second, matrix=None):
     # Input formats may define their electrostatic prefactor explicitly.
     # Otherwise use the VASP/Phonopy Hartree*bohr convention. Multiplying by
     # 4*pi/V completes the long-range dipole coefficient.
-    unit_conversion_factor = float(atoms.info.get("nac_factor", units.Hartree * units.Bohr))
+    unit_conversion_factor = float(
+        atoms.info.get("nac_factor", units.Hartree * units.Bohr)
+    )
     nac_factor = float(unit_conversion_factor * 4 * np.pi / volume)
     tolerance = _GONZE_Q_DIRECTION_TOLERANCE
     g_list = _get_g_list(reciprocal_lattice, g_cutoff)

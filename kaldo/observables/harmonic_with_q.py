@@ -21,6 +21,7 @@ from kaldo.controllers.nac import (
     _to_phonopy_dm,
     _phonopy_frequencies_from_eigenvalues,
 )
+
 # from numpy.linalg import eigh
 
 logging = get_logger()
@@ -52,9 +53,7 @@ def _resolve_ordinary_ifc_interpolation(second, requested_mode):
     hint = getattr(second, "ifc_interpolation_hint", None)
     if hint is not None:
         if hint not in ("periodic", "wigner-seitz"):
-            raise ValueError(
-                f"second.ifc_interpolation_hint={hint!r} is invalid"
-            )
+            raise ValueError(f"second.ifc_interpolation_hint={hint!r} is invalid")
         return hint
     if second.translation_support.provenance == "file":
         return "file"
@@ -70,8 +69,8 @@ class _HarmonicIFCInterpolation:
     each periodic IFC block over every tied shortest image of the *atom pair*.
     The Fourier phase stays in kALDo's integer-translation gauge.  Pair-aware
     Wigner--Seitz plans differentiate the complete Cartesian pair vector
-    ``R + r_j - r_i``; native direct q2r plans differentiate their stored
-    translation ``R`` so the derivative matches QE's Fourier convention.
+    ``R + r_j - r_i``.  An explicitly requested periodic diagnostic instead
+    differentiates the stored translation ``R``.
     """
 
     values: np.ndarray
@@ -98,8 +97,13 @@ class _HarmonicIFCInterpolation:
             # Explicit periodic/WS choices intentionally forget any literal
             # file translation and first form one tensor per periodic class.
             folded = np.zeros(
-                (values.shape[0], values.shape[1], support.supercell.size,
-                 values.shape[3], values.shape[4]),
+                (
+                    values.shape[0],
+                    values.shape[1],
+                    support.supercell.size,
+                    values.shape[3],
+                    values.shape[4],
+                ),
                 dtype=values.dtype,
             )
             for source_id, class_id in enumerate(support.class_ids):
@@ -120,16 +124,13 @@ class _HarmonicIFCInterpolation:
         positions = np.array(second.atoms.positions, dtype=float, copy=True)
         cell = np.array(second.atoms.cell, dtype=float, copy=True)
         images = (
-            WignerSeitzImages.build(
-                support, positions, cell, pbc=second.atoms.pbc
-            )
+            WignerSeitzImages.build(support, positions, cell, pbc=second.atoms.pbc)
             if resolved == "wigner-seitz"
             else None
         )
-        # Nonpolar q2r is intentionally evaluated in QE's native direct
-        # Fourier gauge.  Its matrix and derivative phases contain the stored
-        # lattice translation R only; adding a basis offset here changes that
-        # convention when an atom is wrapped across the unit-cell boundary.
+        # The periodic route is an explicit diagnostic.  Its matrix and
+        # derivative phases contain the stored lattice translation R only;
+        # pair-aware Wigner--Seitz interpolation is the automatic q2r route.
         include_pair_displacement = not (
             resolved == "periodic"
             and getattr(second, "ifc_interpolation_hint", None) == "periodic"
@@ -167,14 +168,13 @@ class _HarmonicIFCInterpolation:
                     if self.images is None:
                         translations = source_translation[np.newaxis, :]
                         pair_offset = (
-                            fractional_positions[atom_j]
-                            - fractional_positions[atom_i]
+                            fractional_positions[atom_j] - fractional_positions[atom_i]
                             if self.include_pair_displacement
                             else 0.0
                         )
-                        displacements = (
-                            source_translation + pair_offset
-                        )[np.newaxis, :] @ self.cell
+                        displacements = (source_translation + pair_offset)[
+                            np.newaxis, :
+                        ] @ self.cell
                         weights = np.ones(1)
                     else:
                         translations, displacements, weights = self.images.image(
@@ -197,7 +197,9 @@ class _HarmonicIFCInterpolation:
                                 displacement[direction] * contribution
                             )
         n_modes = 3 * n_atoms
-        return dynamical.reshape(n_modes, n_modes), derivatives.reshape(3, n_modes, n_modes)
+        return dynamical.reshape(n_modes, n_modes), derivatives.reshape(
+            3, n_modes, n_modes
+        )
 
     def real_space_moments(self, distance_threshold=None):
         """Return first and second Cartesian moments of the ordinary IFCs.
@@ -209,12 +211,8 @@ class _HarmonicIFCInterpolation:
         by :meth:`ForceConstants.elastic_prop`.
         """
         n_atoms = len(self.positions)
-        first = np.zeros(
-            (n_atoms, 3, n_atoms, 3, 3), dtype=np.complex128
-        )
-        second = np.zeros(
-            (n_atoms, 3, n_atoms, 3, 3, 3), dtype=np.complex128
-        )
+        first = np.zeros((n_atoms, 3, n_atoms, 3, 3), dtype=np.complex128)
+        second = np.zeros((n_atoms, 3, n_atoms, 3, 3, 3), dtype=np.complex128)
         fractional_positions = self.positions @ np.linalg.inv(self.cell)
 
         for source_id, source_translation in enumerate(self.support.translations):
@@ -280,9 +278,7 @@ def _resolve_nac_activation(atoms, requested):
         if not has_charges:
             problems.append("atoms.arrays['charges'] is missing")
         elif not has_nonzero_charges:
-            problems.append(
-                "atoms.arrays['charges'] contains no nonzero Born charges"
-            )
+            problems.append("atoms.arrays['charges'] contains no nonzero Born charges")
         problem_summary = " and ".join(problems)
         raise ValueError(
             f"is_nac=True was requested, but {problem_summary}. "
@@ -292,7 +288,9 @@ def _resolve_nac_activation(atoms, requested):
         )
 
     if has_dielectric != has_charges:
-        missing = "atoms.arrays['charges']" if has_dielectric else "atoms.info['dielectric']"
+        missing = (
+            "atoms.arrays['charges']" if has_dielectric else "atoms.info['dielectric']"
+        )
         raise ValueError(
             f"{missing} is missing: the non-analytic correction needs both "
             "a dielectric tensor and Born effective charges"
@@ -343,9 +341,9 @@ class HarmonicWithQ(Observable, Storable):
 
         ``ifc_interpolation='auto'`` uses Wigner--Seitz interpolation for
         compact periodic IFC tensors and retains literal translations from
-        formats that provide them. Nonpolar QE q2r input carries a native
-        direct-periodic hint validated against ``matdyn.x``; polar q2r uses
-        its matched Wigner--Seitz/NAC route. ``'wigner-seitz'`` and
+        formats that provide them. All QE q2r input uses its header-driven,
+        pair-specific Wigner--Seitz representation; a periodic q2r route is
+        available only as an explicit diagnostic. ``'wigner-seitz'`` and
         ``'periodic'`` are explicit overrides. Active NAC requires
         Wigner--Seitz interpolation; use ``is_nac=False`` with ``'periodic'``
         for a legacy diagnostic.
@@ -416,7 +414,9 @@ class HarmonicWithQ(Observable, Storable):
             loaded = []
             for alpha in range(3):
                 loaded.append(
-                    np.loadtxt(name + "_" + str(alpha) + ".dat", skiprows=1, dtype=complex)
+                    np.loadtxt(
+                        name + "_" + str(alpha) + ".dat", skiprows=1, dtype=complex
+                    )
                 )
             return np.array(loaded).transpose(1, 0)
         else:
@@ -469,15 +469,21 @@ class HarmonicWithQ(Observable, Storable):
         direction_cart = np.array(
             NAC_VELOCITY_DIRECTIONS_CART[direction_index], dtype=float, copy=True
         )
-        dq_cart = direction_cart / np.linalg.norm(direction_cart) * NAC_VELOCITY_Q_LENGTH
+        dq_cart = (
+            direction_cart / np.linalg.norm(direction_cart) * NAC_VELOCITY_Q_LENGTH
+        )
         # The cell is row-vector, so the forward map is inv(C) and the inverse is C.
         dq_red = static_data["primitive_cell"] @ dq_cart / units.Bohr
         q_red = np.array(self.q_point, dtype=float, copy=True)
         dm_minus = _to_phonopy_dm(
-            self._calculate_nac_dynamical_matrix_for_q(q_red - dq_red, static_data, _mapping)
+            self._calculate_nac_dynamical_matrix_for_q(
+                q_red - dq_red, static_data, _mapping
+            )
         )
         dm_plus = _to_phonopy_dm(
-            self._calculate_nac_dynamical_matrix_for_q(q_red + dq_red, static_data, _mapping)
+            self._calculate_nac_dynamical_matrix_for_q(
+                q_red + dq_red, static_data, _mapping
+            )
         )
         delta_dm = dm_plus - dm_minus
         ddm_fd = delta_dm / (2 * NAC_VELOCITY_Q_LENGTH)
@@ -508,7 +514,9 @@ class HarmonicWithQ(Observable, Storable):
         reciprocal_lattice = static_data["reciprocal_lattice"]
         q_carts = np.einsum("ab,qb->qa", reciprocal_lattice, q_reds, optimize=True)
         q_direction_carts = np.array(q_carts, dtype=float, copy=True)
-        inactive = np.linalg.norm(q_carts, axis=1) < static_data["q_direction_tolerance"]
+        inactive = (
+            np.linalg.norm(q_carts, axis=1) < static_data["q_direction_tolerance"]
+        )
         if np.any(inactive):
             nac_direction_cart = reciprocal_lattice @ self.nac_q_direction
             q_direction_carts[inactive] = nac_direction_cart
@@ -522,9 +530,15 @@ class HarmonicWithQ(Observable, Storable):
     ):
         """Evaluate the common NAC controller for a batch of reduced q points."""
         static_data = (
-            _static_data if _static_data is not None else self._build_nac_static_data_runtime()
+            _static_data
+            if _static_data is not None
+            else self._build_nac_static_data_runtime()
         )
-        mapping = _mapping if _mapping is not None else self._build_nac_mapping_runtime(static_data)
+        mapping = (
+            _mapping
+            if _mapping is not None
+            else self._build_nac_mapping_runtime(static_data)
+        )
         static_data, mapping = self._ensure_nac_runtime_data(static_data, mapping)
         q_reds = np.atleast_2d(np.asarray(q_reds, dtype=float))
         _, q_direction_carts = self._nac_q_direction_carts(q_reds, static_data)
@@ -563,14 +577,14 @@ class HarmonicWithQ(Observable, Storable):
         _PHONOPY_TO_KALDO_DM / (8π² × freq_THz).
         """
         scaling = np.zeros(len(frequencies), dtype=float)
-        cutoff_mask = (np.abs(frequencies) > NAC_VELOCITY_CUTOFF_FREQUENCY).astype(np.int64)
+        cutoff_mask = (np.abs(frequencies) > NAC_VELOCITY_CUTOFF_FREQUENCY).astype(
+            np.int64
+        )
         active = cutoff_mask.astype(bool)
         # The finite-difference step is taken per 1/Bohr (phonopy convention),
         # so converting the projected derivative to A/ps needs the extra Bohr.
         scaling[active] = (
-            _PHONOPY_TO_KALDO_DM
-            * units.Bohr
-            / (8.0 * np.pi**2 * frequencies[active])
+            _PHONOPY_TO_KALDO_DM * units.Bohr / (8.0 * np.pi**2 * frequencies[active])
         )
         gv_scaled = gv_raw * scaling[:, np.newaxis]
         gv_scaled[~active] = 0.0
@@ -583,12 +597,16 @@ class HarmonicWithQ(Observable, Storable):
         q_red = np.array(self.q_point, dtype=float, copy=True)
         q_samples = [q_red]
         for direction_cart in NAC_VELOCITY_DIRECTIONS_CART:
-            dq_cart = direction_cart / np.linalg.norm(direction_cart) * NAC_VELOCITY_Q_LENGTH
+            dq_cart = (
+                direction_cart / np.linalg.norm(direction_cart) * NAC_VELOCITY_Q_LENGTH
+            )
             # The cell is row-vector, so the forward map is inv(C) and the inverse is C.
             dq_red = static_data["primitive_cell"] @ dq_cart / units.Bohr
             q_samples.extend((q_red - dq_red, q_red + dq_red))
         q_samples = np.array(q_samples, dtype=float)
-        dm_all = self._calculate_nac_dynamical_matrices_for_qs(q_samples, static_data, mapping)
+        dm_all = self._calculate_nac_dynamical_matrices_for_qs(
+            q_samples, static_data, mapping
+        )
         dm_q = _to_phonopy_dm(dm_all[0])
         eigenvalues, eigenvectors = np.linalg.eigh(dm_q)
         frequencies = _phonopy_frequencies_from_eigenvalues(eigenvalues.real)
@@ -627,60 +645,60 @@ class HarmonicWithQ(Observable, Storable):
             _mapping,
         )[0]
 
-    @lazy_property(label='<q_point>')
+    @lazy_property(label="<q_point>")
     def frequency(self):
         frequency = self.calculate_frequency()[np.newaxis, :]
         return frequency
 
-    @lazy_property(label='<q_point>')
+    @lazy_property(label="<q_point>")
     def velocity(self):
         velocity = self.calculate_velocity()
         return velocity
 
-    @lazy_property(label='<q_point>')
+    @lazy_property(label="<q_point>")
     def participation_ratio(self):
         participation_ratio = self.calculate_participation_ratio()
         return participation_ratio
 
-    @lazy_property(label='<q_point>')
+    @lazy_property(label="<q_point>")
     def _dynmat_derivatives_x(self):
         return self.calculate_dynmat_derivatives(direction=0)
 
-    @lazy_property(label='<q_point>')
+    @lazy_property(label="<q_point>")
     def _dynmat_derivatives_y(self):
         return self.calculate_dynmat_derivatives(direction=1)
 
-    @lazy_property(label='<q_point>')
+    @lazy_property(label="<q_point>")
     def _dynmat_derivatives_z(self):
         return self.calculate_dynmat_derivatives(direction=2)
 
-    @lazy_property(label='<q_point>')
+    @lazy_property(label="<q_point>")
     def _dynmat_fourier(self):
         dynmat_fourier = self.calculate_dynmat_fourier()
         return dynmat_fourier
 
-    @lazy_property(label='<q_point>')
+    @lazy_property(label="<q_point>")
     def _eigensystem(self):
         return self.calculate_eigensystem(only_eigenvals=False)
 
-    @lazy_property(label='<q_point>')
+    @lazy_property(label="<q_point>")
     def _sij_x(self):
         _sij = self.calculate_sij(direction=0)
         return _sij
 
-    @lazy_property(label='<q_point>')
+    @lazy_property(label="<q_point>")
     def _sij_y(self):
         _sij = self.calculate_sij(direction=1)
         return _sij
 
-    @lazy_property(label='<q_point>')
+    @lazy_property(label="<q_point>")
     def _sij_z(self):
         _sij = self.calculate_sij(direction=2)
         return _sij
 
     def calculate_frequency(self):
         eigenvals = self.calculate_eigensystem(only_eigenvals=True)
-        frequency = np.abs(eigenvals) ** .5 * np.sign(eigenvals) / (np.pi * 2.)
+        frequency = np.abs(eigenvals) ** 0.5 * np.sign(eigenvals) / (np.pi * 2.0)
         return frequency.real
 
     def _get_ifc_interpolation_plan(self):
@@ -703,7 +721,8 @@ class HarmonicWithQ(Observable, Storable):
                     # Pass the public request, not its internal resolution:
                     # ``file`` is provenance used by the plan builder, not a
                     # user-selectable interpolation mode.
-                    self.second, self.ifc_interpolation
+                    self.second,
+                    self.ifc_interpolation,
                 )
             self._ifc_interpolation_plan = cache[key]
         return self._ifc_interpolation_plan
@@ -711,7 +730,9 @@ class HarmonicWithQ(Observable, Storable):
     def _calculate_nac_dynmat_derivatives(self, direction):
         static_data = self._build_nac_static_data_runtime()
         mapping = self._build_nac_mapping_runtime(static_data)
-        data = self._calculate_nac_velocity_direction_data(1 + direction, static_data, mapping)
+        data = self._calculate_nac_velocity_direction_data(
+            1 + direction, static_data, mapping
+        )
         return data["ddm_fd"] * (_PHONOPY_TO_KALDO_DM * units.Bohr)
 
     def calculate_dynmat_derivatives(self, direction):
@@ -747,9 +768,14 @@ class HarmonicWithQ(Observable, Storable):
             dynmat_derivatives = self._dynmat_derivatives_z
         if self.atoms.positions.shape[0] > 500:
             # We want to print only for big systems
-            logging.info('Flux operators for q = ' + str(q_point) + ', direction = ' + str(direction))
-            dir = ['_x', '_y', '_z']
-            log_size(shape, type, name='sij' + dir[direction])
+            logging.info(
+                "Flux operators for q = "
+                + str(q_point)
+                + ", direction = "
+                + str(direction)
+            )
+            dir = ["_x", "_y", "_z"]
+            log_size(shape, type, name="sij" + dir[direction])
         if self.is_amorphous and (self.q_point == np.array([0, 0, 0])).all():
             # TensorFlow's Hermitian eigensolver keeps a complex dtype because
             # the common Fourier container is complex.  In this Gamma-only
@@ -772,7 +798,9 @@ class HarmonicWithQ(Observable, Storable):
             return self._calculate_nac_velocity_data()["gv_scaled"][np.newaxis, ...]
         frequency = self.frequency[0]
         velocity = np.zeros((self.n_modes, 3))
-        inverse_sqrt_freq = tf.cast(tf.convert_to_tensor(1 / np.sqrt(frequency)), tf.complex128)
+        inverse_sqrt_freq = tf.cast(
+            tf.convert_to_tensor(1 / np.sqrt(frequency)), tf.complex128
+        )
         if self.is_amorphous:
             inverse_sqrt_freq = tf.cast(inverse_sqrt_freq, tf.float64)
         for alpha in range(3):
@@ -782,10 +810,22 @@ class HarmonicWithQ(Observable, Storable):
                 sij = self._sij_y
             if alpha == 2:
                 sij = self._sij_z
-            velocity_AF = 1 / (2 * np.pi) * contract('mn,m,n->mn', sij,
-                                                     inverse_sqrt_freq, inverse_sqrt_freq, backend='tensorflow') / 2
-            velocity_AF = tf.where(tf.math.is_nan(tf.math.real(velocity_AF)), 0., velocity_AF)
-            velocity[..., alpha] = contract('mm->m', velocity_AF.numpy().imag)
+            velocity_AF = (
+                1
+                / (2 * np.pi)
+                * contract(
+                    "mn,m,n->mn",
+                    sij,
+                    inverse_sqrt_freq,
+                    inverse_sqrt_freq,
+                    backend="tensorflow",
+                )
+                / 2
+            )
+            velocity_AF = tf.where(
+                tf.math.is_nan(tf.math.real(velocity_AF)), 0.0, velocity_AF
+            )
+            velocity[..., alpha] = contract("mm->m", velocity_AF.numpy().imag)
         return velocity[np.newaxis, ...]
 
     def _calculate_nac_eigensystem(self, only_eigenvals=False):
@@ -797,7 +837,7 @@ class HarmonicWithQ(Observable, Storable):
 
     def calculate_dynmat_fourier(self):
         """Fourier transform IFCs using the selected translation convention."""
-        log_size((self.n_modes, self.n_modes), complex, name='dynmat_fourier')
+        log_size((self.n_modes, self.n_modes), complex, name="dynmat_fourier")
         dynamical, _ = self._get_ifc_interpolation_plan().matrices(
             self.q_point, self.distance_threshold
         )
@@ -811,7 +851,7 @@ class HarmonicWithQ(Observable, Storable):
         if only_eigenvals:
             esystem = tf.linalg.eigvalsh(dyn_s)
         else:
-            log_size(self._dynmat_fourier.shape, type=complex, name='eigensystem')
+            log_size(self._dynmat_fourier.shape, type=complex, name="eigensystem")
             esystem = tf.linalg.eigh(dyn_s)
             esystem = tf.concat(axis=0, values=(esystem[0][tf.newaxis, :], esystem[1]))
         return esystem
@@ -822,12 +862,16 @@ class HarmonicWithQ(Observable, Storable):
         eigenvectors = tf.transpose(eigenvectors)
         eigenvectors = np.reshape(eigenvectors, (self.n_modes, n_atoms, 3))
         conjugate = tf.math.conj(eigenvectors)
-        participation_ratio = tf.math.reduce_sum(eigenvectors*conjugate, axis=2)
+        participation_ratio = tf.math.reduce_sum(eigenvectors * conjugate, axis=2)
         participation_ratio = tf.math.square(participation_ratio)
-        participation_ratio = tf.math.reciprocal(tf.math.reduce_sum(participation_ratio, axis=1) * n_atoms)
+        participation_ratio = tf.math.reciprocal(
+            tf.math.reduce_sum(participation_ratio, axis=1) * n_atoms
+        )
         return participation_ratio
 
-    def phonon_mode_frames(self, mode_index, amplitude=0.1, time_step=0.01, n_steps=100):
+    def phonon_mode_frames(
+        self, mode_index, amplitude=0.1, time_step=0.01, n_steps=100
+    ):
         """
         Generate frames animating a single phonon eigenmode over the
         replicated supercell.
@@ -895,10 +939,10 @@ class HarmonicWithQ(Observable, Storable):
         symbols = list(self.atoms.get_chemical_symbols()) * n_replicas
 
         info = {
-            'frequency_THz': freq,
-            'q_point': list(self.q_point),
-            'mode_index': mode_index,
-            'amplitude_A': amplitude,
+            "frequency_THz": freq,
+            "q_point": list(self.q_point),
+            "mode_index": mode_index,
+            "amplitude_A": amplitude,
         }
 
         frames = []
@@ -915,7 +959,7 @@ class HarmonicWithQ(Observable, Storable):
                 cell=supercell_cell,
                 pbc=True,
             )
-            frame.info = {**info, 'time_ps': t}
+            frame.info = {**info, "time_ps": t}
             frames.append(frame)
 
         return frames
