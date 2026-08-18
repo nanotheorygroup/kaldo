@@ -1,0 +1,77 @@
+{
+  "cases": {
+    "qe": {
+      "results": {
+        "qe/reference/BTE.KappaTensorVsT_RTA": "b3f6751fcf43ba7adaaaa07880d3ec9f1d28432fc849dc1f75a7a9628703afdb",
+        "qe/reference/BTE.P3": "ad1c3d7fe23594366f0d8e2c5fbf209d4d7f847c11d1614d110c84beb3eff84d",
+        "qe/reference/BTE.P3_minus": "5df70d529c9b140810a4cc75a0a88aa3b00782f0c04142a535b2c71ba49efb3f",
+        "qe/reference/BTE.P3_plus": "490794fea004575c2d84328fc2133967745f2ac8c1ad5a78773e9f568000b0ba",
+        "qe/reference/BTE.ReciprocalLatticeVectors": "a7be723b231f046c880e4442dd2c872452a4cc1fffd9a40bac209a32eb0286df",
+        "qe/reference/BTE.omega": "ebd582660bd23c0ed6fead34c256ae56c5613da075033cfe93a0ce70bc83ee2e",
+        "qe/reference/BTE.qpoints": "64de443ecea503f6bda43e62308601115618f2c35ae396491477cbeda3304fca",
+        "qe/reference/BTE.qpoints_full": "eb7c590f6225d7f5d5050bbe3e7e192d774569e1340f1867462af7917c3db24e",
+        "qe/reference/BTE.v": "db0e5732a726b6cc601d6402c619f767036f936ee0dc08b84427f016afa2c169",
+        "qe/reference/BTE.v_full": "f0db233560a5a3f5c01951fc64b63d2b8740e0aadc2331c1f3c516327f3fb23c",
+        "qe/reference/T300K/BTE.WP3": "65d5675e1ef3042cdcec6190dea0b9ac93586d26cb11d4e82cb89ee8cfa9bcfe",
+        "qe/reference/T300K/BTE.WP3_minus": "216e90af1d101b64a851d4f447cc02fc9da370398393ddae56df7e20ea28392d",
+        "qe/reference/T300K/BTE.WP3_plus": "6fe634b62721dd4d043069835fcd45600942d25deefdc8675f8ee3f69bc3233e",
+        "qe/reference/T300K/BTE.kappa_tensor": "1ac874e14de339beb194350aa5e1c03e8d6ce05318621fbf8304cd3fee2ffc29",
+        "qe/reference/T300K/BTE.w_anharmonic": "5d7f2fe77642cba235e1940ea487c3f578c549e0a2551c07ee7f4c7d36934597",
+        "qe/reference/T300K/BTE.w_anharmonic_minus": "7411f06e5eca5aa47bc46b14630de50fd446079aec0aefd6e92ab652c37dde7f",
+        "qe/reference/T300K/BTE.w_anharmonic_plus": "68b3e4f9cb346f893160f56a6841f9b5bcd89cc4d6b3edbbc9b69055b228a87d"
+      },
+      "sources": {
+        "qe/CONTROL": "d2be088a53ecb30305fa33106468cbb692416d8cfb511f1ca93ce4f618083807",
+        "si-crystal/qe/FORCE_CONSTANTS_3RD": "14487357d8d2acce594f2d12d111c98b61cac1f817445f81792dc5a19dbbf354",
+        "si-crystal/qe/espresso.ifc2": "5039b590c12fb7cc355ecaf98cbba4875582e387ce65559eac485a3ef66ff763"
+      }
+    },
+    "vasp": {
+      "results": {
+        "vasp/reference/BTE.KappaTensorVsT_RTA": "d03ecf89171a8d09003b7ccaa868951760298a87a684d75793dab28783147e4a",
+        "vasp/reference/BTE.P3": "a37a28e764326bba0cdf891b9debdde77b3bde0553b30bf8a42d3037cdbc820d",
+        "vasp/reference/BTE.P3_minus": "418e671b850a2e37d5ecc7335123e5911fe1fa331945b6b543b294d0fb9d59c8",
+        "vasp/reference/BTE.P3_plus": "abe110b45bb821604779ba9251d42e340b695cb5e6e31339fb8b9236450881a1",
+        "vasp/reference/BTE.ReciprocalLatticeVectors": "05f95e1b93cb58bfc4510e4870d36241272a776802e90713df9f87b346303bbf",
+        "vasp/reference/BTE.omega": "f8d6d0b0c1560d794f98365e9588e505667ff09b8483b9970599d9c3da48f9b7",
+        "vasp/reference/BTE.qpoints": "64de443ecea503f6bda43e62308601115618f2c35ae396491477cbeda3304fca",
+        "vasp/reference/BTE.qpoints_full": "eb7c590f6225d7f5d5050bbe3e7e192d774569e1340f1867462af7917c3db24e",
+        "vasp/reference/BTE.v": "671ec3b21ae166ba27426cf7b690d7829e99ebe12bc11b7a692fba4b9055f79a",
+        "vasp/reference/BTE.v_full": "f85e2da1ac26e0b1de968194755a4a73b8642e6e0443038f063705eccbf3d799",
+        "vasp/reference/T300K/BTE.WP3": "b9714d2af26b8288beee2c679991aa6d997785c020d3cea4edd751fcdc08e067",
+        "vasp/reference/T300K/BTE.WP3_minus": "c69501ebcfcf699efa5a860f009fb9eaabc62e2345b8ffc1b0c15bc05bb676e5",
+        "vasp/reference/T300K/BTE.WP3_plus": "7ef33ad579c7dc9c3eb295947c1618773003f365c3b6d7ae8e093d23b7bc3cda",
+        "vasp/reference/T300K/BTE.kappa_tensor": "4d7002778dc982187b7055acc8c3da3aa674c2f52c94107ef81d701fab65ad9a",
+        "vasp/reference/T300K/BTE.w_anharmonic": "104f70e35bf13f53da862912afe23d7fa766a1789c66e492f641c37f0453bf16",
+        "vasp/reference/T300K/BTE.w_anharmonic_minus": "f0207a7848b1e5cdf69a4fdbafb4a79af4739d854316b89fbb9f3960535e9121",
+        "vasp/reference/T300K/BTE.w_anharmonic_plus": "c506c704cb65fbbc7e1a25aa87a16a73f0cf2bf09c0f0b1f78b29111b9397f54"
+      },
+      "sources": {
+        "si-crystal/vasp/FORCE_CONSTANTS": "c99cb6cb28ab02e5b94dffa978f66eb76055e40cf639ad100f8231abd8bd2433",
+        "si-crystal/vasp/FORCE_CONSTANTS_3RD": "eed520a9e1b8b84a93b41b7f36247baed606831a554be835861d50dc9db00250",
+        "vasp/CONTROL": "b7e6915a708bd3a553cc751eca5c13e61a81f2c4906bfdb8a0eafa61180aa6af"
+      }
+    }
+  },
+  "schema": 1,
+  "settings": {
+    "convergence": false,
+    "isotopes": false,
+    "mpi_ranks": 2,
+    "nonanalytic": false,
+    "openmp_threads_per_rank": 1,
+    "q_grid": [
+      3,
+      3,
+      3
+    ],
+    "scalebroad": 1.0,
+    "temperature_k": 300.0
+  },
+  "shengbte": {
+    "commit": "b0d209068239c37fc86d2021efda131ad854f1c1",
+    "describe": "v1.5.1-3-gb0d2090",
+    "repository": "https://bitbucket.org/sousaw/shengbte.git"
+  },
+  "slurm_job": 5416312
+}
