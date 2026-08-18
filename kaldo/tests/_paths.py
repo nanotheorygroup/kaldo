@@ -1,10 +1,10 @@
 """
 Centralized environment-variable lookup for production-only test fixtures.
 
-Several non-diagonal (SNF) supercell tests need DFT-quality Si IFCs
-(n_uc=2, rhombohedral primitive + cubic conventional ssposcar) or a Ne LJ
-TDEP run. These fixtures are too large to vendor in the repo (hundreds of
-MB for IFC4 alone). The tests are gated on env vars set in your shell:
+Two deliberately optional integration cases still need external data: the
+non-diagonal IFC4 loader uses a large DFT-quality Si run, and the Ne test uses
+an LJ TDEP run. These fixtures are too large to vendor in the repo (hundreds
+of MB for IFC4 alone). The tests are gated on env vars set in your shell:
 
     KALDO_TEST_SI_PROD          # path to a non-diagonal Si TDEP folder
     KALDO_TEST_NE_REF           # path to a non-diagonal Ne TDEP folder
@@ -12,9 +12,9 @@ MB for IFC4 alone). The tests are gated on env vars set in your shell:
 When unset, tests skip cleanly. To run the full suite with production
 fixtures available, set these in your environment before invoking pytest.
 
-This is a tracked technical debt: future work is to vendor smaller fixtures
-or to host the production fixtures in a stable location (e.g. Zenodo) and
-download in conftest.py.
+IFC2/IFC3 non-diagonal behavior is covered unconditionally by the compact
+analytic fixture in ``data/input/tdep-si-conventional``. IFC4 is outside the
+current interpolation refactor and remains deferred.
 """
 from __future__ import annotations
 
