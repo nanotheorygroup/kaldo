@@ -17,14 +17,16 @@ def forceconstants():
 
 def test_c11(forceconstants):
     cijkl = forceconstants.elastic_prop()
-    np.testing.assert_approx_equal(cijkl[0, 0, 0, 0], 210, significant=3)
+    # The old values used one replica vector for every basis pair.  These
+    # references pin the pair-shortest q->0 IFC moments instead.
+    np.testing.assert_allclose(cijkl[0, 0, 0, 0], 158.732508, rtol=5e-4, atol=0.0)
 
 
 def test_c12(forceconstants):
     cijkl = forceconstants.elastic_prop()
-    np.testing.assert_approx_equal(cijkl[0, 0, 1, 1], 69, significant=2)
+    np.testing.assert_allclose(cijkl[0, 0, 1, 1], 63.470281, rtol=5e-4, atol=0.0)
 
 
 def test_c44(forceconstants):
     cijkl = forceconstants.elastic_prop()
-    np.testing.assert_approx_equal(cijkl[1, 2, 1, 2], 68, significant=2)
+    np.testing.assert_allclose(cijkl[1, 2, 1, 2], 77.864122, rtol=5e-4, atol=0.0)
