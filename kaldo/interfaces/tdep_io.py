@@ -203,7 +203,37 @@ def resolve_tdep_supercell(folder, supercell=(1, 1, 1), supercell_matrix=None):
     return uc, sc, inferred
 
 
-def build_nondiag_observable_kwargs(uc, sc):
+def scan_tdep_lattice_vectors(fc_file):
+    """Unique integer lattice vectors R appearing in a TDEP IFC2 file.
+
+    TDEP writes each neighbour entry with its own per-pair minimum-image
+    lattice vector; the set of those vectors is the natural replica table
+    for a Fourier interpolation that matches TDEP/phonopy/ALAMODE at
+    incommensurate q. Deterministic order: the home cell [0, 0, 0] comes
+    first (acoustic_sum_rule targets replica 0), remainder row-sorted.
+    """
+    vecs = []
+    with open(fc_file) as f:
+        n_uc = int(_readline_or_raise(f, "IFC2 n_atoms").split()[0])
+        _readline_or_raise(f, "IFC2 cutoff")
+        for _ in range(n_uc):
+            n_nbr = int(_readline_or_raise(f, "IFC2 neighbour count").split()[0])
+            for _ in range(n_nbr):
+                _readline_or_raise(f, "IFC2 neighbour index")
+                lv = np.array(_readline_or_raise(f, "IFC2 lattice vector").split(), dtype=float)
+                vecs.append(np.round(lv).astype(int))
+                for _ in range(3):
+                    _readline_or_raise(f, "IFC2 tensor row")
+    table = np.unique(np.array(vecs, dtype=int), axis=0)
+    # acoustic_sum_rule targets dynmat[..., replica 0, ...] as the home
+    # cell; np.unique sorts signed vectors, so move [0, 0, 0] to the front.
+    zero = np.all(table == 0, axis=1)
+    if not zero.any():
+        raise ValueError(f"{fc_file}: no on-site [0, 0, 0] entry among the IFC2 lattice vectors")
+    return np.vstack([table[zero], table[~zero]])
+
+
+def build_nondiag_observable_kwargs(uc, sc, replica_table=None):
     """Build the shared kwargs SecondOrder/ThirdOrder/FourthOrder need to
     construct themselves on a non-diagonal SNF replica mapping.
 
@@ -222,15 +252,26 @@ def build_nondiag_observable_kwargs(uc, sc):
     (``is_acoustic_sum`` for SecondOrder, etc.), constructs the observable,
     then attaches ``_snf_mapping`` / ``_supercell_matrix`` / ``_replica_table``
     metadata via :func:`attach_snf_metadata` below.
+
+    ``replica_table`` overrides the grid's table (default: the det(M)
+    class table from the SNF mapping). SecondOrder passes the unique
+    per-pair lattice vectors from the IFC2 file (issue #297); in that case
+    the grid table and the ``_replica_table`` metadata intentionally
+    differ, and ``mapping["replica_id_of_sc"]`` indexes the class table,
+    never the grid. ``supercell`` in the returned dict is always
+    ``(len(replica_table), 1, 1)``.
     """
     from kaldo.grid import NonDiagonalGrid
     mapping = build_supercell_replica_mapping(uc, sc)
+    if replica_table is None:
+        replica_table = mapping["replica_table"]
+    replica_table = np.asarray(replica_table, dtype=int)
     nd_grid = NonDiagonalGrid(
-        replica_table=mapping["replica_table"], M=mapping["M"],
+        replica_table=replica_table, M=mapping["M"],
     )
-    rep_pos = (mapping["replica_table"] @ np.asarray(uc.cell))[:, None, :] \
+    rep_pos = (replica_table @ np.asarray(uc.cell))[:, None, :] \
               + np.asarray(uc.positions)[None, :, :]
-    n_rep = len(mapping["replica_table"])
+    n_rep = len(replica_table)
     return dict(
         atoms=uc,
         replicated_positions=rep_pos.reshape(-1, 3),

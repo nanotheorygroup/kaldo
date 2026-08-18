@@ -911,13 +911,16 @@ class Phonons(Storable):
         Harmonic free energy, already Brillouin-zone averaged,
         returned in eV per mode.
 
-        Quantum: F = k_B * T * ln(1 - exp(-x)) + hbar*omega/2, with
-        x = hbar*omega/(k_B*T), including zero-point energy.
+        Quantum (``is_classic=False``, default)::
 
-        Classical (``is_classic=True``): F = k_B * T * ln(x), the x -> 0
-        limit of the quantum expression (the zero-point term cancels
-        against the expansion of the logarithm). It uses the physical hbar
-        as the phase-space measure and contains no zero-point energy.
+            F = k_B T ln(1 - exp(-hbar*omega/(k_B T))) + hbar*omega/2
+
+        Classical (``is_classic=True``)::
+
+            F = k_B T ln(hbar*omega / (k_B T))
+
+        where ``omega = 2*pi*frequency`` (rad/s). The classical form has no
+        zero-point energy.
 
         Returns
         -------
@@ -928,14 +931,18 @@ class Phonons(Storable):
 
         Notes
         -----
-        - At T=0, the quantum result reduces to the zero-point energy; the
-          classical result reduces to its T -> 0 limit, zero
+        - Quantum at T=0: only the zero-point energy contributes
+        - Classical at T=0 is undefined (``ln`` singularity); zeros are returned
+          with a warning
         - Modes with imaginary frequencies (negative frequency values) are automatically
           excluded and will trigger a warning, as they may indicate structural instability
         """
-        # atol: any temperature below 1e-12 K is physically zero
-        if np.isclose(self.temperature, 0.0, rtol=0.0, atol=1e-12):
+        # At T=0, quantum F = ZPE only; classical F is undefined
+        if self.temperature == 0:
             if self.is_classic:
+                logging.warning(
+                    "Classical harmonic free energy is undefined at T=0; returning zeros."
+                )
                 return np.zeros_like(self.frequency)
             return self.zero_point_harmonic_energy
 
@@ -949,22 +956,28 @@ class Phonons(Storable):
                 f"This may indicate structural instability."
             )
 
-        x_vals = units._hbar * self.frequency * 2.0 * np.pi * 1.0e12 / (units._k * self.temperature)
-        ln_term = np.zeros_like(x_vals)
-
-        # Only calculate for physical modes with positive frequencies
-        # This avoids both log(0) for low frequencies and log(negative) for imaginary frequencies
-        valid_modes = self._thermodynamic_modes
+        physical = self.physical_mode.reshape(self.frequency.shape)
+        valid_modes = physical & (self.frequency > 0)
+        kBT_J = units._k * self.temperature
+        omega = self.frequency * 2.0 * np.pi * 1.0e12
 
         if self.is_classic:
-            ln_term[valid_modes] = np.log(x_vals[valid_modes])
-            f_cell = 1.0 / units._e * units._k * self.temperature * ln_term
+            # F = k_B T ln(hbar omega / k_B T) per mode (eV), then BZ-average
+            ln_term = np.zeros_like(self.frequency)
+            ln_term[valid_modes] = np.log(
+                units._hbar * omega[valid_modes] / kBT_J
+            )
+            f_cell = (kBT_J / units._e) * ln_term
             return f_cell / self.n_k_points
 
+        x_vals = units._hbar * omega / kBT_J
+        ln_term = np.zeros_like(x_vals)
+        # Only calculate for physical modes with positive frequencies
+        # This avoids both log(0) for low frequencies and log(negative) for imaginary frequencies
         ln_term[valid_modes] = np.log1p(-np.exp(-x_vals[valid_modes]))  # ln(1 − e^{-x})
 
         # Thermal contribution: k_B*T*ln(1 - exp(-hbar*omega/(k_B*T))) in eV
-        thermal_part_eV = 1.0 / units._e * units._k * self.temperature * ln_term
+        thermal_part_eV = (kBT_J / units._e) * ln_term
 
         # Zero-point energy: use the existing method to avoid code duplication (in eV)
         zpe_part = self.zero_point_harmonic_energy * self.n_k_points

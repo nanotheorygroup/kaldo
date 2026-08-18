@@ -6,7 +6,8 @@ Covers:
   * ``from_folder(supercell_matrix=M)`` accepts a 3x3 integer matrix and
     loads IFC2/IFC3/IFC4 on a non-diagonal tiling (rhombo primitive +
     cubic conventional ssposcar).
-  * ``list_of_replicas`` returns the SNF Cartesian replica vectors.
+  * ``list_of_replicas`` returns the per-pair Cartesian lattice vectors
+    from the IFC2 file (the det(M) class table survives as metadata).
   * ``replicated_atoms`` carries the true ``M @ uc.cell`` supercell cell.
   * ``Conductivity.rta`` runs end-to-end on a non-diagonal fc.
   * ``IFC3`` / ``IFC4`` are stored at the right shapes.
@@ -153,21 +154,28 @@ def test_E4_fourth_order_nondiag_loads():
 
 @pytest.mark.skipif(not SI_PROD.exists(), reason="non-diagonal Si fixture unavailable")
 def test_E2_list_of_replicas_on_nondiagonal_si():
-    """fc.second.list_of_replicas must return the SNF Cartesian replica vectors.
+    """fc.second.list_of_replicas must return the per-pair Cartesian lattice vectors.
 
-    For non-diagonal Si production: 108 replicas, each in R = (a, b, c)_prim * uc_cell,
-    where (a,b,c) are integer triples from the SNF replica_table.
+    Since issue #297 the SNF second-order grid stores the unique per-pair
+    lattice vectors from the TDEP file (so Fourier interpolation matches
+    TDEP/phonopy between commensurate q). The det(M) = 108 BvK class table
+    survives as ``_replica_table`` metadata, and every per-pair vector must
+    reduce to one of its classes.
     """
     from kaldo.forceconstants import ForceConstants
     M = np.array([[3, -3, 3], [3, 3, -3], [-3, 3, 3]], dtype=int)
     fc = ForceConstants.from_folder(
         folder=str(SI_PROD), supercell_matrix=M, format="tdep", only_second=True,
     )
-    lr = fc.second.list_of_replicas  # (n_rep, 3) Cartesian
-    assert lr.shape == (108, 3)
-    # Compare to replica_table @ uc_cell
-    expected = fc.second._replica_table @ np.asarray(fc.atoms.cell)
-    np.testing.assert_allclose(lr, expected, atol=1e-10)
+    lr = fc.second.list_of_replicas  # (n_R, 3) Cartesian, per-pair vectors
+    grid_table = fc.second._direct_grid.grid(is_wrapping=True)
+    np.testing.assert_allclose(lr, grid_table @ np.asarray(fc.atoms.cell), atol=1e-10)
+    table = np.asarray(fc.second._replica_table)
+    assert table.shape == (108, 3)
+    Minv = np.linalg.inv(M.astype(float))
+    for r in grid_table:
+        diffs = (r - table) @ Minv
+        assert np.any(np.all(np.abs(diffs - np.rint(diffs)) < 1e-6, axis=1))
 
 
 @pytest.mark.skipif(not SI_TDEP_DIR.exists(), reason="si-tdep fixture missing")
@@ -264,8 +272,147 @@ def test_E1_from_folder_accepts_supercell_matrix_on_nondiagonal_si():
         format="tdep",
         only_second=True,  # E.4 will enable IFC3 non-diagonal
     )
-    # n_uc=2, n_replicas = det(M) = 108
     assert fc.n_atoms == 2
-    assert fc.n_replicas == 108
-    # The IFC2 tensor has the right shape for the non-diagonal storage
-    assert fc.second.value.shape == (1, 2, 3, 108, 2, 3)
+    # Since issue #297 the second-order replica axis holds the unique
+    # per-pair lattice vectors from the file, not the det(M) = 108 classes.
+    n_R = len(fc.second._direct_grid.grid(is_wrapping=True))
+    assert fc.n_replicas == n_R
+    assert fc.second.value.shape == (1, 2, 3, n_R, 2, 3)
+
+
+# ---------------------------------------------------------------------------
+# Issue #297: per-pair Fourier phases on the SNF path
+# ---------------------------------------------------------------------------
+
+_P_297 = np.array([[1, -1, 0], [0, 1, -1], [3, 3, 3]], dtype=int)  # det 9, anisotropic
+
+
+def _write_297_model(folder, onsite_defect=0.0):
+    """Write a self-contained TDEP model on the det-9 anisotropic tiling from
+    issue #297: a stable two-species spring crystal whose IFC2 entries carry
+    per-pair minimum-image lattice vectors, exactly as TDEP writes them.
+    Returns (uc, entries) with entries = [(a1, a2, R, phi), ...].
+    """
+    import ase
+    import ase.io
+    from ase.build import make_supercell
+
+    cell = np.array([[3.0, 0.0, 0.0], [0.3, 3.3, 0.0], [0.0, 0.2, 3.7]])
+    uc = ase.Atoms("SiGe", cell=cell, scaled_positions=[[0, 0, 0], [0.5, 0.5, 0.5]], pbc=True)
+    sc = make_supercell(uc, _P_297)
+    ase.io.write(str(folder / "infile.ucposcar"), uc, format="vasp")
+    ase.io.write(str(folder / "infile.ssposcar"), sc, format="vasp")
+
+    # Springs phi = -k(d) I between all pairs within rcut, keyed by the pair's
+    # strict minimum-image lattice vector under the supercell lattice
+    # (boundary ties are skipped so the file is unambiguous). On-site terms
+    # enforce the acoustic sum rule, so the model is dynamically stable.
+    rcut = 4.6
+    shifts = np.array([[a, b, c]
+                       for a in (-1, 0, 1) for b in (-1, 0, 1) for c in (-1, 0, 1)
+                       if (a, b, c) != (0, 0, 0)])
+    pos = uc.positions
+    entries = []
+    onsite = np.zeros((2, 3, 3))
+    for i in range(2):
+        for j in range(2):
+            for Ra in range(-4, 5):
+                for Rb in range(-4, 5):
+                    for Rc in range(-4, 5):
+                        R = np.array([Ra, Rb, Rc])
+                        v = pos[j] + R @ cell - pos[i]
+                        d = np.linalg.norm(v)
+                        if d < 1e-9 or d > rcut:
+                            continue
+                        alt = np.linalg.norm(pos[j] + ((R - shifts @ _P_297) @ cell) - pos[i], axis=1)
+                        if not np.all(d <= alt - 1e-9):
+                            continue
+                        k = 4.0 * np.exp(-d / 1.8)
+                        entries.append((i, j, R.copy(), -k * np.eye(3)))
+                        onsite[i] += k * np.eye(3)
+    for i in range(2):
+        entries.append((i, i, np.zeros(3, dtype=int), onsite[i] + onsite_defect * np.eye(3)))
+
+    with open(folder / "infile.forceconstant", "w") as f:
+        f.write("2\n100.0\n")
+        for i in range(2):
+            mine = [e for e in entries if e[0] == i]
+            f.write(f"{len(mine)}\n")
+            for _, a2, R, phi in mine:
+                f.write(f"{a2 + 1}\n")
+                f.write(" ".join(f"{x:.1f}" for x in R) + "\n")
+                for row in phi:
+                    f.write(" ".join(f"{x:.12f}" for x in row) + "\n")
+    return uc, entries
+
+
+def _per_pair_frequencies_thz(uc, entries, q):
+    """Reference frequencies from the per-pair Fourier sum, converted with
+    kaldo's own constants (value * mol/(10 J); nu = sqrt(lambda)/2pi)."""
+    from ase import units
+
+    masses = uc.get_masses()
+    n = len(uc)
+    D = np.zeros((n, 3, n, 3), dtype=complex)
+    for a1, a2, R, phi in entries:
+        D[a1, :, a2, :] += phi * np.exp(2j * np.pi * (q @ R)) / np.sqrt(masses[a1] * masses[a2])
+    lam = np.linalg.eigvalsh(D.reshape(3 * n, 3 * n) * units.mol / (10 * units.J))
+    return np.sign(lam) * np.sqrt(np.abs(lam)) / (2 * np.pi)
+
+
+def test_tdep_snf_matches_per_pair_reference_at_incommensurate_q(tmp_path):
+    """Issue #297: at q-points not commensurate with the ssposcar lattice the
+    plain path must reproduce the per-pair Fourier sum (the convention of
+    TDEP/phonopy/ALAMODE, whose vectors the file provides). The former
+    class-collapsed table was exact on the commensurate set but off by up
+    to ~85 cm^-1, with spurious imaginary acoustics, on band-path q.
+    """
+    from kaldo.forceconstants import ForceConstants
+    from kaldo.observables.harmonic_with_q import HarmonicWithQ
+
+    uc, entries = _write_297_model(tmp_path)
+    fc = ForceConstants.from_folder(str(tmp_path), format="tdep", only_second=True)
+    for q in ([0.6667, 0.3333, 0.1111], [0.1234, 0.4321, 0.2468]):
+        q = np.array(q)
+        hq = HarmonicWithQ(q_point=q, second=fc.second, storage="memory")
+        got = np.sort(np.asarray(hq.frequency).ravel())
+        ref = np.sort(_per_pair_frequencies_thz(uc, entries, q))
+        np.testing.assert_allclose(got, ref, atol=1e-8)
+
+
+def test_is_unfolding_rejected_on_snf_path(tmp_path):
+    """is_unfolding assumes a diagonal (nx, ny, nz) supercell; on the SNF
+    path it silently returns garbage, so it must be refused."""
+    from kaldo.forceconstants import ForceConstants
+    from kaldo.observables.harmonic_with_q import HarmonicWithQ
+
+    _write_297_model(tmp_path)
+    fc = ForceConstants.from_folder(str(tmp_path), format="tdep", only_second=True)
+    with pytest.raises(NotImplementedError, match="non-diagonal"):
+        HarmonicWithQ(q_point=np.array([0.1, 0.2, 0.3]), second=fc.second,
+                      is_unfolding=True, storage="memory")
+
+
+def test_tdep_snf_acoustic_sum_rule_targets_home_cell(tmp_path):
+    """is_acoustic_sum=True subtracts the total row sum of each atom at the
+    home cell (replica 0, R = [0, 0, 0]). On a per-pair table np.unique
+    would put a negative vector at index 0, attaching the correction to a
+    wrong lattice vector: invisible at Gamma (all phases are 1 there) but
+    wrong at any other q. With a deliberate on-site defect, ASR-corrected
+    loading of the defected file must reproduce the defect-free model.
+    """
+    from kaldo.forceconstants import ForceConstants
+    from kaldo.observables.harmonic_with_q import HarmonicWithQ
+
+    uc, _ = _write_297_model(tmp_path, onsite_defect=0.05)
+    clean = tmp_path / "clean"
+    clean.mkdir()
+    _, entries_clean = _write_297_model(clean, onsite_defect=0.0)
+    fc = ForceConstants.from_folder(str(tmp_path), format="tdep",
+                                    only_second=True, is_acoustic_sum=True)
+    assert np.array_equal(fc.second._direct_grid.grid(is_wrapping=True)[0], [0, 0, 0])
+    q = np.array([0.1234, 0.4321, 0.2468])
+    hq = HarmonicWithQ(q_point=q, second=fc.second, storage="memory")
+    got = np.sort(np.asarray(hq.frequency).ravel())
+    ref = np.sort(_per_pair_frequencies_thz(uc, entries_clean, q))
+    np.testing.assert_allclose(got, ref, atol=1e-8)

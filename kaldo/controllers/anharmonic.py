@@ -417,6 +417,44 @@ def calculate_adaptive_sigma_tdep(radius, velocity, default_sigma, scale=1.0):
     return sigma
 
 
+def calculate_smearingparameter_tdep(scaled_rec_basis, velocity, default_sigma, scale=1.0):
+    """
+    TDEP ``qp%smearingparameter`` — the adaptive σ used by
+    ``anharmonic_free_energy`` (thirdorder.f90 / fourthorder.f90).
+
+    This is **not** the same helper as :func:`calculate_adaptive_sigma_tdep`
+    (``qp%adaptive_sigma``, used by conductivity / DOS). Free-energy
+    Fortran calls ``smearingparameter``:
+
+        w² = Σ_i [ |v| · (b_i / N_i) ]²
+        σ  = scale · √(w² / 12)
+
+    then clamped into ``[0.25, 4] · default_σ · scale``. ``|v|`` is
+    component-wise absolute value. ``scaled_rec_basis[:, i]`` is the
+    Cartesian reciprocal lattice vector ``b_i`` (with 2π) divided by the
+    mesh density ``N_i``.
+
+    Args:
+        scaled_rec_basis (np.ndarray): shape (3, 3), columns ``b_i / N_i``
+        velocity         (np.ndarray): shape (n_k, n_m, 3)
+        default_sigma    (np.ndarray): shape (n_m,)
+        scale            (float):      smearing prefactor (default 1.0)
+
+    Returns:
+        np.ndarray, shape (n_k, n_m)
+    """
+    velocity = np.abs(np.asarray(velocity, dtype=np.float64))  # (n_k, n_m, 3)
+    basis = np.asarray(scaled_rec_basis, dtype=np.float64)  # (3, 3)
+    # proj[k, m, i] = |v[k,m]| · basis[:, i]
+    proj = np.einsum('kma,ai->kmi', velocity, basis)
+    w = np.sqrt(np.sum(proj ** 2, axis=-1) / 12.0) * scale
+    low = default_sigma[np.newaxis, :] * ADAPTIVE_SIGMA_SMALLFACTOR * scale
+    high = default_sigma[np.newaxis, :] * ADAPTIVE_SIGMA_LARGEFACTOR * scale
+    w = np.maximum(w, low)
+    w = np.minimum(w, high)
+    return w
+
+
 def calculate_bz_cell_radius(cell_inv, n_k_points):
     """
     Effective radius for TDEP's ``adaptive_sigma``.
