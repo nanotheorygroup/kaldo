@@ -109,7 +109,7 @@ class Conductivity(Storable):
     Conductivity(phonons=phonons, method='inverse', storage='memory').conductivity.sum(axis=0))
     ```
     """
-    
+
     # Define storage formats for conductivity properties
     _store_formats = {
         'conductivity': 'formatted',
@@ -117,7 +117,7 @@ class Conductivity(Storable):
         'mean_free_path': 'formatted',
         '_generalized_diffusivity': 'numpy'
     }
-    
+
     def __init__(self,
                  phonons: Phonons,
                  *,
@@ -155,6 +155,7 @@ class Conductivity(Storable):
         self.is_classic = self.phonons.is_classic
         self.third_bandwidth = self.phonons.third_bandwidth
         self.include_isotopes = self.phonons.include_isotopes
+        self.ifc_cache_key = self.phonons.ifc_cache_key
 
         # initalize QHGK method
         self.diffusivity_bandwidth = diffusivity_bandwidth
@@ -165,13 +166,13 @@ class Conductivity(Storable):
     def _get_folder_path_components(self, label):
         """Get folder path components for Conductivity-specific attributes."""
         components = []
-        
+
         if '<diffusivity_bandwidth>' in label and self.diffusivity_bandwidth is not None:
             components.append('db_' + str(np.mean(self.diffusivity_bandwidth)))
-            
+
         if '<diffusivity_threshold>' in label and self.diffusivity_threshold is not None:
             components.append('dt_' + str(self.diffusivity_threshold))
-            
+
         if '<method>' in label:
             components.append(str(self.method))
             if (self.method == 'rta' or self.method == 'sc' or self.method == 'inverse') \
@@ -188,12 +189,12 @@ class Conductivity(Storable):
                         components.append(length_str)
                     if '<finite_length_method>' in label and self.finite_length_method is not None:
                         components.append('fs' + str(self.finite_length_method))
-                        
+
         # Delegate to parent class (Phonons) for common attributes
         if hasattr(self, 'phonons'):
             parent_components = self.phonons._get_folder_path_components(label)
             components.extend(parent_components)
-            
+
         return components
 
     def _load_formatted_property(self, property_name, name):
@@ -212,7 +213,7 @@ class Conductivity(Storable):
         else:
             # Use default implementation for other properties
             return super()._load_formatted_property(property_name, name)
-    
+
     def _save_formatted_property(self, property_name, name, data):
         """Override formatted saving for Conductivity-specific properties"""
         fmt = '%.18e'
@@ -341,12 +342,17 @@ class Conductivity(Storable):
 
         return gamma_tensor
 
-
     def calculate_conductivity_and_diffusivity_qhgk(self):
+        """Compute QHGK conductivity and diffusivity from mode-pair fluxes.
+
+        The temporary harmonic objects receive the same NAC BvK convention as
+        ``self.phonons``. This keeps their frequencies, eigenvectors, heat
+        capacities, and flux operators on one dynamical-matrix definition.
+        """
         phonons = self.phonons
         omega = phonons.omega.reshape((phonons.n_k_points, phonons.n_modes))
         volume = np.abs(np.linalg.det(phonons.atoms.cell))
-        q_points = phonons._reciprocal_grid.unitary_grid(is_wrapping=False)
+        q_points = phonons._reciprocal_grid.fractional_points
         physical_mode = phonons.physical_mode
         conductivity_per_mode = np.zeros((self.phonons.n_k_points, self.phonons.n_modes, 3, 3), dtype=np.float32)
         diffusivity_with_axis = np.zeros_like(conductivity_per_mode)
@@ -369,10 +375,14 @@ class Conductivity(Storable):
 
         if self.diffusivity_bandwidth is not None:
             logging.info('Using diffusivity bandwidth from input')
-            diffusivity_bandwidth = self.diffusivity_bandwidth * np.ones((phonons.n_k_points, phonons.n_modes),
-                                                                         dtype=np.float32)
+            diffusivity_bandwidth = self.diffusivity_bandwidth * np.ones(
+                (phonons.n_k_points, phonons.n_modes), dtype=np.float32
+            )
         else:
-            diffusivity_bandwidth = self.phonons.bandwidth.reshape((phonons.n_k_points, phonons.n_modes)) / 2.
+            diffusivity_bandwidth = (
+                self.phonons.bandwidth.reshape((phonons.n_k_points, phonons.n_modes))
+                / 2.0
+            )
 
         logging.info('Start calculation diffusivity')
 
@@ -386,8 +396,10 @@ class Conductivity(Storable):
                 temperature=self.temperature,
                 is_classic=self.is_classic,
                 is_nw=phonons.is_nw,
-                is_unfolding=phonons.is_unfolding,
-                is_amorphous=phonons._is_amorphous
+                ifc_interpolation=phonons.ifc_interpolation,
+                is_amorphous=phonons._is_amorphous,
+                is_nac=phonons.is_nac,
+                nac_bvk_supercell_matrix=phonons.nac_bvk_supercell_matrix,
             )
             heat_capacity_2d = phonon.heat_capacity_2d
             if phonons.n_modes > 100:

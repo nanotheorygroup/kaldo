@@ -1,0 +1,12 @@
+{
+  "O": {
+    "filename": "O.pbe-n-kjpaw_psl.0.1.UPF",
+    "source": "SSSP_1.3.0_PBE_efficiency/O.pbe-n-kjpaw_psl.0.1.UPF",
+    "sha256": "7c4b6ed541f83d0afdf5c1d3a8c611340f073f3e2b11e95b7963bb2ee26929aa"
+  },
+  "Rh": {
+    "filename": "Rh_ONCV_PBE-1.0.oncvpsp.upf",
+    "source": "SSSP_1.3.0_PBE_efficiency/Rh_ONCV_PBE-1.0.oncvpsp.upf",
+    "sha256": "e9b88f5513e25cd2833cd4587d2d34b46dd0be86aaa0e7b00404147510a87504"
+  }
+}

@@ -122,7 +122,7 @@ def compute_gfactor(list_of_atomic_numbers):
             rel_masses = masses / m_avg
             g_ = np.sum(conc * (1 - rel_masses) ** 2)
             g_factor[list_of_atomic_numbers == element] = g_
-    except urllib.error.HTTPError:
+    except (urllib.error.HTTPError, urllib.error.URLError):
         ## Legacy gfactor database. The isotopic database was downloaded with ase.data.isotopes on 20/03/2024.
         # unstable elements have None as gfactor. Mostly elements with Z>92
         dataset_file = impresources.files(kaldo.controllers) / 'legacy_dataset.json'

@@ -1,0 +1,4 @@
+&INPUTPH
+  prefix='cP-mp-23330', outdir='./out', fildyn='cP-mp-23330.dyn', tr2_ph=1.0d-14,
+  epsil=.true., ldisp=.true., nq1=2, nq2=2, nq3=2
+/

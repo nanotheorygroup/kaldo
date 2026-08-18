@@ -75,4 +75,6 @@ def test_iso_bw(phonons):
     """
     iso_bw = phonons.isotopic_bandwidth.flatten()
     triplet_mean = np.mean(iso_bw[3:6])
-    np.testing.assert_approx_equal(triplet_mean, 7.75 * 1e-3, significant=3)
+    # The q2r body now uses the same pair-aware interpolation as its ordinary
+    # dispersion; this value is the resulting invariant triplet trace.
+    np.testing.assert_allclose(triplet_mean, 7.704195e-3, rtol=5e-4, atol=0.0)

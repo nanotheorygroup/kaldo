@@ -13,6 +13,9 @@ jobs:
     steps:
       - checkout
       - run:
+          command: python -m pip install --quiet -e ".[test]"
+          name: Install package and mandatory test extras
+      - run:
           command: python -m pytest -n auto -v --cov=kaldo --cov-report=xml --color=yes kaldo/tests/
           name: Test
       - codecov/upload:
