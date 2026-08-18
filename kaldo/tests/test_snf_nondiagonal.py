@@ -1,45 +1,46 @@
 """
-Tests for non-diagonal TDEP supercell handling primitives.
+Tests for exact non-diagonal TDEP supercell quotient handling.
 
-kaldo.interfaces.tdep_io.build_supercell_replica_mapping +
-wrap_lattice_vector_to_replica are the low-level primitives for mapping
-TDEP per-atom pairs/triplets/quartets onto a non-diagonal ssposcar tiling.
+``build_supercell_replica_mapping`` recovers the integer tiling, while
+``SupercellGrid.class_id`` maps TDEP pair/triplet/quartet translations to
+periodic classes without a bounded search.
 
-The reference_si production fixture is non-diagonal (rhombohedral primitive
-+ cubic conventional ssposcar, det M = 108); it is env-var-gated because it
-is too large to vendor. Diagonal-supercell coverage of the same primitives
+The compact Si fixture is non-diagonal (rhombohedral primitive + one cubic
+conventional cell, det M = 4). Diagonal-supercell coverage of the same parser
 lives in test_parse_tdep_unified.py on the vendored si-tdep fixture.
 """
+
 from __future__ import annotations
+
+from pathlib import Path
 
 import numpy as np
 import pytest
 
-# Production-only fixture: large DFT-quality non-diagonal Si IFCs.
-# Set KALDO_TEST_SI_PROD to enable.
-# See kaldo/tests/_paths.py for details on env-var-gated test fixtures.
-from kaldo.tests._paths import SI_PROD
+SI_CONVENTIONAL_DIR = Path(__file__).parent / "data" / "input" / "tdep-si-conventional"
+SI_CONVENTIONAL_MATRIX = np.array([[1, -1, 1], [1, 1, -1], [-1, 1, 1]], dtype=int)
 
 
-@pytest.mark.skipif(not SI_PROD.exists(), reason="non-diagonal Si fixture unavailable")
 def test_build_supercell_replica_mapping_si_nondiagonal():
-    """Si production (rhombo primitive + cubic 3x3x3 conv ssposcar, det M = 108).
+    """Compact Si (rhombohedral primitive + conventional cell, det M = 4).
 
-    The mapping must produce 108 unique replicas and reproduce every sc
+    The mapping must produce four unique replicas and reproduce every sc
     atom position mod the supercell lattice.
     """
     import ase.io
     from kaldo.interfaces.tdep_io import build_supercell_replica_mapping
 
-    uc = ase.io.read(str(SI_PROD / "infile.ucposcar"), format="vasp")
-    sc = ase.io.read(str(SI_PROD / "infile.ssposcar"), format="vasp")
+    uc = ase.io.read(str(SI_CONVENTIONAL_DIR / "infile.ucposcar"), format="vasp")
+    sc = ase.io.read(str(SI_CONVENTIONAL_DIR / "infile.ssposcar"), format="vasp")
     m = build_supercell_replica_mapping(uc, sc)
 
-    assert m["replica_table"].shape == (108, 3)
-    assert m["atom_of_sc"].shape == (216,)
+    np.testing.assert_array_equal(np.rint(m["M"]).astype(int), SI_CONVENTIONAL_MATRIX)
+    assert m["replica_table"].shape == (4, 3)
+    assert m["atom_of_sc"].shape == (8,)
     assert set(np.unique(m["atom_of_sc"]).tolist()) == {0, 1}
     # round-trip check
-    uc_pos = np.asarray(uc.positions); uc_cell = np.asarray(uc.cell)
+    uc_pos = np.asarray(uc.positions)
+    uc_cell = np.asarray(uc.cell)
     sc_cell = np.asarray(sc.cell)
     inv_sc = np.linalg.inv(sc_cell)
     for i in range(len(sc)):
@@ -51,26 +52,25 @@ def test_build_supercell_replica_mapping_si_nondiagonal():
         assert np.max(np.abs(diff_frac)) < 1e-4
 
 
-@pytest.mark.skipif(not SI_PROD.exists(), reason="non-diagonal Si fixture unavailable")
 def test_wrap_lattice_vector_to_replica_si():
     """Arbitrary TDEP lattice vectors map to a unique replica id."""
     import ase.io
-    from kaldo.interfaces.tdep_io import (
-        build_supercell_replica_mapping, wrap_lattice_vector_to_replica,
-    )
-    uc = ase.io.read(str(SI_PROD / "infile.ucposcar"), format="vasp")
-    sc = ase.io.read(str(SI_PROD / "infile.ssposcar"), format="vasp")
+    from kaldo.grid import SupercellGrid
+    from kaldo.interfaces.tdep_io import build_supercell_replica_mapping
+
+    uc = ase.io.read(str(SI_CONVENTIONAL_DIR / "infile.ucposcar"), format="vasp")
+    sc = ase.io.read(str(SI_CONVENTIONAL_DIR / "infile.ssposcar"), format="vasp")
     m = build_supercell_replica_mapping(uc, sc)
 
     # Origin
-    assert wrap_lattice_vector_to_replica(
-        [0, 0, 0], m["replica_table"], m["M"]) >= 0
+    grid = SupercellGrid(np.rint(m["M"]).astype(int))
+    assert grid.class_id([0, 0, 0]) >= 0
     # Arbitrary R in primitive basis
     for R in [[1, 0, 0], [-1, 0, 0], [2, -1, 3], [5, 5, 5]]:
-        idx = wrap_lattice_vector_to_replica(R, m["replica_table"], m["M"])
+        idx = grid.class_id(R)
         assert idx >= 0, f"R={R} did not map to a replica"
         # And it's in range
-        assert 0 <= idx < 108
+        assert 0 <= idx < 4
 
 
 def _skewed_primitive():
@@ -81,11 +81,11 @@ def _skewed_primitive():
     (M = sc @ uc^-1 for ASE row-vector cells) changes the result.
     """
     from ase import Atoms
-    cell = np.array([[4.0, 0.0, 0.0],
-                     [1.3, 3.8, 0.0],
-                     [0.4, 0.9, 3.5]])
-    return Atoms("Si2", scaled_positions=[[0, 0, 0], [0.27, 0.31, 0.24]],
-                 cell=cell, pbc=True)
+
+    cell = np.array([[4.0, 0.0, 0.0], [1.3, 3.8, 0.0], [0.4, 0.9, 3.5]])
+    return Atoms(
+        "Si2", scaled_positions=[[0, 0, 0], [0.27, 0.31, 0.24]], cell=cell, pbc=True
+    )
 
 
 def test_non_commuting_tiling_recovers_true_m():
@@ -98,7 +98,7 @@ def test_non_commuting_tiling_recovers_true_m():
     definition.
     """
     from ase.build import make_supercell
-    from kaldo.grid import wrap_lattice_vector_to_replica
+    from kaldo.grid import SupercellGrid
     from kaldo.interfaces.tdep_io import build_supercell_replica_mapping
 
     prim = _skewed_primitive()
@@ -119,19 +119,22 @@ def test_non_commuting_tiling_recovers_true_m():
         R = mapping["replica_vector_of_sc"][i]
         diff = rsc - (prim.positions[j] + R @ uc_cell)
         f = diff @ inv_sc
-        np.testing.assert_allclose(f, np.rint(f), atol=1e-6,
-                                   err_msg=f"sc atom {i} not on the lattice")
+        np.testing.assert_allclose(
+            f, np.rint(f), atol=1e-6, err_msg=f"sc atom {i} not on the lattice"
+        )
 
     # Wrapping any replica shifted by a supercell lattice translation
     # (rows of M0 in the primitive basis) must recover the same replica.
     table = mapping["replica_table"]
+    grid = SupercellGrid(M0)
     for idx, R in enumerate(table):
+        expected = grid.class_id(R)
         for s in ([1, 0, 0], [0, 1, 0], [-1, 1, -1]):
             R_shifted = R + np.array(s) @ M0
-            found = wrap_lattice_vector_to_replica(R_shifted, table, mapping["M"])
-            assert found == idx, (
-                f"replica {R} + {s}@M wrapped to {found}, expected {idx}"
-            )
+            found = grid.class_id(R_shifted)
+            assert (
+                found == expected
+            ), f"replica {R} + {s}@M wrapped to {found}, expected {expected}"
 
 
 def test_anisotropic_diagonal_on_skewed_cell_resolves_diagonal(tmp_path):
@@ -149,3 +152,26 @@ def test_anisotropic_diagonal_on_skewed_cell_resolves_diagonal(tmp_path):
 
     _, _, diagonal_supercell = resolve_tdep_supercell(str(tmp_path))
     assert diagonal_supercell == (3, 2, 1)
+
+
+def test_explicit_tdep_supercell_matrix_is_an_exact_contract(tmp_path):
+    """A supplied TDEP matrix must be integer and match the structure files."""
+    import ase.io
+    from ase.build import make_supercell
+    from kaldo.interfaces.tdep_io import resolve_tdep_supercell
+
+    primitive = _skewed_primitive()
+    matrix = np.array([[2, 1, 0], [0, 2, 0], [0, 0, 2]])
+    supercell = make_supercell(primitive, matrix)
+    ase.io.write(tmp_path / "infile.ucposcar", primitive, format="vasp")
+    ase.io.write(tmp_path / "infile.ssposcar", supercell, format="vasp")
+
+    with pytest.raises(ValueError, match="integer 3x3"):
+        resolve_tdep_supercell(
+            str(tmp_path), supercell_matrix=matrix.astype(float) + 0.25
+        )
+    with pytest.raises(ValueError, match="does not match"):
+        resolve_tdep_supercell(str(tmp_path), supercell_matrix=np.diag([2, 2, 2]))
+
+    _, _, diagonal = resolve_tdep_supercell(str(tmp_path), supercell_matrix=matrix)
+    assert diagonal is None
