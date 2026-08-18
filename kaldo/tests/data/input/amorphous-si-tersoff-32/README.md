@@ -46,6 +46,9 @@ files already present in the output directory. `finalize_reference.py` then
 measures boundary weight and transport using the retained tensor and writes
 `expected.json`. The physical oracle is equality before and after an exact
 origin relabeling; the recorded numerical values only pin regression drift.
+There is no external ground-truth conductivity for this finite amorphous
+model, so a kALDo-generated absolute QHGK tensor is never used as evidence of
+its own physical correctness.
 Both scripts bind kALDo imports to the checkout that contains them, so an
 unrelated editable installation cannot generate or validate the artifacts.
 
@@ -59,6 +62,11 @@ At Gamma every lattice-translation phase is one. Selecting a wrong periodic
 image can therefore leave all frequencies unchanged while changing the first
 real-space moment of IFC2, the heat-flux operator, mode diffusivity, and QHGK
 conductivity. The fixture tests that contrast directly.
+
+The analytic IFC2 first moment is also compared with a centered finite
+difference of an independently constructed minimum-image Fourier sum. This
+checks the corrected value rather than relying only on agreement between two
+origin choices that could, in principle, share the same error.
 
 The test also evaluates the two IFC3 translation legs at selected nonzero q
 pairs by contracting the compiled sparse translations independently from the

@@ -52,7 +52,7 @@
       0.05
     ]
   ],
-  "references": {
+  "regression_snapshots": {
     "legacy_origin_flux_relative_change": 1.6197096604183019,
     "qhgk_tensor_W_mK": [
       [

@@ -221,7 +221,10 @@ def main():
             "origin_shift_fractional": shift.tolist(),
             "boundary_weight": measured_boundary_weight,
             "ifc3_probe_q_points": [list(q) for q in IFC3_PROBE_Q_POINTS],
-            "references": {
+            # These values are produced by this checkout and therefore monitor
+            # numerical drift only.  The assertions above—not these snapshots—
+            # are the physical correctness oracle.
+            "regression_snapshots": {
                 "legacy_origin_flux_relative_change": float(flux_change),
                 "qhgk_tensor_W_mK": corrected_tensor.tolist(),
                 "legacy_origin_qhgk_trace_relative_change": float(legacy_qhgk_change),
