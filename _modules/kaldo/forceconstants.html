@@ -824,7 +824,7 @@
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">sparse</span><span class="w"> </span><span class="kn">import</span> <span class="n">COO</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.grid</span><span class="w"> </span><span class="kn">import</span> <span class="n">wrap_coordinates</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.grid</span><span class="w"> </span><span class="kn">import</span> <span class="n">wrap_coordinates</span><span class="p">,</span> <span class="n">Grid</span><span class="p">,</span> <span class="n">NonDiagonalGrid</span><span class="p">,</span> <span class="n">wrap_lattice_vector_to_replica</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.observables.secondorder</span><span class="w"> </span><span class="kn">import</span> <span class="n">SecondOrder</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.observables.thirdorder</span><span class="w"> </span><span class="kn">import</span> <span class="n">ThirdOrder</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.observables.fourthorder</span><span class="w"> </span><span class="kn">import</span> <span class="n">FourthOrder</span>
@@ -1085,6 +1085,174 @@
                    <span class="n">third_order</span><span class="o">=</span><span class="n">third_order</span><span class="p">,</span>
                    <span class="n">fourth_order</span><span class="o">=</span><span class="n">fourth_order</span><span class="p">,</span>
                    <span class="n">is_acoustic_sum</span><span class="o">=</span><span class="n">is_acoustic_sum</span><span class="p">)</span></div>
+
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_build_shifted_rep</span><span class="p">(</span><span class="n">grid</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return shifted_rep[rep_i, rel] = index of (grid[rep_i] + grid[rel]) in the replica table.</span>
+
+<span class="sd">        For a diagonal Grid uses fast modular arithmetic + ravel_multi_index.</span>
+<span class="sd">        For a NonDiagonalGrid uses wrap_lattice_vector_to_replica so that the</span>
+<span class="sd">        non-diagonal PBC is handled correctly.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">grid</span><span class="p">,</span> <span class="n">NonDiagonalGrid</span><span class="p">):</span>
+            <span class="n">table</span> <span class="o">=</span> <span class="n">grid</span><span class="o">.</span><span class="n">_replica_table</span>                              <span class="c1"># (n_rep, 3) int</span>
+            <span class="n">M</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">rint</span><span class="p">(</span><span class="n">grid</span><span class="o">.</span><span class="n">_M</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+            <span class="n">n_rep</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">table</span><span class="p">)</span>
+
+            <span class="c1"># All pairwise sums: (n_rep, n_rep, 3)</span>
+            <span class="n">sums</span> <span class="o">=</span> <span class="n">table</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">+</span> <span class="n">table</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:]</span>
+
+            <span class="c1"># Step 1: [0,1) sc-fractional wrap (vectorized).</span>
+            <span class="c1"># Mirrors what build_supercell_replica_mapping does before norm-min.</span>
+            <span class="n">inv_M</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">M</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">))</span>
+            <span class="n">frac</span> <span class="o">=</span> <span class="n">sums</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span> <span class="o">@</span> <span class="n">inv_M</span>                              <span class="c1"># (n_rep, n_rep, 3)</span>
+            <span class="n">wrapped</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">rint</span><span class="p">((</span><span class="n">frac</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">frac</span> <span class="o">+</span> <span class="mf">1e-4</span><span class="p">))</span> <span class="o">@</span> <span class="n">M</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>  <span class="c1"># (n_rep, n_rep, 3)</span>
+
+            <span class="c1"># Step 2: norm-minimal search over {-1,0,1}^3 — same shifts used</span>
+            <span class="c1"># when the table was built, so exactly one candidate matches each (i,j).</span>
+            <span class="n">sv</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">([</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
+                                      <span class="n">indexing</span><span class="o">=</span><span class="s1">&#39;ij&#39;</span><span class="p">))</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>   <span class="c1"># (27, 3)</span>
+            <span class="n">candidates</span> <span class="o">=</span> <span class="n">wrapped</span><span class="p">[:,</span> <span class="p">:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">-</span> <span class="p">(</span><span class="n">sv</span> <span class="o">@</span> <span class="n">M</span><span class="p">)[</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:]</span>  <span class="c1"># (n_rep, n_rep, 27, 3)</span>
+
+            <span class="c1"># matches[i, j, s, k] = True when candidates[i,j,s] == table[k]</span>
+            <span class="n">matches</span> <span class="o">=</span> <span class="p">(</span><span class="n">candidates</span><span class="p">[:,</span> <span class="p">:,</span> <span class="p">:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">==</span> <span class="n">table</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:])</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">matched</span> <span class="o">=</span> <span class="n">matches</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>   <span class="c1"># (n_rep, n_rep, n_rep): any shift hits table[k]?</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">matched</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">():</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Replica sum not found; the replica table may be incomplete.&quot;</span><span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">matched</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>   <span class="c1"># (n_rep, n_rep)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">supercell</span> <span class="o">=</span> <span class="n">grid</span><span class="o">.</span><span class="n">grid_shape</span>
+            <span class="n">grid_arr</span> <span class="o">=</span> <span class="n">grid</span><span class="o">.</span><span class="n">grid</span><span class="p">(</span><span class="n">is_wrapping</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>                                    <span class="c1"># (n_rep, 3)</span>
+            <span class="n">combined</span> <span class="o">=</span> <span class="p">(</span><span class="n">grid_arr</span><span class="p">[:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:]</span> <span class="o">+</span> <span class="n">grid_arr</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:])</span> <span class="o">%</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">supercell</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">ravel_multi_index</span><span class="p">(</span>
+                <span class="n">combined</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="n">supercell</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="n">grid</span><span class="o">.</span><span class="n">order</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">grid</span><span class="o">.</span><span class="n">grid_size</span><span class="p">,</span> <span class="n">grid</span><span class="o">.</span><span class="n">grid_size</span><span class="p">)</span>
+
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_project_second_onto_snf_class_table</span><span class="p">(</span><span class="n">raw_pair</span><span class="p">,</span> <span class="n">ifc_obj</span><span class="p">,</span> <span class="n">mapping</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Reindex per-pair IFC2 onto the det(M) congruence-class table.</span>
+
+<span class="sd">        After PR #301, ``SecondOrder`` on a non-diagonal TDEP supercell stores</span>
+<span class="sd">        IFC2 on the unique per-pair lattice vectors from the file (correct for</span>
+<span class="sd">        Fourier phases) while ``_snf_mapping[&#39;replica_table&#39;]`` keeps the full</span>
+<span class="sd">        ``det(M)`` class table (closed under supercell PBC). Translational</span>
+<span class="sd">        expansion via :meth:`irred_to_full` needs that closed table.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        raw_class : ndarray, shape (n_uc, 3, n_class, n_uc, 3)</span>
+<span class="sd">        class_grid : NonDiagonalGrid</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">class_table</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">mapping</span><span class="p">[</span><span class="s2">&quot;replica_table&quot;</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+        <span class="n">M</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">rint</span><span class="p">(</span><span class="n">mapping</span><span class="p">[</span><span class="s2">&quot;M&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+        <span class="n">pair_table</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">ifc_obj</span><span class="o">.</span><span class="n">_direct_grid</span><span class="o">.</span><span class="n">_replica_table</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+        <span class="n">n_uc</span> <span class="o">=</span> <span class="n">raw_pair</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">n_class</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">class_table</span><span class="p">)</span>
+        <span class="n">raw_class</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">n_uc</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">n_class</span><span class="p">,</span> <span class="n">n_uc</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">r</span><span class="p">,</span> <span class="n">R</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">pair_table</span><span class="p">):</span>
+            <span class="n">class_id</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">wrap_lattice_vector_to_replica</span><span class="p">(</span><span class="n">R</span><span class="p">,</span> <span class="n">class_table</span><span class="p">,</span> <span class="n">M</span><span class="p">))</span>
+            <span class="c1"># Two per-pair R&#39;s in the same class are periodic images</span>
+            <span class="c1"># (they differ by a supercell lattice vector); the supercell</span>
+            <span class="c1"># force constant is the sum over images. With TDEP cutoffs</span>
+            <span class="c1"># below half the box each class has a single image, so this</span>
+            <span class="c1"># reduces to a plain assignment.</span>
+            <span class="n">raw_class</span><span class="p">[:,</span> <span class="p">:,</span> <span class="n">class_id</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:]</span> <span class="o">+=</span> <span class="n">raw_pair</span><span class="p">[:,</span> <span class="p">:,</span> <span class="n">r</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:]</span>
+        <span class="n">class_grid</span> <span class="o">=</span> <span class="n">NonDiagonalGrid</span><span class="p">(</span><span class="n">replica_table</span><span class="o">=</span><span class="n">class_table</span><span class="p">,</span> <span class="n">M</span><span class="o">=</span><span class="n">M</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">raw_class</span><span class="p">,</span> <span class="n">class_grid</span>
+
+<div class="viewcode-block" id="ForceConstants.irred_to_full">
+<a class="viewcode-back" href="../../docsource/api_forceconstants.html#kaldo.forceconstants.ForceConstants.irred_to_full">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">irred_to_full</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">order</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">grid</span><span class="p">:</span> <span class="n">Grid</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Reconstruct the full IFC tensor from the irreducible part stored in this object.</span>
+
+<span class="sd">        The irreducible tensor (``self.second`` or ``self.third``) suppresses the replica index</span>
+<span class="sd">        of the first atom (always cell 0 by translational convention).  Translational symmetry</span>
+<span class="sd">        gives:</span>
+
+<span class="sd">            fc_full[rep_i, uc_i, :, abs_j, uc_j, :, ...]</span>
+<span class="sd">                = ifc_irred[uc_i, :, rel_j, uc_j, :, ...]</span>
+
+<span class="sd">        where  abs_j = shifted_rep[rep_i, rel_j]</span>
+<span class="sd">        and    shifted_rep = ForceConstants._build_shifted_rep(grid).</span>
+
+<span class="sd">        For the loop-based assignment pattern (resolving ``???`` for 3rd order)::</span>
+
+<span class="sd">            shifted_rep = ForceConstants._build_shifted_rep(grid)</span>
+<span class="sd">            for rep_i in range(n_rep):</span>
+<span class="sd">                for uc_i, rep_j, uc_j, rep_k, uc_k in ...:</span>
+<span class="sd">                    fc3_out[rep_i, uc_i, :,</span>
+<span class="sd">                            shifted_rep[rep_i, rep_j], uc_j, :,</span>
+<span class="sd">                            shifted_rep[rep_i, rep_k], uc_k, :] += ifc3_irred[uc_i, :, rep_j, uc_j, :, rep_k, uc_k, :]</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        order : int</span>
+<span class="sd">            IFC order; 2 or 3.</span>
+<span class="sd">        grid : Grid, optional</span>
+<span class="sd">            Supercell grid.  Defaults to the grid of the corresponding order object</span>
+<span class="sd">            (``self.second._direct_grid`` or ``self.third._direct_grid``).</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        fc_full : np.ndarray</span>
+<span class="sd">            Full IFC tensor of shape ``(n_rep, n_unit, 3) * order``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">order</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;order must be 2 or 3, got </span><span class="si">{</span><span class="n">order</span><span class="si">}</span><span class="s1">.&#39;</span><span class="p">)</span>
+
+        <span class="n">n_unit</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_atoms</span>
+
+        <span class="k">if</span> <span class="n">order</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">ifc_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">second</span>
+            <span class="n">raw</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">ifc_obj</span><span class="o">.</span><span class="n">value</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">ifc_obj</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">third</span>
+            <span class="n">n_rep_obj</span> <span class="o">=</span> <span class="n">ifc_obj</span><span class="o">.</span><span class="n">n_replicas</span>
+            <span class="n">raw</span> <span class="o">=</span> <span class="n">ifc_obj</span><span class="o">.</span><span class="n">value</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">raw</span><span class="p">,</span> <span class="s1">&#39;todense&#39;</span><span class="p">):</span>
+                <span class="n">raw</span> <span class="o">=</span> <span class="n">raw</span><span class="o">.</span><span class="n">todense</span><span class="p">()</span>
+            <span class="n">raw</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">raw</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">n_unit</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">n_rep_obj</span><span class="p">,</span> <span class="n">n_unit</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">n_rep_obj</span><span class="p">,</span> <span class="n">n_unit</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">grid</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">grid</span> <span class="o">=</span> <span class="n">ifc_obj</span><span class="o">.</span><span class="n">_direct_grid</span>
+
+        <span class="c1"># Per-pair IFC2 on SNF is not closed under replica addition; project</span>
+        <span class="c1"># onto the det(M) class table before building shifted_rep.</span>
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="n">order</span> <span class="o">==</span> <span class="mi">2</span>
+            <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">grid</span><span class="p">,</span> <span class="n">NonDiagonalGrid</span><span class="p">)</span>
+            <span class="ow">and</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">ifc_obj</span><span class="p">,</span> <span class="s2">&quot;_snf_mapping&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="p">):</span>
+            <span class="n">mapping</span> <span class="o">=</span> <span class="n">ifc_obj</span><span class="o">.</span><span class="n">_snf_mapping</span>
+            <span class="n">class_table</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">mapping</span><span class="p">[</span><span class="s2">&quot;replica_table&quot;</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">grid</span><span class="o">.</span><span class="n">_replica_table</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">class_table</span><span class="p">):</span>
+                <span class="n">raw</span><span class="p">,</span> <span class="n">grid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_project_second_onto_snf_class_table</span><span class="p">(</span>
+                    <span class="n">raw</span><span class="p">,</span> <span class="n">ifc_obj</span><span class="p">,</span> <span class="n">mapping</span><span class="p">,</span>
+                <span class="p">)</span>
+
+        <span class="n">n_rep</span> <span class="o">=</span> <span class="n">grid</span><span class="o">.</span><span class="n">grid_size</span>
+        <span class="c1"># Relative-replica axes in the irreducible tensor: 2, 5, ... (one per non-first atom)</span>
+        <span class="n">replica_axes</span> <span class="o">=</span> <span class="p">[</span><span class="mi">3</span> <span class="o">*</span> <span class="n">j</span> <span class="o">-</span> <span class="mi">1</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">order</span><span class="p">)]</span>
+
+        <span class="n">shifted_rep</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_shifted_rep</span><span class="p">(</span><span class="n">grid</span><span class="p">)</span>        <span class="c1"># (n_rep, n_rep)</span>
+        <span class="n">inv_shifted_rep</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">shifted_rep</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>  <span class="c1"># inv_shifted_rep[rep_i, abs] = rel</span>
+
+        <span class="n">full_shape</span> <span class="o">=</span> <span class="p">(</span><span class="n">n_rep</span><span class="p">,</span> <span class="n">n_unit</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span> <span class="o">*</span> <span class="n">order</span>
+        <span class="n">fc_full</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">full_shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">rep_i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_rep</span><span class="p">):</span>
+            <span class="n">inv_perm</span> <span class="o">=</span> <span class="n">inv_shifted_rep</span><span class="p">[</span><span class="n">rep_i</span><span class="p">]</span>
+            <span class="n">temp</span> <span class="o">=</span> <span class="n">raw</span>
+            <span class="k">for</span> <span class="n">ax</span> <span class="ow">in</span> <span class="n">replica_axes</span><span class="p">:</span>
+                <span class="n">temp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">take</span><span class="p">(</span><span class="n">temp</span><span class="p">,</span> <span class="n">inv_perm</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="n">ax</span><span class="p">)</span>
+            <span class="n">fc_full</span><span class="p">[</span><span class="n">rep_i</span><span class="p">]</span> <span class="o">=</span> <span class="n">temp</span>
+
+        <span class="k">return</span> <span class="n">fc_full</span></div>
+
 
 
 <div class="viewcode-block" id="ForceConstants.unfold_third_order">

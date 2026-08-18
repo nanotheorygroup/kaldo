@@ -1733,13 +1733,16 @@
 <span class="sd">        Harmonic free energy, already Brillouin-zone averaged,</span>
 <span class="sd">        returned in eV per mode.</span>
 
-<span class="sd">        Quantum: F = k_B * T * ln(1 - exp(-x)) + hbar*omega/2, with</span>
-<span class="sd">        x = hbar*omega/(k_B*T), including zero-point energy.</span>
+<span class="sd">        Quantum (``is_classic=False``, default)::</span>
 
-<span class="sd">        Classical (``is_classic=True``): F = k_B * T * ln(x), the x -&gt; 0</span>
-<span class="sd">        limit of the quantum expression (the zero-point term cancels</span>
-<span class="sd">        against the expansion of the logarithm). It uses the physical hbar</span>
-<span class="sd">        as the phase-space measure and contains no zero-point energy.</span>
+<span class="sd">            F = k_B T ln(1 - exp(-hbar*omega/(k_B T))) + hbar*omega/2</span>
+
+<span class="sd">        Classical (``is_classic=True``)::</span>
+
+<span class="sd">            F = k_B T ln(hbar*omega / (k_B T))</span>
+
+<span class="sd">        where ``omega = 2*pi*frequency`` (rad/s). The classical form has no</span>
+<span class="sd">        zero-point energy.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
@@ -1750,14 +1753,18 @@
 
 <span class="sd">        Notes</span>
 <span class="sd">        -----</span>
-<span class="sd">        - At T=0, the quantum result reduces to the zero-point energy; the</span>
-<span class="sd">          classical result reduces to its T -&gt; 0 limit, zero</span>
+<span class="sd">        - Quantum at T=0: only the zero-point energy contributes</span>
+<span class="sd">        - Classical at T=0 is undefined (``ln`` singularity); zeros are returned</span>
+<span class="sd">          with a warning</span>
 <span class="sd">        - Modes with imaginary frequencies (negative frequency values) are automatically</span>
 <span class="sd">          excluded and will trigger a warning, as they may indicate structural instability</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="c1"># atol: any temperature below 1e-12 K is physically zero</span>
-        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isclose</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">temperature</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="n">rtol</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="mf">1e-12</span><span class="p">):</span>
+        <span class="c1"># At T=0, quantum F = ZPE only; classical F is undefined</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">temperature</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_classic</span><span class="p">:</span>
+                <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                    <span class="s2">&quot;Classical harmonic free energy is undefined at T=0; returning zeros.&quot;</span>
+                <span class="p">)</span>
                 <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">frequency</span><span class="p">)</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">zero_point_harmonic_energy</span>
 
@@ -1771,22 +1778,28 @@
                 <span class="sa">f</span><span class="s2">&quot;This may indicate structural instability.&quot;</span>
             <span class="p">)</span>
 
-        <span class="n">x_vals</span> <span class="o">=</span> <span class="n">units</span><span class="o">.</span><span class="n">_hbar</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">frequency</span> <span class="o">*</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="mf">1.0e12</span> <span class="o">/</span> <span class="p">(</span><span class="n">units</span><span class="o">.</span><span class="n">_k</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">temperature</span><span class="p">)</span>
-        <span class="n">ln_term</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">x_vals</span><span class="p">)</span>
-
-        <span class="c1"># Only calculate for physical modes with positive frequencies</span>
-        <span class="c1"># This avoids both log(0) for low frequencies and log(negative) for imaginary frequencies</span>
-        <span class="n">valid_modes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_thermodynamic_modes</span>
+        <span class="n">physical</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">physical_mode</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">frequency</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+        <span class="n">valid_modes</span> <span class="o">=</span> <span class="n">physical</span> <span class="o">&amp;</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">frequency</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">kBT_J</span> <span class="o">=</span> <span class="n">units</span><span class="o">.</span><span class="n">_k</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">temperature</span>
+        <span class="n">omega</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">frequency</span> <span class="o">*</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="mf">1.0e12</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_classic</span><span class="p">:</span>
-            <span class="n">ln_term</span><span class="p">[</span><span class="n">valid_modes</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">x_vals</span><span class="p">[</span><span class="n">valid_modes</span><span class="p">])</span>
-            <span class="n">f_cell</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">_e</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">_k</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">temperature</span> <span class="o">*</span> <span class="n">ln_term</span>
+            <span class="c1"># F = k_B T ln(hbar omega / k_B T) per mode (eV), then BZ-average</span>
+            <span class="n">ln_term</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">frequency</span><span class="p">)</span>
+            <span class="n">ln_term</span><span class="p">[</span><span class="n">valid_modes</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
+                <span class="n">units</span><span class="o">.</span><span class="n">_hbar</span> <span class="o">*</span> <span class="n">omega</span><span class="p">[</span><span class="n">valid_modes</span><span class="p">]</span> <span class="o">/</span> <span class="n">kBT_J</span>
+            <span class="p">)</span>
+            <span class="n">f_cell</span> <span class="o">=</span> <span class="p">(</span><span class="n">kBT_J</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">_e</span><span class="p">)</span> <span class="o">*</span> <span class="n">ln_term</span>
             <span class="k">return</span> <span class="n">f_cell</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span>
 
+        <span class="n">x_vals</span> <span class="o">=</span> <span class="n">units</span><span class="o">.</span><span class="n">_hbar</span> <span class="o">*</span> <span class="n">omega</span> <span class="o">/</span> <span class="n">kBT_J</span>
+        <span class="n">ln_term</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">x_vals</span><span class="p">)</span>
+        <span class="c1"># Only calculate for physical modes with positive frequencies</span>
+        <span class="c1"># This avoids both log(0) for low frequencies and log(negative) for imaginary frequencies</span>
         <span class="n">ln_term</span><span class="p">[</span><span class="n">valid_modes</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log1p</span><span class="p">(</span><span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">x_vals</span><span class="p">[</span><span class="n">valid_modes</span><span class="p">]))</span>  <span class="c1"># ln(1 − e^{-x})</span>
 
         <span class="c1"># Thermal contribution: k_B*T*ln(1 - exp(-hbar*omega/(k_B*T))) in eV</span>
-        <span class="n">thermal_part_eV</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">_e</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">_k</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">temperature</span> <span class="o">*</span> <span class="n">ln_term</span>
+        <span class="n">thermal_part_eV</span> <span class="o">=</span> <span class="p">(</span><span class="n">kBT_J</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">_e</span><span class="p">)</span> <span class="o">*</span> <span class="n">ln_term</span>
 
         <span class="c1"># Zero-point energy: use the existing method to avoid code duplication (in eV)</span>
         <span class="n">zpe_part</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">zero_point_harmonic_energy</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span>

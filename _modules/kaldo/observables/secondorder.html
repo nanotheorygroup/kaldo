@@ -1074,6 +1074,7 @@
                     <span class="n">build_nondiag_observable_kwargs</span><span class="p">,</span>
                     <span class="n">attach_snf_metadata</span><span class="p">,</span>
                     <span class="n">resolve_tdep_supercell</span><span class="p">,</span>
+                    <span class="n">scan_tdep_lattice_vectors</span><span class="p">,</span>
                 <span class="p">)</span>
                 <span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.grid</span><span class="w"> </span><span class="kn">import</span> <span class="n">Grid</span>
 
@@ -1081,7 +1082,12 @@
                 <span class="n">fc_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="s2">&quot;infile.forceconstant&quot;</span><span class="p">)</span>
 
                 <span class="k">if</span> <span class="n">diagonal_supercell</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                    <span class="n">kw</span> <span class="o">=</span> <span class="n">build_nondiag_observable_kwargs</span><span class="p">(</span><span class="n">uc</span><span class="p">,</span> <span class="n">sc</span><span class="p">)</span>
+                    <span class="c1"># Per-pair lattice vectors from the file, not the det(M)</span>
+                    <span class="c1"># congruence classes: exact at commensurate q either way,</span>
+                    <span class="c1"># but only the per-pair table matches TDEP/phonopy/ALAMODE</span>
+                    <span class="c1"># between commensurate points (issue #297).</span>
+                    <span class="n">kw</span> <span class="o">=</span> <span class="n">build_nondiag_observable_kwargs</span><span class="p">(</span>
+                        <span class="n">uc</span><span class="p">,</span> <span class="n">sc</span><span class="p">,</span> <span class="n">replica_table</span><span class="o">=</span><span class="n">scan_tdep_lattice_vectors</span><span class="p">(</span><span class="n">fc_file</span><span class="p">))</span>
                     <span class="n">mapping</span> <span class="o">=</span> <span class="n">kw</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;_mapping&quot;</span><span class="p">)</span>
                     <span class="n">d2</span> <span class="o">=</span> <span class="n">parse_tdep_forceconstant</span><span class="p">(</span><span class="n">fc_file</span><span class="o">=</span><span class="n">fc_file</span><span class="p">,</span> <span class="n">primitive</span><span class="o">=</span><span class="n">uc</span><span class="p">,</span> <span class="n">grid</span><span class="o">=</span><span class="n">kw</span><span class="p">[</span><span class="s2">&quot;grid&quot;</span><span class="p">])</span>
                     <span class="n">second_order</span> <span class="o">=</span> <span class="n">SecondOrder</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="n">d2</span><span class="p">,</span> <span class="n">is_acoustic_sum</span><span class="o">=</span><span class="n">is_acoustic_sum</span><span class="p">,</span> <span class="n">folder</span><span class="o">=</span><span class="n">folder</span><span class="p">,</span> <span class="o">**</span><span class="n">kw</span><span class="p">)</span>

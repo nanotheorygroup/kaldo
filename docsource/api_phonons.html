@@ -3350,12 +3350,16 @@ unaffected, but the array itself is not the physical occupation.</p>
 <em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">free_energy</span></span><span class="p"> <span class="pre">:</span> </span><span class="desctype"><span class="pre">Any</span></span><a class="headerlink" href="#kaldo.phonons.Phonons.free_energy" title="Link to this definition">¶</a></dt>
 <dd><p>Harmonic free energy, already Brillouin-zone averaged,
 returned in eV per mode.</p>
-<p>Quantum: F = k_B * T * ln(1 - exp(-x)) + hbar*omega/2, with
-x = hbar*omega/(k_B*T), including zero-point energy.</p>
-<p>Classical (<code class="docutils literal notranslate"><span class="pre">is_classic=True</span></code>): F = k_B * T * ln(x), the x -&gt; 0
-limit of the quantum expression (the zero-point term cancels
-against the expansion of the logarithm). It uses the physical hbar
-as the phase-space measure and contains no zero-point energy.</p>
+<p>Quantum (<code class="docutils literal notranslate"><span class="pre">is_classic=False</span></code>, default):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><code><span class="n">F</span> <span class="o">=</span> <span class="n">k_B</span> <span class="n">T</span> <span class="n">ln</span><span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">hbar</span><span class="o">*</span><span class="n">omega</span><span class="o">/</span><span class="p">(</span><span class="n">k_B</span> <span class="n">T</span><span class="p">)))</span> <span class="o">+</span> <span class="n">hbar</span><span class="o">*</span><span class="n">omega</span><span class="o">/</span><span class="mi">2</span>
+</code></pre></div>
+</div>
+<p>Classical (<code class="docutils literal notranslate"><span class="pre">is_classic=True</span></code>):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><code><span class="n">F</span> <span class="o">=</span> <span class="n">k_B</span> <span class="n">T</span> <span class="n">ln</span><span class="p">(</span><span class="n">hbar</span><span class="o">*</span><span class="n">omega</span> <span class="o">/</span> <span class="p">(</span><span class="n">k_B</span> <span class="n">T</span><span class="p">))</span>
+</code></pre></div>
+</div>
+<p>where <code class="docutils literal notranslate"><span class="pre">omega</span> <span class="pre">=</span> <span class="pre">2*pi*frequency</span></code> (rad/s). The classical form has no
+zero-point energy.</p>
 <dl class="field-list simple">
 <dt class="field-odd" id="kaldo.phonons.Phonons.free_energy-returns">Returns<span class="colon">:</span><a class="headerlink" href="#kaldo.phonons.Phonons.free_energy-returns" title="Permalink to this headline">¶</a></dt>
 <dd class="field-odd"><p>Free energy array with shape matching frequency array. Non-physical modes
@@ -3368,8 +3372,9 @@ have zero free energy in the returned array.</p>
 </dl>
 <p class="rubric">Notes</p>
 <ul class="simple">
-<li><p>At T=0, the quantum result reduces to the zero-point energy; the
-classical result reduces to its T -&gt; 0 limit, zero</p></li>
+<li><p>Quantum at T=0: only the zero-point energy contributes</p></li>
+<li><p>Classical at T=0 is undefined (<code class="docutils literal notranslate"><span class="pre">ln</span></code> singularity); zeros are returned
+with a warning</p></li>
 <li><p>Modes with imaginary frequencies (negative frequency values) are automatically
 excluded and will trigger a warning, as they may indicate structural instability</p></li>
 </ul>

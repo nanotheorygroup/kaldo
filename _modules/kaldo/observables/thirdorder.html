@@ -1040,6 +1040,10 @@
                 <span class="n">fc_filename</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="s1">&#39;infile.forceconstant_thirdorder&#39;</span><span class="p">)</span>
 
                 <span class="k">if</span> <span class="n">diagonal_supercell</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="c1"># Deliberately the det(M) class table, not the per-pair</span>
+                    <span class="c1"># table SecondOrder uses since issue #297: nothing pins</span>
+                    <span class="c1"># third-order interpolation and the two paths are</span>
+                    <span class="c1"># independent.</span>
                     <span class="n">kw</span> <span class="o">=</span> <span class="n">build_nondiag_observable_kwargs</span><span class="p">(</span><span class="n">uc</span><span class="p">,</span> <span class="n">sc</span><span class="p">)</span>
                     <span class="n">mapping</span> <span class="o">=</span> <span class="n">kw</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;_mapping&quot;</span><span class="p">)</span>
                     <span class="n">third_ifcs</span> <span class="o">=</span> <span class="n">parse_tdep_third_forceconstant</span><span class="p">(</span><span class="n">fc_filename</span><span class="o">=</span><span class="n">fc_filename</span><span class="p">,</span> <span class="n">primitive</span><span class="o">=</span><span class="n">uc</span><span class="p">,</span>
