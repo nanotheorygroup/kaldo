@@ -46,6 +46,77 @@ out-of-plane direction to 1, and for nanowires use a value greater than 1 for di
 .. hint::
    Kaldo assumes a q-grid that goes from 0 to :math:`\frac{2\pi}{a}` and will output with that convention.
 
+***************************************
+Polar crystals and non-analytic effects
+***************************************
+
+``is_nac`` is an explicit three-state control. Its default, ``None``, selects
+automatic behavior: kALDo uses the harmonic non-analytic correction when the
+loaded structure has both ``atoms.info['dielectric']`` and nonzero Born
+effective charges in ``atoms.arrays['charges']``. ``is_nac=True`` requires
+that complete polar input, while ``is_nac=False`` deliberately disables the
+correction for debugging or comparison with a short-range theoretical model.
+Unknown constructor keywords are rejected, so a misspelled NAC option cannot
+silently fall back to automatic behavior.
+
+For example, the following evaluates the NAC-off spectrum of a polar input:
+
+.. code-block:: python
+
+   phonons_without_nac = Phonons(
+       forceconstants=forceconstants,
+       kpts=(5, 5, 5),
+       is_nac=False,
+       storage="memory",
+   )
+
+The force-constant provenance determines the numerical convention. Total
+finite-supercell IFCs use the generic Gonze construction: kALDo removes the
+long-range dipole term on the commensurate q mesh and restores the matching
+term after short-range interpolation. A polar QE ``espresso.ifc2`` file is
+different because q2r has already removed its rigid-ion term. The QE loader
+preserves that fact and kALDo restores QE's matching term without performing a
+second subtraction. The input provenance selects the path; the two
+conventions are not user-selectable methods or interchangeable fallbacks.
+
+``ifc_interpolation="auto"`` is the normal real-space setting. Compact IFC
+tensors from VASP, ShengBTE, numpy, and similar inputs store one representative
+of each periodic supercell class; ``auto`` partitions those blocks over the
+pair-dependent Wigner--Seitz shortest images. Formats such as TDEP can record
+actual lattice translations for individual IFC terms, which ``auto`` retains
+directly. Every QE q2r harmonic body uses the header geometry and
+pair-dependent Wigner--Seitz reconstruction validated against ``matdyn.x``,
+whether or not the optional polar metadata is present. For a polar q2r file,
+those same weights also keep the short-range body consistent with QE's
+long-range restoration. QE d3q IFC3 files are a separate representation:
+their explicit unrecentered cell indices retain d3q's native direct-periodic
+third-order gauge. The explicit ``"wigner-seitz"`` and
+``"periodic"`` values override this source-aware choice and are never
+silently ignored. ``"periodic"`` is primarily a legacy diagnostic: with
+active NAC it raises an error because the short-range subtraction and
+long-range restoration require matching Wigner--Seitz weights. Set
+``is_nac=False`` as well when deliberately comparing a polar input through
+the periodic diagnostic path.
+
+This operation is IFC interpolation, not phonon-band unfolding; the former
+``is_unfolding`` argument has therefore been removed. A periodically repeated
+amorphous simulation cell follows the same geometry without assuming any
+space-group symmetry: the entire disordered cell is the reference cell and
+atom pairs crossing its boundary receive their nearest periodic images.
+Wigner--Seitz interpolation currently requires periodic boundary conditions
+in all three lattice directions. For a slab or isolated cluster, choose the
+explicit ``"periodic"`` translation model; kALDo will not silently invent
+images through a nonperiodic direction.
+
+The optional
+``nac_bvk_supercell_matrix`` identifies the Born--von Karman cell that defines
+the force constants when it cannot be inferred as
+``diag(forceconstants.second.supercell)``. It is not a remeshing request and
+should normally be omitted. A different matrix is rejected for QE q2r data.
+For a directional Gamma calculation, construct
+``HarmonicWithQ(..., nac_q_direction=(h, k, l))``; a ``Phonons`` grid uses the
+default reduced reciprocal direction ``(1, 0, 0)`` at exact Gamma.
+
 ***************
 Classical Limit
 ***************
@@ -87,12 +158,22 @@ cases the :doc:`Introduction <introduction>` section.
      - max_frequency
      - is_symmetrizing_frequency
      - is_antisymmetrizing_velocity
-     - is_balanced
-   * - is_unfolding
+   * - is_balanced
+     - ifc_interpolation
+     - is_nac
      - is_nw
-     - g_factor
+   * - g_factor
      - include_isotopes
      - iso_speed_up
+     - broadening_kernel
+   * - smearing_prefactor
+     - n_workers
+     - projection_output_dir
+     - use_q_symmetry
+   * - nac_bvk_supercell_matrix
+     -
+     -
+     -
 
 .. _phonons-api:
 

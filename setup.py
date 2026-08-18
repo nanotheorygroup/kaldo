@@ -21,6 +21,12 @@ except:
 with open('requirements.txt') as f:
     requirements = f.read().splitlines()
 
+test_requirements = [
+    'phonopy>=3.5.1',
+    'PyYAML>=6.0',
+    'pytest-xdist>=3.0',
+]
+
 setup(
     # Self-descriptive entries which should always be present
     name='kaldo',
@@ -49,6 +55,7 @@ setup(
     # Additional entries you may want simply uncomment the lines you want and fill in the data
     # url='http://www.my_package.com',  # Website
     install_requires=requirements,              # Required packages, pulls from pip if needed; do not use for Conda deployment
+    extras_require={'test': test_requirements},
 
     # platforms=['Linux',
     #            'Mac OS-X',
