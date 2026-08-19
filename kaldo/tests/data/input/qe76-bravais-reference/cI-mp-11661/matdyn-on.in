@@ -1,0 +1,7 @@
+&input
+  flfrc='cI-mp-11661.fc', flfrq='cI-mp-11661.on.freq', fldyn='cI-mp-11661.on.dyn',
+  asr='no', q_in_cryst_coord=.true.
+/
+2
+0.0 0.0 0.0
+0.0001 0.0 0.0

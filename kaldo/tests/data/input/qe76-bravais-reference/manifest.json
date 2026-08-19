@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "purpose": "QE 7.6 q2r/matdyn NAC validation across all 14 Bravais lattices. Phonopy Born tensors in the source YAML are inventory-only and MUST NOT be used as the QE reference.",
+  "source_archive": "../dataset/phonondb-selected-26.yaml.zip",
+  "qe": {"version": "7.6", "gamma_gate_mesh": [2, 2, 2], "ldisp_q_mesh": [2, 2, 2], "ecutwfc_ry": 120, "ecutrho_ry": 960, "cutoff_policy": "conservative common cutoff because the downloaded SSSP UPF-only archive has no cutoff metadata; replace with official per-element SSSP recommendations before production convergence work"},
+  "cases": [
+    {"id":"aP-mp-555846", "bravais":"aP", "material_id":"mp-555846", "formula":"Ba4Al4F20", "space_group":1, "source":"mp-555846/phonopy_params.yaml.xz", "pseudos":{"Ba":"Ba.pbe-spn-kjpaw_psl.1.0.0.UPF", "Al":"Al.pbe-n-kjpaw_psl.1.0.0.UPF", "F":"f_pbe_v1.4.uspp.F.UPF"}},
+    {"id":"mP-mp-3416", "bravais":"mP", "material_id":"mp-3416", "formula":"Na6Al2F12", "space_group":14, "source":"mp-3416/phonopy_params.yaml.xz", "pseudos":{"Na":"na_pbe_v1.5.uspp.F.UPF", "Al":"Al.pbe-n-kjpaw_psl.1.0.0.UPF", "F":"f_pbe_v1.4.uspp.F.UPF"}},
+    {"id":"mC-mp-539", "bravais":"mC", "material_id":"mp-539", "formula":"Ga4S6", "space_group":9, "source":"mp-539/phonopy_params.yaml.xz", "pseudos":{"Ga":"Ga.pbe-dn-kjpaw_psl.1.0.0.UPF", "S":"s_pbe_v1.4.uspp.F.UPF"}},
+    {"id":"oP-mp-1716", "bravais":"oP", "material_id":"mp-1716", "formula":"Rh8O12", "space_group":60, "source":"mp-1716/phonopy_params.yaml.xz", "pseudos":{"Rh":"Rh_ONCV_PBE-1.0.oncvpsp.upf", "O":"O.pbe-n-kjpaw_psl.0.1.UPF"}},
+    {"id":"oC-mp-717", "bravais":"oC", "material_id":"mp-717", "formula":"B4O6", "space_group":36, "source":"mp-717/phonopy_params.yaml.xz", "pseudos":{"B":"b_pbe_v1.4.uspp.F.UPF", "O":"O.pbe-n-kjpaw_psl.0.1.UPF"}},
+    {"id":"oI-mp-8187", "bravais":"oI", "material_id":"mp-8187", "formula":"K4Zn2O4", "space_group":72, "source":"mp-8187/phonopy_params.yaml.xz", "pseudos":{"K":"K.pbe-spn-kjpaw_psl.1.0.0.UPF", "Zn":"Zn_pbe_v1.uspp.F.UPF", "O":"O.pbe-n-kjpaw_psl.0.1.UPF"}},
+    {"id":"oF-synthetic-strained-NaCl", "bravais":"oF", "material_id":"synthetic", "formula":"NaCl", "space_group":69, "synthetic":{"lattice":[[0.0,2.89,2.96],[2.82,0.0,2.96],[2.82,2.89,0.0]],"points":[{"symbol":"Na","coordinates":[0,0,0],"mass":22.98977},{"symbol":"Cl","coordinates":[0.5,0.5,0.5],"mass":35.453}]}, "pseudos":{"Na":"na_pbe_v1.5.uspp.F.UPF", "Cl":"cl_pbe_v1.4.uspp.F.UPF"}},
+    {"id":"tP-mp-27355", "bravais":"tP", "material_id":"mp-27355", "formula":"Pb8F8O4", "space_group":137, "source":"mp-27355/phonopy_params.yaml.xz", "pseudos":{"Pb":"Pb.pbe-dn-kjpaw_psl.0.2.2.UPF", "F":"f_pbe_v1.4.uspp.F.UPF", "O":"O.pbe-n-kjpaw_psl.0.1.UPF"}},
+    {"id":"tI-mp-5327", "bravais":"tI", "material_id":"mp-5327", "formula":"Na4UO5", "space_group":87, "source":"mp-5327/phonopy_params.yaml.xz", "pseudos":{"Na":"na_pbe_v1.5.uspp.F.UPF", "U":"U.paw.z_14.ld1.uni-marburg.v0.upf", "O":"O.pbe-n-kjpaw_psl.0.1.UPF"}, "method_risk":"f-electron uranium: useful for lattice-gauge/kernel coverage only; not a material-accuracy calculation without a validated magnetic/DFT+U protocol"},
+    {"id":"hP-mp-6040", "bravais":"hP", "material_id":"mp-6040", "formula":"Ba3B3O15P3", "space_group":154, "source":"mp-6040/phonopy_params.yaml.xz", "pseudos":{"Ba":"Ba.pbe-spn-kjpaw_psl.1.0.0.UPF", "B":"b_pbe_v1.4.uspp.F.UPF", "O":"O.pbe-n-kjpaw_psl.0.1.UPF", "P":"P.pbe-n-rrkjus_psl.1.0.0.UPF"}},
+    {"id":"hR-mp-4266", "bravais":"hR", "material_id":"mp-4266", "formula":"KAsF6", "space_group":148, "source":"mp-4266/phonopy_params.yaml.xz", "pseudos":{"K":"K.pbe-spn-kjpaw_psl.1.0.0.UPF", "As":"As.pbe-n-rrkjus_psl.0.2.UPF", "F":"f_pbe_v1.4.uspp.F.UPF"}},
+    {"id":"cP-mp-23330", "bravais":"cP", "material_id":"mp-23330", "formula":"Na4Cl4O12", "space_group":198, "source":"mp-23330/phonopy_params.yaml.xz", "pseudos":{"Na":"na_pbe_v1.5.uspp.F.UPF", "Cl":"cl_pbe_v1.4.uspp.F.UPF", "O":"O.pbe-n-kjpaw_psl.0.1.UPF"}},
+    {"id":"cF-mp-30530", "bravais":"cF", "material_id":"mp-30530", "formula":"TlClO4", "space_group":216, "source":"mp-30530/phonopy_params.yaml.xz", "pseudos":{"Tl":"Tl_pbe_v1.2.uspp.F.UPF", "Cl":"cl_pbe_v1.4.uspp.F.UPF", "O":"O.pbe-n-kjpaw_psl.0.1.UPF"}},
+    {"id":"cI-mp-11661", "bravais":"cI", "material_id":"mp-11661", "formula":"Zr6N8", "space_group":220, "source":"mp-11661/phonopy_params.yaml.xz", "pseudos":{"Zr":"Zr_pbe_v1.uspp.F.UPF", "N":"N.pbe-n-radius_5.UPF"}}
+  ]
+}
