@@ -28,9 +28,12 @@ case $case_name in
             "$output_directory/FORCE_CONSTANTS_3RD"
         ;;
     qe)
-        cp -- "$test_root/si-crystal/qe/espresso.ifc2" \
+        # The QE case runs from the reference's own retained IFC copies, not
+        # the live fixture: the fixture's FORCE_CONSTANTS_3RD basis was
+        # corrected after this reference was produced.
+        cp -- "$reference_root/qe/espresso.ifc2" \
             "$output_directory/espresso.ifc2"
-        cp -- "$test_root/si-crystal/qe/FORCE_CONSTANTS_3RD" \
+        cp -- "$reference_root/qe/FORCE_CONSTANTS_3RD" \
             "$output_directory/FORCE_CONSTANTS_3RD"
         ;;
     *)

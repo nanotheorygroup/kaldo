@@ -22,8 +22,8 @@
       },
       "sources": {
         "qe/CONTROL": "d2be088a53ecb30305fa33106468cbb692416d8cfb511f1ca93ce4f618083807",
-        "si-crystal/qe/FORCE_CONSTANTS_3RD": "14487357d8d2acce594f2d12d111c98b61cac1f817445f81792dc5a19dbbf354",
-        "si-crystal/qe/espresso.ifc2": "5039b590c12fb7cc355ecaf98cbba4875582e387ce65559eac485a3ef66ff763"
+        "qe/FORCE_CONSTANTS_3RD": "14487357d8d2acce594f2d12d111c98b61cac1f817445f81792dc5a19dbbf354",
+        "qe/espresso.ifc2": "5039b590c12fb7cc355ecaf98cbba4875582e387ce65559eac485a3ef66ff763"
       }
     },
     "vasp": {

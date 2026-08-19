@@ -47,6 +47,19 @@ conductivities are `0.8130 W/(m K)` in kALDo and `0.9662 W/(m K)` in
 ShengBTE. This larger final difference is reported explicitly rather than
 hidden by the close median mode rate.
 
+After this reference was produced, the live fixture
+`kaldo/tests/si-crystal/qe/FORCE_CONSTANTS_3RD` was found to be written in
+the standard diamond basis (second atom at `+a/4 (1,1,1)`) while `POSCAR`
+and `espresso.ifc2` use the x-mirrored setting (`a/4 (-1,1,1)`), and it was
+corrected by the exact mirror transformation. The retained run consumed the
+original, internally inconsistent pair, which is also why both codes'
+absolute conductivities above are far below the consistent-basis value.
+The `qe/` directory therefore keeps its own byte-exact copies of
+`espresso.ifc2` and `FORCE_CONSTANTS_3RD`; the manifest, the regeneration
+script, and the rate-tracking test all use those copies, never the live
+fixture, so the same-inputs contract with the pinned ShengBTE revision
+stays intact.
+
 This remains a ShengBTE-compatibility oracle. Independent QE 7.6 off-grid
 frequency and Cartesian-velocity references are retained with the GaN q2r
 tests. Together they reveal why commensurate-frequency-only tests miss phase

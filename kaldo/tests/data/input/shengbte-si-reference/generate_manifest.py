@@ -18,8 +18,13 @@ SOURCES = {
     ],
     "qe": [
         ROOT / "qe" / "CONTROL",
-        TEST_ROOT / "si-crystal" / "qe" / "espresso.ifc2",
-        TEST_ROOT / "si-crystal" / "qe" / "FORCE_CONSTANTS_3RD",
+        # The QE case retains its own IFC copies: the retained run consumed
+        # the fixture as it stood at the time, and the fixture's
+        # FORCE_CONSTANTS_3RD basis was corrected afterwards (see
+        # kaldo/tests/test_crystal_qe_vasp.py). The reference must keep
+        # hashing the exact bytes ShengBTE saw.
+        ROOT / "qe" / "espresso.ifc2",
+        ROOT / "qe" / "FORCE_CONSTANTS_3RD",
     ],
 }
 

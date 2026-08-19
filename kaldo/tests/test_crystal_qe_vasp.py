@@ -100,7 +100,9 @@ def test_qhgk_conductivity(phonons):
     ).conductivity.sum(axis=0)
     cond = np.abs(np.mean(cond.diagonal()))
     # q2r IFC2 uses pair-aware shortest images, while the ShengBTE-format IFC3
-    # retains every literal translation written by the source file.
+    # retains every literal translation written by the source file. This pin
+    # survived the FORCE_CONSTANTS_3RD basis correction below because the
+    # constant diffusivity_bandwidth decouples QHGK from the ph-ph linewidths.
     np.testing.assert_allclose(cond, 1.475585, rtol=5e-3, atol=0.0)
 
 
@@ -112,7 +114,13 @@ def test_rta_conductivity(phonons):
             .diagonal()
         )
     )
-    np.testing.assert_allclose(cond, 0.829878, rtol=5e-3, atol=0.0)
+    # Repinned after correcting FORCE_CONSTANTS_3RD to the POSCAR basis: the
+    # file was written in the standard diamond setting (atom 2 at +a/4(1,1,1))
+    # while POSCAR and espresso.ifc2 use the x-mirrored setting, which broke
+    # cubic symmetry of the linewidths (kappa diag was [0.475, 1.007, 1.008])
+    # and suppressed kappa. Mirrored, the diagonal is isotropic to 0.04%:
+    # [14.866, 14.858, 14.869] W/mK.
+    np.testing.assert_allclose(cond, 14.864133, rtol=5e-3, atol=0.0)
 
 
 def test_inverse_conductivity(phonons):
@@ -123,7 +131,9 @@ def test_inverse_conductivity(phonons):
             .diagonal()
         )
     )
-    np.testing.assert_allclose(cond, 0.955021, rtol=5e-3, atol=0.0)
+    # Repinned with the FORCE_CONSTANTS_3RD basis correction (see
+    # test_rta_conductivity).
+    np.testing.assert_allclose(cond, 17.666821, rtol=5e-3, atol=0.0)
 
 
 def _translated_qe_si_phonons():
@@ -159,8 +169,8 @@ def test_qe_si_rta_is_invariant_to_wrapped_crystal_origin(phonons):
     """
     translated = _translated_qe_si_phonons()
 
-    interpolation = phonons.forceconstants.third.get_interpolation("auto")
-    periodic = phonons.forceconstants.third.get_interpolation("periodic")
+    interpolation = translated.forceconstants.third.get_interpolation("auto")
+    periodic = translated.forceconstants.third.get_interpolation("periodic")
     periodic_translations = {
         tuple(translation) for translation in periodic.support.translations
     }

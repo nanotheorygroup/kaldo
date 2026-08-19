@@ -93,8 +93,15 @@ def vasp_phonons():
 
 @pytest.fixture(scope="module")
 def qe_phonons():
+    # Load from the reference's OWN retained inputs, not the si-crystal/qe
+    # fixture: the pinned ShengBTE run consumed a FORCE_CONSTANTS_3RD written
+    # in the standard diamond basis together with a CONTROL in the x-mirrored
+    # (POSCAR) basis, an internally inconsistent pairing that has since been
+    # corrected in the fixture (see test_crystal_qe_vasp.py). This test's
+    # contract is same-inputs-same-outputs against the pinned upstream
+    # revision, so it must keep running on the exact bytes ShengBTE saw.
     forceconstants = ForceConstants.from_folder(
-        folder=str(TEST_ROOT / "si-crystal" / "qe"),
+        folder=str(REFERENCE_ROOT / "qe"),
         supercell=(3, 3, 3),
         third_supercell=(3, 3, 3),
         format="qe-sheng",
