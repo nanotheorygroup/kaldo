@@ -12,7 +12,9 @@ def nacl_phonopy_debug_supercell_matrix():
 
 def nacl_phonopy_debug_supercell_matrix_att3():
     return np.diag([8, 8, 8]).astype(int)
-from kaldo.observables.harmonic_with_q import HarmonicWithQ
+from ase.build import bulk
+
+from kaldo.observables.harmonic_with_q import HarmonicWithQ, _resolve_nac_activation
 from kaldo.phonons import Phonons
 
 
@@ -369,3 +371,20 @@ def test_bvk_matrix_must_match_the_force_constant_grid(nac_second_order):
     mismatched_diagonal = np.diag([4, 4, 4]).astype(int)
     with pytest.raises(NotImplementedError, match="diag"):
         nac_second_order.calculate_nac_short_range_force_constants(mismatched_diagonal)
+
+
+def test_scalar_charge_column_is_not_polar_metadata():
+    """A per-atom charge column (LAMMPS/extxyz) must not look like Born data."""
+    atoms = bulk("Si", "diamond", a=5.43)
+    atoms.set_array("charges", np.full(len(atoms), 0.3))
+    assert _resolve_nac_activation(atoms, None) is False
+    with pytest.raises(ValueError, match=r"shape \(2,\)"):
+        _resolve_nac_activation(atoms, True)
+
+
+def test_born_charges_without_dielectric_point_to_is_nac_false():
+    """Nonzero Born charges without a dielectric tensor fail actionably."""
+    atoms = bulk("Si", "diamond", a=5.43)
+    atoms.set_array("charges", np.tile(np.eye(3) * 2.0, (len(atoms), 1, 1)))
+    with pytest.raises(ValueError, match="is_nac=False"):
+        _resolve_nac_activation(atoms, None)
