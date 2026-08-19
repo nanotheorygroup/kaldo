@@ -1,0 +1,12 @@
+{
+  "N": {
+    "filename": "N.pbe-n-radius_5.UPF",
+    "source": "SSSP_1.3.0_PBE_efficiency/N.pbe-n-radius_5.UPF",
+    "sha256": "9efee6eb6465c9020af3c8f395fa837810e8f1263ac6cfd52e437a170f8f6e9a"
+  },
+  "Zr": {
+    "filename": "Zr_pbe_v1.uspp.F.UPF",
+    "source": "SSSP_1.3.0_PBE_efficiency/Zr_pbe_v1.uspp.F.UPF",
+    "sha256": "d56e2997788a4b3d90bb829416161ff9eb6ccdfe377cb52acfbdd2175f4b4acf"
+  }
+}

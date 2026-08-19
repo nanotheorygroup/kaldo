@@ -1,0 +1,17 @@
+{
+  "O": {
+    "filename": "O.pbe-n-kjpaw_psl.0.1.UPF",
+    "source": "SSSP_1.3.0_PBE_efficiency/O.pbe-n-kjpaw_psl.0.1.UPF",
+    "sha256": "7c4b6ed541f83d0afdf5c1d3a8c611340f073f3e2b11e95b7963bb2ee26929aa"
+  },
+  "Cl": {
+    "filename": "cl_pbe_v1.4.uspp.F.UPF",
+    "source": "SSSP_1.3.0_PBE_efficiency/cl_pbe_v1.4.uspp.F.UPF",
+    "sha256": "5b1ebdea1e5ba743fba0100806206287e1f7f00460c7e6f19791446beaee0655"
+  },
+  "Tl": {
+    "filename": "Tl_pbe_v1.2.uspp.F.UPF",
+    "source": "SSSP_1.3.0_PBE_efficiency/Tl_pbe_v1.2.uspp.F.UPF",
+    "sha256": "018619075345aa953f960db6fbb6d7bba035adf76a8b210d57179489d14b1be2"
+  }
+}
