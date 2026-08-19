@@ -60,7 +60,7 @@ phonons = Phonons(
 | `"wigner-seitz"` | Explicitly fold translations by periodic class, then redistribute each IFC block over the shortest images of its atom pair. | Controlled comparison or an explicit compact-IFC choice. |
 | `"periodic"` | Explicitly fold to one direct translation per periodic class without pair-image redistribution. | Diagnostic comparison with the historical periodic representation. |
 
-The former `is_unfolding` name has been removed. This operation interpolates real-space IFCs; it does not unfold a phonon band structure. Passing `is_unfolding` now raises an error instead of selecting or silently failing to select a physics path.
+The former `is_unfolding` name is deprecated. This operation interpolates real-space IFCs; it does not unfold a phonon band structure. For one release `Phonons` still accepts `is_unfolding` with a `DeprecationWarning`, mapping `True` to `ifc_interpolation="wigner-seitz"` and `False` to `"auto"`; combining it with an explicit `ifc_interpolation` raises. The historical folded numbers are the explicit `ifc_interpolation="periodic"` diagnostic, not the `is_unfolding=False` default.
 
 `"periodic"` is incompatible with active non-analytic correction (NAC), the polar long-range term in the opening equation, because the interpolated short-range body and restored long-range term must use matching image weights. To inspect a polar file through the direct-periodic diagnostic, disable the long-range correction explicitly with `is_nac=False`.
 
@@ -260,15 +260,34 @@ The tests are organized around physical invariants and independent external data
 | Elastic response | Synthetic relabeling and skew-cell basis images | Elastic constants use the same pair geometry and remain invariant. | [`test_elastic.py`](kaldo/tests/test_elastic.py) |
 | Cache separation | Lazy and loaded IFC3 with different matrices, support orders, provenance, and explicit modes | No interpolation representation can read another representation's cached artifacts. | [`test_ifc_cache_identity.py`](kaldo/tests/test_ifc_cache_identity.py) |
 
-The retained ShengBTE references include the exact upstream revision, raw inputs and outputs, run script, calculation settings, and SHA-256 manifest. The VASP case reproduces the mode-resolved rate distribution and RTA tensor within the documented coarse-grid tolerances. For the QE case, the test deliberately claims only the validated quantities: full-grid harmonic data and the anharmonic-rate distribution. Its coarse-grid scalar conductivity differs between kALDo and ShengBTE and is reported transparently in the fixture README rather than hidden behind a loose assertion.
+The retained ShengBTE references include the exact upstream revision, raw inputs and outputs, run script, calculation settings, and SHA-256 manifest. The VASP case reproduces the mode-resolved rate distribution and RTA tensor within the documented coarse-grid tolerances. For the QE case, the test deliberately claims only the validated quantities: full-grid harmonic data and the anharmonic-rate distribution. The comparison also uncovered a fixture defect: the tracked `FORCE_CONSTANTS_3RD` was written in the standard diamond basis (second atom at $+a/4\,(1,1,1)$) while `POSCAR` and `espresso.ifc2` use the x-mirrored setting ($a/4\,(-1,1,1)$). The fixture file has been corrected by the exact mirror transformation, which restores cubic isotropy of the RTA conductivity diagonal to $0.04\%$. The retained ShengBTE run consumed the original, internally inconsistent pair, so the reference directory keeps its own byte-exact copies of those inputs and the rate comparison runs on them: the contract is same inputs, same rates, against the pinned upstream revision.
 
 The final exact-commit run on two `debug-cpu` cores completed with `477 passed, 1 skipped` in 50 minutes 41 seconds and 1.90 GiB peak resident memory. The compact TDEP fixture replaces nine former IFC2/IFC3 production-data skips with mandatory tests; the sole remaining skip is the explicitly deferred external non-diagonal IFC4 case.
+
+## Rebaselined regression values
+
+The pair-image interpolation changes the absolute numbers pinned by several regression tests. These pins are labeled snapshots at deliberately under-converged settings (coarse q meshes, fixed broadening); they are regression anchors, not converged conductivities. The headline movements, all at each test's own settings:
+
+| Test | Quantity | 2.2.1 pin | This PR | Cause |
+|---|---|---|---|---|
+| `test_crystal_qe_vasp.py` | QE/Sheng Si RTA trace | 4.500 | 14.864 | pair-image interpolation, then the fixture basis correction above |
+| `test_crystal_qe_vasp.py` | QE/Sheng Si inverse trace | 5.049 | 17.667 | same |
+| `test_crystal_qe_vasp.py` | QE/Sheng Si QHGK trace | 2.241 | 1.476 | interpolation only: the constant `diffusivity_bandwidth` decouples this pin from the IFC3 basis |
+| `test_crystal_vasp.py` | VASP/Sheng Si RTA trace | 16.406 | 12.841 | pair-image interpolation |
+| `test_crystal_vasp.py` | VASP/Sheng Si inverse trace | 16.576 | 12.895 | same |
+| `test_crystal_vasp.py` | VASP/Sheng Si QHGK trace | 1.694 | 1.616 | same |
+
+Values are W/(m K) traces averaged as each test defines them. The QE movement is dominated by the fixture correction: with a consistent basis the interpolation-only change is the modest kind seen in the VASP row. Per-pin comments in each test file record the same provenance.
+
+Stored artifacts from earlier releases are not silently reused: harmonic and anharmonic cache labels now include the resolved interpolation mode and the translation-support digest, so a 2.2.1 cache never matches. Old `storage='numpy'` or `storage='formatted'` folders simply go stale on disk; delete them to reclaim space and to avoid comparing new runs against stale files by hand.
+
+The harmonic assembly is now a vectorized scatter over a flattened per-image plan rather than a Python loop over atom pairs. On the 216-atom amorphous fixture one dynamical-matrix assembly drops from 0.28 s to 0.02 s, and the amorphous results are bit-for-bit identical; crystal derivative kernels move by at most one floating-point ulp.
 
 ## Scope boundaries and current limitations
 
 - This PR fixes real-space translation topology, pair-image interpolation, source preservation, and the resulting harmonic/anharmonic/elastic integration. It does not change the Gaussian-width convention or the three-phonon delta-function integration scheme.
 - Wigner–Seitz interpolation is currently limited to fully three-dimensionally periodic cells. The code raises rather than inventing images through a nonperiodic direction. `is_nw=True` changes only the four-mode Gamma acoustic mask; true axis-only nanowire interpolation and effective-area normalization are deferred and diagnosed separately.
-- q-symmetry replication is not yet validated when compiled IFC3 support has $S\ne N$; that combination raises and asks the user to set `use_q_symmetry=False`.
+- q-symmetry replication is not yet validated when compiled IFC3 support has $S\ne N$. That combination logs a warning and falls back to the full q-point grid for the anharmonic projection: the result is correct, only slower, and the cleared flag is what cache labels record.
 - The direct-calculator test exercises the same callable ASE-calculator boundary used by MLIPs with a self-contained Lennard–Jones model. CI does not depend on a particular external MLIP framework or model file, so this should not be described as framework-specific MLIP validation.
 - Most cross-format origin tests regauge a successfully loaded object so that every parser feeds the same invariant calculation. Loader-level shifted-representation parsing is additionally tested directly for ShengBTE offsets, TDEP literal translations, and QE header/auxiliary geometry.
 

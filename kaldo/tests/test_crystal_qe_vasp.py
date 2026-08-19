@@ -160,8 +160,12 @@ def test_qe_si_rta_is_invariant_to_wrapped_crystal_origin(phonons):
 
     The commensurate harmonic spectrum was already origin invariant in the
     legacy implementation, so frequencies alone could not detect the bug.
-    This QE fixture is intentional: unlike the ESKM fixture, its literal IFC3
-    support has nonzero weight outside the 27 compact representatives.
+    The guard below checks the TRANSLATED object: the origin shift relabels
+    both IFC3 translation legs by the atom crossing counts, pushing weight
+    onto translations outside the 27 compact representatives, so the
+    invariance assertions exercise the literal-support machinery no matter
+    how compact the pristine file is. (Since the FORCE_CONSTANTS_3RD basis
+    correction, the pristine file's translations are all compact.)
     The original origin-shift reproducer did not relabel both IFC translation
     legs and therefore cannot support a quantitative historical percentage.
     This regression applies the exact gauge transformation and tests the

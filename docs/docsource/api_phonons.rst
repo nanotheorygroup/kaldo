@@ -99,7 +99,10 @@ long-range restoration require matching Wigner--Seitz weights. Set
 the periodic diagnostic path.
 
 This operation is IFC interpolation, not phonon-band unfolding; the former
-``is_unfolding`` argument has therefore been removed. A periodically repeated
+``is_unfolding`` argument is therefore deprecated. For one release it is
+still accepted with a ``DeprecationWarning``: ``True`` maps to
+``ifc_interpolation="wigner-seitz"``, ``False`` maps to ``"auto"``, and
+combining it with an explicit ``ifc_interpolation`` raises. A periodically repeated
 amorphous simulation cell follows the same geometry without assuming any
 space-group symmetry: the entire disordered cell is the reference cell and
 atom pairs crossing its boundary receive their nearest periodic images.
