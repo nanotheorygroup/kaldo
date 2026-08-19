@@ -29,6 +29,7 @@ from concurrent.futures import as_completed
 from kaldo.parallel import dispatch_with_resume, get_executor
 from scipy import stats
 import numpy as np
+import warnings
 from scipy.integrate import trapezoid
 from numpy.typing import ArrayLike
 import ase.units as units
@@ -611,6 +612,7 @@ class Phonons(Storable):
         projection_output_dir: str | None = None,
         nac_bvk_supercell_matrix=None,
         use_q_symmetry: bool = False,
+        is_unfolding: bool | None = None,
     ):
         self.forceconstants = forceconstants
         if n_workers is not None and n_workers < 1:
@@ -627,6 +629,26 @@ class Phonons(Storable):
         if ifc_interpolation not in ("auto", "wigner-seitz", "periodic"):
             raise ValueError(
                 "ifc_interpolation must be 'auto', 'wigner-seitz', or 'periodic'"
+            )
+        if is_unfolding is not None:
+            # Deprecation shim for one release: the old flag selected the
+            # pair-resolved (unfolded) harmonic path. It maps onto the new
+            # interpolation modes; the legacy folded numbers remain available
+            # as ifc_interpolation='periodic'.
+            if ifc_interpolation != "auto":
+                raise ValueError(
+                    "is_unfolding is deprecated and cannot be combined with "
+                    "an explicit ifc_interpolation; pass ifc_interpolation "
+                    "only."
+                )
+            ifc_interpolation = "wigner-seitz" if is_unfolding else "auto"
+            warnings.warn(
+                "is_unfolding is deprecated and will be removed in the next "
+                "release; use ifc_interpolation instead (True -> "
+                "'wigner-seitz', False -> 'auto'; the legacy folded numbers "
+                "are ifc_interpolation='periodic').",
+                DeprecationWarning,
+                stacklevel=2,
             )
         self.ifc_interpolation = ifc_interpolation
         if is_nac is not None and not isinstance(is_nac, (bool, np.bool_)):
@@ -1889,11 +1911,21 @@ class Phonons(Storable):
         if self.use_q_symmetry and (
             n_translations != self.forceconstants.third.n_replicas
         ):
-            raise NotImplementedError(
+            # Symmetry replication is not yet validated when the IFC3
+            # translation support is expanded beyond the |det(M)| periodic
+            # classes. Fall back to the full q-point grid rather than refuse
+            # the calculation: the result is correct, only slower. The flag
+            # is cleared BEFORE any anharmonic artifact is stored, so cache
+            # labels stay consistent with what was actually computed.
+            logging.warning(
                 "use_q_symmetry is not yet validated for an IFC3 translation "
-                "support expanded beyond the physical supercell classes; set "
-                "use_q_symmetry=False."
+                "support expanded beyond the physical supercell classes "
+                "(%d translations, %d classes): falling back to the full "
+                "q-point grid for the anharmonic projection.",
+                n_translations,
+                self.forceconstants.third.n_replicas,
             )
+            self.use_q_symmetry = False
         try:
             sparse_third = interpolation.value.reshape((self.n_modes, -1))
             sparse_coords = tf.stack(

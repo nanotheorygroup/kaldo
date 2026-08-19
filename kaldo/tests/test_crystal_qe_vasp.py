@@ -207,3 +207,57 @@ def test_qe_si_rta_is_invariant_to_wrapped_crystal_origin(phonons):
         rtol=5e-4,
         atol=0.0,
     )
+
+
+def test_is_unfolding_shim_maps_warns_and_refuses_conflicts(phonons):
+    """One-release deprecation shim for the removed is_unfolding flag."""
+    forceconstants = phonons.forceconstants
+    with pytest.warns(DeprecationWarning, match="ifc_interpolation"):
+        legacy_on = Phonons(
+            forceconstants=forceconstants,
+            kpts=[3, 3, 3],
+            temperature=300,
+            storage="memory",
+            is_unfolding=True,
+        )
+    assert legacy_on.ifc_interpolation == "wigner-seitz"
+    with pytest.warns(DeprecationWarning, match="ifc_interpolation"):
+        legacy_off = Phonons(
+            forceconstants=forceconstants,
+            kpts=[3, 3, 3],
+            temperature=300,
+            storage="memory",
+            is_unfolding=False,
+        )
+    assert legacy_off.ifc_interpolation == "auto"
+    with pytest.raises(ValueError, match="is_unfolding"):
+        Phonons(
+            forceconstants=forceconstants,
+            kpts=[3, 3, 3],
+            temperature=300,
+            storage="memory",
+            is_unfolding=True,
+            ifc_interpolation="periodic",
+        )
+
+
+def test_use_q_symmetry_downgrades_on_expanded_file_support(phonons):
+    """File IFC3 support off the |det(M)| classes falls back, not raises.
+
+    The qe-sheng fixture stores 25 literal translations against 27 periodic
+    classes, so the symmetry-replicated anharmonic projection is not
+    validated for it. The contract is a warned downgrade: finite bandwidths
+    from the full q-point grid with the flag cleared before any artifact is
+    stored.
+    """
+    symmetric = Phonons(
+        forceconstants=phonons.forceconstants,
+        kpts=[3, 3, 3],
+        temperature=300,
+        third_bandwidth=0.5,
+        storage="memory",
+        use_q_symmetry=True,
+    )
+    bandwidth = symmetric.bandwidth
+    assert np.isfinite(bandwidth).all()
+    assert symmetric.use_q_symmetry is False
