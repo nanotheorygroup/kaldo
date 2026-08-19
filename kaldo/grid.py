@@ -400,6 +400,33 @@ class WignerSeitzImages:
         self._cache[key] = result
         return result
 
+    def image_table(self, source_ids, atom_is, atom_js):
+        """Vectorized :meth:`image` for many ``(source, i, j)`` triples.
+
+        Returns ``(pair_ids, translations, vectors, weights)`` flattened over
+        every tied image, grouped in input order, with the same per-triple
+        arithmetic, tie policy, and shift ordering as :meth:`image`.
+        """
+        source_ids = np.asarray(source_ids, dtype=np.int64)
+        atom_is = np.asarray(atom_is, dtype=np.int64)
+        atom_js = np.asarray(atom_js, dtype=np.int64)
+        source_r = self.support.translations[source_ids]
+        base_fractional = (
+            source_r
+            + self.fractional_positions[atom_js]
+            - self.fractional_positions[atom_is]
+        )
+        pair_ids, shifts, vectors, counts = _all_shortest_supercell_images_batch(
+            base_fractional @ self.cell,
+            self.super_lattice,
+            self._inverse_super_lattice,
+            self._smallest_singular,
+            self.tolerance,
+        )
+        translations = source_r[pair_ids] + shifts @ self.support.supercell.matrix
+        weights = (1.0 / counts)[pair_ids]
+        return pair_ids, translations, vectors, weights
+
 
 def _all_shortest_supercell_images(displacement, super_lattice, tolerance):
     """Find all closest vectors in a lattice with a rigorous stopping bound."""
@@ -446,3 +473,63 @@ def _all_shortest_supercell_images_prepared(
     vectors = np.asarray([item[1] for item in candidates], dtype=float)
     order = np.lexsort((shifts[:, 2], shifts[:, 1], shifts[:, 0]))
     return shifts[order], vectors[order]
+
+
+def _all_shortest_supercell_images_batch(
+    displacements, lattice, inverse_lattice, smallest_singular, tolerance
+):
+    """Vectorized counterpart of ``_all_shortest_supercell_images_prepared``.
+
+    Replays the scalar search for many displacements at once with the same
+    arithmetic, the same sequential tie tolerance over the same candidate
+    order, and the same rigorous stopping bound, so each row reproduces the
+    scalar result bit for bit.  Returns ``(pair_ids, shifts, vectors, counts)``
+    flattened over every tied image; rows are grouped by input row in the
+    scalar function's shift-lexicographic order and ``counts[p]`` is row
+    ``p``'s multiplicity.
+    """
+    displacements = np.asarray(displacements, dtype=float)
+    n_pairs = len(displacements)
+    origins = np.rint(-displacements @ inverse_lattice).astype(np.int64)
+    counts = np.zeros(n_pairs, dtype=np.int64)
+    chunks = []
+    active = np.arange(n_pairs)
+    radius = 0
+    while active.size:
+        side = np.arange(-radius, radius + 1, dtype=np.int64)
+        offsets = (
+            np.stack(np.meshgrid(side, side, side, indexing="ij"), axis=-1)
+            .reshape(-1, 3)
+        )
+        shifts = origins[active, None, :] + offsets[None, :, :]
+        vectors = displacements[active, None, :] + shifts @ lattice
+        norms = np.sqrt(np.einsum("pkc,pkc->pk", vectors, vectors))
+        best = np.full(active.size, np.inf)
+        selected = np.zeros(norms.shape, dtype=bool)
+        for k in range(norms.shape[1]):
+            column = norms[:, k]
+            reset = column < best - tolerance
+            tied = ~reset & (np.abs(column - best) <= tolerance)
+            selected[reset] = False
+            selected[reset | tied, k] = True
+            best[reset] = column[reset]
+        done = smallest_singular * (radius + 0.5) > best + tolerance
+        chosen = selected[done]
+        finished = active[done]
+        counts[finished] = chosen.sum(axis=1)
+        chunks.append(
+            (
+                np.repeat(finished, counts[finished]),
+                shifts[done][chosen],
+                vectors[done][chosen],
+            )
+        )
+        active = active[~done]
+        radius += 1
+    pair_ids = np.concatenate([chunk[0] for chunk in chunks])
+    shifts = np.concatenate([chunk[1] for chunk in chunks])
+    vectors = np.concatenate([chunk[2] for chunk in chunks])
+    # Stable sort restores input row order; within a row the candidate scan
+    # already visits shifts in the scalar function's lexicographic order.
+    order = np.argsort(pair_ids, kind="stable")
+    return pair_ids[order], shifts[order], vectors[order], counts
