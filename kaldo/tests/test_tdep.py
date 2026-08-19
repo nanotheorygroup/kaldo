@@ -19,7 +19,7 @@ def phonons():
         temperature=temperature,
         folder=".",
         storage="memory",
-        is_unfolding=False,
+        ifc_interpolation="auto",
         third_bandwidth=0.5,  # fixed: gauge-invariant regression config (#290)
     )
     return phonons
