@@ -1,6 +1,5 @@
 from kaldo.observables.forceconstant import ForceConstant
 from ase import Atoms
-import math
 import os
 import tensorflow as tf
 import ase.io

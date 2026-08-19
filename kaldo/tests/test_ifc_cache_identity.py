@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 from ase import Atoms
 
+from kaldo.forceconstants import ForceConstants
 from kaldo.grid import SupercellGrid, TranslationSupport
 from kaldo.phonons import Phonons
 
@@ -173,3 +174,23 @@ def test_is_nw_does_not_silently_enable_axis_only_ifc_images(tmp_path):
             is_nw=True,
             ifc_interpolation="wigner-seitz",
         )
+
+
+def test_third_interpolation_cache_keys_on_content_not_object_identity():
+    """An in-place IFC3 mutation must invalidate the interpolation cache."""
+    forceconstants = ForceConstants.from_folder(
+        folder="kaldo/tests/si-crystal/qe",
+        supercell=(3, 3, 3),
+        third_supercell=(3, 3, 3),
+        format="qe-sheng",
+    )
+    third = forceconstants.third
+    before = float(np.abs(third.get_interpolation("wigner-seitz").value.data).sum())
+    third.value.data[0] *= 3.0
+    try:
+        after = float(
+            np.abs(third.get_interpolation("wigner-seitz").value.data).sum()
+        )
+    finally:
+        third.value.data[0] /= 3.0
+    assert after != before
