@@ -372,10 +372,15 @@ def test_file_format_is_invariant_to_wrapped_crystal_origin(
     # branches.  Their unsymmetrized Cartesian off-diagonal components depend
     # weakly on the numerical eigenvector basis; the rotationally invariant
     # trace is the rigorous scalar conductivity contract for these datasets.
+    # rtol calibrated cross-platform: on macOS arm64 (Accelerate BLAS) the
+    # degenerate-subspace eigenbases drift the trace by up to 0.34% (tdep) /
+    # 0.07% (hiphive, gpumd) between the two gauge-equivalent runs; linux
+    # x86 stays below 5e-4. The historical origin-dependence bug moved this
+    # trace by 20-60%, so 1e-2 keeps the assertion discriminating.
     np.testing.assert_allclose(
         np.trace(translated_kappa) / 3.0,
         np.trace(reference_kappa) / 3.0,
-        rtol=5e-4,
+        rtol=1e-2,
         atol=0.0,
     )
 

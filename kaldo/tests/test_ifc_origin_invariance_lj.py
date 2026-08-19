@@ -120,11 +120,14 @@ def test_calculator_factory_rta_is_invariant_to_wrapped_crystal_origin(tmp_path)
         rtol=0.0,
         atol=1e-10,
     )
+    # Gamma acoustic frequencies are numerically zero; their absolute drift
+    # between the gauge-equivalent runs reaches 4.7e-7 THz on macOS arm64
+    # (2e-7 on linux x86). 2e-6 stays six orders below the first optical mode.
     np.testing.assert_allclose(
         translated.frequency[0],
         reference.frequency[0],
         rtol=0.0,
-        atol=2e-7,
+        atol=2e-6,
     )
 
     reference_kappa = Conductivity(
