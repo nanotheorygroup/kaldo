@@ -149,3 +149,26 @@ def test_anisotropic_diagonal_on_skewed_cell_resolves_diagonal(tmp_path):
 
     _, _, diagonal_supercell = resolve_tdep_supercell(str(tmp_path))
     assert diagonal_supercell == (3, 2, 1)
+
+
+def test_explicit_tdep_supercell_matrix_is_an_exact_contract(tmp_path):
+    """A supplied TDEP matrix must be integer and match the structure files."""
+    import ase.io
+    from ase.build import make_supercell
+    from kaldo.interfaces.tdep_io import resolve_tdep_supercell
+
+    primitive = _skewed_primitive()
+    matrix = np.array([[2, 1, 0], [0, 2, 0], [0, 0, 2]])
+    supercell = make_supercell(primitive, matrix)
+    ase.io.write(tmp_path / "infile.ucposcar", primitive, format="vasp")
+    ase.io.write(tmp_path / "infile.ssposcar", supercell, format="vasp")
+
+    with pytest.raises(ValueError, match="integer 3x3"):
+        resolve_tdep_supercell(
+            str(tmp_path), supercell_matrix=matrix.astype(float) + 0.25
+        )
+    with pytest.raises(ValueError, match="does not match"):
+        resolve_tdep_supercell(str(tmp_path), supercell_matrix=np.diag([2, 2, 2]))
+
+    _, _, diagonal = resolve_tdep_supercell(str(tmp_path), supercell_matrix=matrix)
+    assert diagonal is None
