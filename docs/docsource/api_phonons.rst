@@ -56,8 +56,6 @@ loaded structure has both ``atoms.info['dielectric']`` and nonzero Born
 effective charges in ``atoms.arrays['charges']``. ``is_nac=True`` requires
 that complete polar input, while ``is_nac=False`` deliberately disables the
 correction for debugging or comparison with a short-range theoretical model.
-Unknown constructor keywords are rejected, so a misspelled NAC option cannot
-silently fall back to automatic behavior.
 
 For example, the following evaluates the NAC-off spectrum of a polar input:
 
@@ -79,37 +77,25 @@ preserves that fact and kALDo restores QE's matching term without performing a
 second subtraction. The input provenance selects the path; the two
 conventions are not user-selectable methods or interchangeable fallbacks.
 
-``ifc_interpolation="auto"`` is the normal real-space setting. Compact IFC
-tensors from VASP, ShengBTE, numpy, and similar inputs store one representative
-of each periodic supercell class; ``auto`` partitions those blocks over the
+The default real-space handling is source aware. Compact IFC tensors from
+VASP, ShengBTE, numpy, and similar inputs store one representative of each
+periodic supercell class, and those blocks are partitioned over the
 pair-dependent Wigner--Seitz shortest images. Formats such as TDEP can record
-actual lattice translations for individual IFC terms, which ``auto`` retains
+actual lattice translations for individual IFC terms, which are retained
 directly. Every QE q2r harmonic body uses the header geometry and
 pair-dependent Wigner--Seitz reconstruction validated against ``matdyn.x``,
-whether or not the optional polar metadata is present. For a polar q2r file,
-those same weights also keep the short-range body consistent with QE's
-long-range restoration. QE d3q IFC3 files are a separate representation:
-their explicit unrecentered cell indices retain d3q's native direct-periodic
-third-order gauge. The explicit ``"wigner-seitz"`` and
-``"periodic"`` values override this source-aware choice and are never
-silently ignored. ``"periodic"`` is primarily a legacy diagnostic: with
-active NAC it raises an error because the short-range subtraction and
-long-range restoration require matching Wigner--Seitz weights. Set
-``is_nac=False`` as well when deliberately comparing a polar input through
-the periodic diagnostic path.
+whether or not the optional polar metadata is present; for a polar q2r file,
+those same weights keep the short-range body consistent with QE's long-range
+restoration. QE d3q IFC3 files retain d3q's native direct-periodic
+third-order gauge. ``is_unfolding=True`` folds the stored translations by
+periodic class first and then applies the same pair-dependent images.
 
-This operation is IFC interpolation, not phonon-band unfolding; the former
-``is_unfolding`` argument is therefore deprecated. For one release it is
-still accepted with a ``DeprecationWarning``: ``True`` maps to
-``ifc_interpolation="wigner-seitz"``, ``False`` maps to ``"auto"``, and
-combining it with an explicit ``ifc_interpolation`` raises. A periodically repeated
-amorphous simulation cell follows the same geometry without assuming any
-space-group symmetry: the entire disordered cell is the reference cell and
-atom pairs crossing its boundary receive their nearest periodic images.
-Wigner--Seitz interpolation currently requires periodic boundary conditions
-in all three lattice directions. For a slab or isolated cluster, choose the
-explicit ``"periodic"`` translation model; kALDo will not silently invent
-images through a nonperiodic direction.
+A periodically repeated amorphous simulation cell follows the same geometry
+without assuming any space-group symmetry: the entire disordered cell is the
+reference cell and atom pairs crossing its boundary receive their nearest
+periodic images. Slabs, wires, and isolated clusters keep the historical
+periodic translation model; kALDo does not invent images through a
+nonperiodic direction.
 
 The optional
 ``nac_bvk_supercell_matrix`` identifies the Born--von Karman cell that defines
@@ -162,7 +148,7 @@ cases the :doc:`Introduction <introduction>` section.
      - is_symmetrizing_frequency
      - is_antisymmetrizing_velocity
    * - is_balanced
-     - ifc_interpolation
+     - is_unfolding
      - is_nac
      - is_nw
    * - g_factor

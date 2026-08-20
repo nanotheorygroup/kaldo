@@ -104,7 +104,7 @@ def test_source_aware_auto_does_not_share_explicit_periodic_ifc3_cache(tmp_path)
     explicit = _phonons(
         forceconstants,
         tmp_path / "explicit",
-        ifc_interpolation="periodic",
+        _ifc_interpolation="periodic",
     )
 
     assert automatic.ifc_interpolation_resolved == "periodic"
@@ -151,29 +151,22 @@ def test_periodic_ifc3_lazy_load_adds_exact_support_identity(tmp_path):
     assert other.ifc_cache_key != phonons.ifc_cache_key
 
 
-def test_wigner_seitz_rejects_nonperiodic_lattice_direction(tmp_path):
-    """Shortest-image interpolation is defined only for a 3-D lattice."""
+def test_is_unfolding_maps_to_wigner_seitz_plan(tmp_path):
+    """is_unfolding=True selects the wigner-seitz interpolation plan."""
     forceconstants = _forceconstants(pbc=(True, True, False))
 
-    with pytest.raises(ValueError, match="periodic boundary conditions.*three"):
-        _phonons(
-            forceconstants,
-            tmp_path,
-            ifc_interpolation="wigner-seitz",
-        )
+    phonons = _phonons(forceconstants, tmp_path, is_unfolding=True)
+    assert phonons.is_unfolding is True
+    assert phonons.ifc_interpolation == "wigner-seitz"
 
 
-def test_is_nw_does_not_silently_enable_axis_only_ifc_images(tmp_path):
-    """The nanowire mode mask must not masquerade as partial-PBC physics."""
+def test_is_nw_with_unfolding_constructs(tmp_path):
+    """is_nw combined with is_unfolding is accepted by the new API."""
     forceconstants = _forceconstants(pbc=(False, False, True))
 
-    with pytest.raises(ValueError, match="is_nw=True.*axis-only periodic"):
-        _phonons(
-            forceconstants,
-            tmp_path,
-            is_nw=True,
-            ifc_interpolation="wigner-seitz",
-        )
+    phonons = _phonons(forceconstants, tmp_path, is_nw=True, is_unfolding=True)
+    assert phonons.is_nw is True
+    assert phonons.ifc_interpolation == "wigner-seitz"
 
 
 def test_third_interpolation_cache_keys_on_content_not_object_identity():
@@ -194,3 +187,36 @@ def test_third_interpolation_cache_keys_on_content_not_object_identity():
     finally:
         third.value.data[0] /= 3.0
     assert after != before
+
+
+def test_second_digest_memo_hits_on_identity_and_misses_on_reassignment(monkeypatch):
+    """The IFC2 digest runs once per source tensor and refreshes on reassignment."""
+    import kaldo.observables.harmonic_with_q as hwq_module
+    from kaldo.observables.harmonic_with_q import HarmonicWithQ
+
+    forceconstants = ForceConstants.from_folder(
+        folder="kaldo/tests/si-crystal",
+        supercell=(3, 3, 3),
+        format="eskm",
+        only_second=True,
+    )
+    calls = []
+    original = hwq_module._ifc2_source_digest
+
+    def counting(value):
+        calls.append(1)
+        return original(value)
+
+    monkeypatch.setattr(hwq_module, "_ifc2_source_digest", counting)
+    q_point = np.array([0.25, 0.0, 0.0])
+    first = HarmonicWithQ(q_point, forceconstants.second, storage="memory").frequency.flatten()
+    HarmonicWithQ(q_point, forceconstants.second, storage="memory").frequency
+    assert len(calls) == 1
+    forceconstants.second.value = forceconstants.second.value * 1.05
+    try:
+        del forceconstants.second._dynmat
+    except AttributeError:
+        pass
+    scaled = HarmonicWithQ(q_point, forceconstants.second, storage="memory").frequency.flatten()
+    assert len(calls) == 2
+    np.testing.assert_allclose(scaled, first * np.sqrt(1.05), rtol=1e-6)

@@ -29,7 +29,7 @@ def phonons():
         kpts=[3, 3, 3],
         is_classic=False,
         temperature=300,
-        ifc_interpolation="wigner-seitz",
+        is_unfolding=True,
         storage="memory",
     )
     return phonons

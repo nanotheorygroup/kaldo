@@ -109,6 +109,11 @@ def _finite_difference_pair_kernel(second, direction, step=1.0e-5):
 
 
 def _phonons(forceconstants, mode):
+    extra = {}
+    if mode == "wigner-seitz":
+        extra["is_unfolding"] = True
+    elif mode == "periodic":
+        extra["_ifc_interpolation"] = "periodic"
     return Phonons(
         forceconstants=forceconstants,
         kpts=(1, 1, 1),
@@ -117,7 +122,7 @@ def _phonons(forceconstants, mode):
         third_bandwidth=0.05 / 4.135,
         broadening_shape="triangle",
         storage="memory",
-        ifc_interpolation=mode,
+        **extra,
     )
 
 

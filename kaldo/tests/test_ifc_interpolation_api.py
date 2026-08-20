@@ -56,5 +56,7 @@ def test_invalid_or_removed_interpolation_arguments_fail_loudly(cu_second):
         HarmonicWithQ(
             np.zeros(3), cu_second, ifc_interpolation="unfolded"
         )
-    with pytest.raises(TypeError, match="is_unfolding"):
-        HarmonicWithQ(np.zeros(3), cu_second, is_unfolding=True)
+    unfolding = HarmonicWithQ(
+        np.zeros(3), cu_second, storage="memory", is_unfolding=True
+    )
+    assert unfolding.ifc_interpolation_resolved == "wigner-seitz"

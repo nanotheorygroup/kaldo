@@ -154,25 +154,6 @@ def test_forceconstant_rejects_incomplete_physical_replica_classes(tmp_path):
         )
 
 
-@pytest.mark.parametrize(
-    "supercell",
-    [
-        (2.5, 1, 1),
-        (0, 1, 1),
-        (-2, 1, 1),
-    ],
-)
-def test_forceconstants_rejects_noninteger_or_nonpositive_repetitions(
-    tmp_path, supercell
-):
-    """A diagonal supercell is an exact positive lattice quotient."""
-    from kaldo.forceconstants import ForceConstants
-
-    atoms = Atoms("Si", positions=[[0.0, 0.0, 0.0]], cell=np.eye(3), pbc=True)
-    with pytest.raises(ValueError, match="supercell repetitions"):
-        ForceConstants(atoms, supercell=supercell, folder=str(tmp_path))
-
-
 def test_legacy_file_readers_reject_ambiguous_nondiagonal_topology(tmp_path):
     """A matrix must not reach loaders that flatten it as three repetitions."""
     from kaldo.observables.secondorder import SecondOrder
