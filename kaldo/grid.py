@@ -397,6 +397,33 @@ class WignerSeitzImages:
         self._cache[key] = result
         return result
 
+    def image_table(self, source_ids, atom_is, atom_js):
+        """Vectorized :meth:`image` for many ``(source, i, j)`` triples.
+
+        Returns ``(pair_ids, translations, vectors, weights)`` flattened over
+        every tied image, grouped in input order, with the same per-triple
+        arithmetic, tie policy, and shift ordering as :meth:`image`.
+        """
+        source_ids = np.asarray(source_ids, dtype=np.int64)
+        atom_is = np.asarray(atom_is, dtype=np.int64)
+        atom_js = np.asarray(atom_js, dtype=np.int64)
+        source_r = self.support.translations[source_ids]
+        base_fractional = (
+            source_r
+            + self.fractional_positions[atom_js]
+            - self.fractional_positions[atom_is]
+        )
+        pair_ids, shifts, vectors, counts = _all_shortest_supercell_images_batch(
+            base_fractional @ self.cell,
+            self.super_lattice,
+            self._inverse_super_lattice,
+            self._smallest_singular,
+            self.tolerance,
+        )
+        translations = source_r[pair_ids] + shifts @ self.support.supercell.matrix
+        weights = (1.0 / counts)[pair_ids]
+        return pair_ids, translations, vectors, weights
+
 
 def _all_shortest_supercell_images_prepared(
     displacement, lattice, inverse_lattice, smallest_singular, tolerance
@@ -447,6 +474,10 @@ def _all_shortest_supercell_images_batch(
     """
     displacements = np.asarray(displacements, dtype=float)
     n_pairs = len(displacements)
+    if n_pairs == 0:
+        empty_int = np.empty((0, 3), dtype=np.int64)
+        return (np.empty(0, dtype=np.int64), empty_int,
+                np.empty((0, 3), dtype=float), np.empty(0, dtype=np.int64))
     origins = np.rint(-displacements @ inverse_lattice).astype(np.int64)
     counts = np.zeros(n_pairs, dtype=np.int64)
     chunks = []
