@@ -760,11 +760,11 @@ def _minimum_image_lv(lv_frac, supercell):
 def _replica_lv_frac_table(fc):
     """Return the (n_rep, 3) fractional lattice-vector table per replica.
 
-    The table must index ``fc.second.value``'s replica axis. After the
-    non-diagonal IFC2 per-pair load (issue #297 / PR #301), that is the
-    ``NonDiagonalGrid`` table (unique per-pair vectors from the TDEP
-    file), *not* ``second._replica_table`` metadata — which still holds
-    the det(M) congruence-class table stamped by ``attach_snf_metadata``.
+    The table must index ``fc.second.value``'s replica axis. That axis is
+    ordered by ``second.translation_support`` (unique per-pair vectors when
+    a TDEP file provides them), *not* by
+    ``second._replica_table`` metadata, which still holds the det(M)
+    congruence-class table stamped by ``attach_snf_metadata``.
     Using the class table against a per-pair-indexed tensor phases every
     off-Gamma dynamical matrix with the wrong R and produces hundreds of
     spurious imaginary modes.
@@ -774,10 +774,11 @@ def _replica_lv_frac_table(fc):
     than the supercell.
     """
     second = fc.second
-    grid = getattr(second, "_direct_grid", None)
-    grid_table = getattr(grid, "_replica_table", None) if grid is not None else None
-    if grid_table is not None:
-        return np.asarray(grid_table, dtype=float)
+    support = getattr(second, "translation_support", None)
+    if support is not None:
+        # The translation support is what actually indexes the value axis
+        # (per-pair literal file vectors or periodic representatives).
+        return np.asarray(support.translations, dtype=float)
     if getattr(second, "_replica_table", None) is not None:
         return np.asarray(second._replica_table, dtype=float)
     # Diagonal path
@@ -814,10 +815,17 @@ def _neighbors_from_fc(fc):
     """
     second = np.asarray(fc.second.value)[0]  # (n_uc, 3, n_rep, n_uc, 3)
     n_uc = fc.n_atoms
-    n_rep = fc.n_replicas
     uc_pos = np.asarray(fc.atoms.positions)
     uc_cell = np.asarray(fc.atoms.cell)
     lv_frac_tab = _replica_lv_frac_table(fc)  # (n_rep, 3)
+    # The tensor's translation axis can be longer than fc.n_replicas when a
+    # TDEP file provides literal per-pair vectors; iterate the axis itself.
+    n_rep = second.shape[2]
+    if lv_frac_tab.shape[0] != n_rep:
+        raise ValueError(
+            "replica table does not index the IFC2 translation axis: "
+            f"{lv_frac_tab.shape[0]} rows vs axis {n_rep}"
+        )
 
     neighbors = []
     for i in range(n_uc):
@@ -849,8 +857,9 @@ def _triplets_from_fc(fc):
     third = fc.third.value
     # Shape: (n_uc, 3, n_rep, n_uc, 3, n_rep, n_uc, 3), sparse COO. Never
     # densify: the dense tensor is n_uc^3 * 27 * n_rep^2 doubles.
-    if getattr(fc.third, "_replica_table", None) is not None:
-        lv_frac_tab = np.asarray(fc.third._replica_table, dtype=float)
+    support = getattr(fc.third, "translation_support", None)
+    if support is not None:
+        lv_frac_tab = np.asarray(support.translations, dtype=float)
     else:
         list_rep = fc.third.list_of_replicas  # (n_rep, 3) in Cartesian
         uc_cell = np.asarray(fc.atoms.cell)
@@ -901,8 +910,9 @@ def _quartets_from_fc(fc):
     # Sparse COO of shape (n_uc, 3, n_rep, n_uc, 3, n_rep, n_uc, 3, n_rep,
     # n_uc, 3). Never densify: the dense tensor is 81 * n_uc^4 * n_rep^3
     # doubles (11+ GB already at 216 atoms), which OOM-kills CI workers.
-    if getattr(fc.fourth, "_replica_table", None) is not None:
-        lv_frac_tab = np.asarray(fc.fourth._replica_table, dtype=float)
+    support = getattr(fc.fourth, "translation_support", None)
+    if support is not None:
+        lv_frac_tab = np.asarray(support.translations, dtype=float)
     else:
         list_rep = fc.fourth.list_of_replicas
         uc_cell = np.asarray(fc.atoms.cell)
