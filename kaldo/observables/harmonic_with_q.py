@@ -302,11 +302,16 @@ def _resolve_nac_activation(atoms, requested):
         return False
 
     has_dielectric = "dielectric" in atoms.info
-    has_charges = "charges" in atoms.arrays
+    charges = atoms.get_array("charges") if "charges" in atoms.arrays else None
+    # Born effective charges are (n_atoms, 3, 3) tensors. A plain per-atom
+    # charge column (shape (n_atoms,), the LAMMPS/extxyz convention) is not
+    # polar metadata: it must neither activate NAC nor be mistaken for an
+    # incomplete polar block.
+    has_charges = (
+        charges is not None and charges.ndim == 3 and charges.shape[-2:] == (3, 3)
+    )
     has_nonzero_charges = bool(
-        has_charges
-        and atoms.get_array("charges").size
-        and np.max(np.abs(atoms.get_array("charges"))) > 1.0e-8
+        has_charges and charges.size and np.max(np.abs(charges)) > 1.0e-8
     )
 
     if requested is True and not (has_dielectric and has_nonzero_charges):
@@ -314,7 +319,13 @@ def _resolve_nac_activation(atoms, requested):
         if not has_dielectric:
             problems.append("atoms.info['dielectric'] is missing")
         if not has_charges:
-            problems.append("atoms.arrays['charges'] is missing")
+            if charges is not None:
+                problems.append(
+                    f"atoms.arrays['charges'] has shape {charges.shape} but "
+                    "Born effective charges must have shape (n_atoms, 3, 3)"
+                )
+            else:
+                problems.append("atoms.arrays['charges'] is missing")
         elif not has_nonzero_charges:
             problems.append("atoms.arrays['charges'] contains no nonzero Born charges")
         problem_summary = " and ".join(problems)
@@ -331,7 +342,8 @@ def _resolve_nac_activation(atoms, requested):
         )
         raise ValueError(
             f"{missing} is missing: the non-analytic correction needs both "
-            "a dielectric tensor and Born effective charges"
+            "a dielectric tensor and Born effective charges. Pass "
+            "is_nac=False to compute without NAC."
         )
     return bool(has_dielectric and has_nonzero_charges)
 
