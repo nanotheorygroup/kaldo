@@ -665,7 +665,7 @@ class Phonons(Storable):
         # Marginal sums (Γ_total[k, μ], Σ_μ phase_space[k, μ]) are still
         # correct; the TDEP kernel (broadening_kernel='tdep') gives per-mode
         # invariance to machine precision.
-        if (self.use_q_symmetry and self.broadening_kernel == "shengbte"
+        if (self._use_q_symmetry and self.broadening_kernel == "shengbte"
                 and not self.third_bandwidth):
             logging.warning(
                 "use_q_symmetry=True with broadening_kernel='shengbte' "
@@ -675,6 +675,39 @@ class Phonons(Storable):
                 "subspaces). Marginal sums remain correct. For strict "
                 "per-mode invariance use broadening_kernel='tdep'."
             )
+
+    @property
+    def use_q_symmetry(self):
+        """Whether symmetry replication is active for the anharmonic projection.
+
+        The reduction is not yet validated when the IFC3 translation support
+        leaves the |det(M)| periodic classes, so the flag downgrades to the
+        full q-point grid as soon as that support is known. Resolving it here
+        keeps stored-artifact labels consistent with what is computed.
+        """
+        if self._use_q_symmetry:
+            third = getattr(self.forceconstants, "_third", None)
+            if third is None or getattr(third, "value", None) is None:
+                # Nothing to assess yet; anharmonic labels resolve the IFC3
+                # object before reading this flag.
+                return self._use_q_symmetry
+            interpolation = third.get_interpolation(self.ifc_interpolation)
+            if interpolation.support.size != third.n_replicas:
+                logging.warning(
+                    "use_q_symmetry is not yet validated for an IFC3 "
+                    "translation support expanded beyond the physical "
+                    "supercell classes (%d translations, %d classes): "
+                    "falling back to the full q-point grid for the "
+                    "anharmonic projection.",
+                    interpolation.support.size,
+                    third.n_replicas,
+                )
+                self._use_q_symmetry = False
+        return self._use_q_symmetry
+
+    @use_q_symmetry.setter
+    def use_q_symmetry(self, value):
+        self._use_q_symmetry = bool(value)
 
     @property
     def ifc_cache_key(self):
@@ -719,6 +752,11 @@ class Phonons(Storable):
         if '<include_isotopes>' in label and self.include_isotopes:
             components.append('isotopes')
 
+        if '<use_q_symmetry>' in label:
+            # An anharmonic label implies IFC3 work; resolving the object here
+            # lets the supported-topology downgrade settle before the storage
+            # path is fixed.
+            self.forceconstants.third
         if '<use_q_symmetry>' in label and self.use_q_symmetry:
             components.append('qsym')
 
@@ -1804,14 +1842,6 @@ class Phonons(Storable):
             self.ifc_interpolation
         )
         n_translations = interpolation.support.size
-        if self.use_q_symmetry and (
-            n_translations != self.forceconstants.third.n_replicas
-        ):
-            raise NotImplementedError(
-                "use_q_symmetry is not yet validated for an IFC3 translation "
-                "support expanded beyond the physical supercell classes; set "
-                "use_q_symmetry=False."
-            )
         try:
             sparse_third = interpolation.value.reshape((self.n_modes, -1))
             sparse_coords = tf.stack(
