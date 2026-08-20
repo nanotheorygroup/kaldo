@@ -178,35 +178,32 @@ def test_qe_si_rta_is_invariant_to_wrapped_crystal_origin(phonons):
     )
 
 
-def test_is_unfolding_shim_maps_warns_and_refuses_conflicts(phonons):
-    """One-release deprecation shim for the removed is_unfolding flag."""
+def test_is_unfolding_maps_interpolation_plan(phonons):
+    """is_unfolding is the public control; it maps to the interpolation plan."""
     forceconstants = phonons.forceconstants
-    with pytest.warns(DeprecationWarning, match="ifc_interpolation"):
-        legacy_on = Phonons(
-            forceconstants=forceconstants,
-            kpts=[3, 3, 3],
-            temperature=300,
-            storage="memory",
-            is_unfolding=True,
-        )
-    assert legacy_on.ifc_interpolation == "wigner-seitz"
-    with pytest.warns(DeprecationWarning, match="ifc_interpolation"):
-        legacy_off = Phonons(
-            forceconstants=forceconstants,
-            kpts=[3, 3, 3],
-            temperature=300,
-            storage="memory",
-            is_unfolding=False,
-        )
-    assert legacy_off.ifc_interpolation == "auto"
-    with pytest.raises(ValueError, match="is_unfolding"):
+    unfolded = Phonons(
+        forceconstants=forceconstants,
+        kpts=[3, 3, 3],
+        temperature=300,
+        storage="memory",
+        is_unfolding=True,
+    )
+    assert unfolded.ifc_interpolation == "wigner-seitz"
+    folded = Phonons(
+        forceconstants=forceconstants,
+        kpts=[3, 3, 3],
+        temperature=300,
+        storage="memory",
+        is_unfolding=False,
+    )
+    assert folded.ifc_interpolation == "auto"
+    with pytest.raises(ValueError, match="_ifc_interpolation"):
         Phonons(
             forceconstants=forceconstants,
             kpts=[3, 3, 3],
             temperature=300,
             storage="memory",
-            is_unfolding=True,
-            ifc_interpolation="periodic",
+            _ifc_interpolation="bogus",
         )
 
 
@@ -230,3 +227,22 @@ def test_use_q_symmetry_downgrades_on_expanded_file_support(phonons):
     bandwidth = symmetric.bandwidth
     assert np.isfinite(bandwidth).all()
     assert symmetric.use_q_symmetry is False
+
+
+def test_use_q_symmetry_constructs_before_third_is_available():
+    """The symmetry flag must not force IFC3 resolution at construction."""
+    forceconstants = ForceConstants.from_folder(
+        folder="kaldo/tests/si-crystal/qe",
+        supercell=[3, 3, 3],
+        only_second=True,
+        format="qe-sheng",
+    )
+    symmetric = Phonons(
+        forceconstants=forceconstants,
+        kpts=[3, 3, 3],
+        temperature=300,
+        storage="memory",
+        use_q_symmetry=True,
+    )
+    assert symmetric._use_q_symmetry is True
+    assert np.isfinite(np.asarray(symmetric.frequency)).all()

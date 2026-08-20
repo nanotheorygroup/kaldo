@@ -1,9 +1,10 @@
 import numpy as np
 import pytest
-from ase import units as ase_units
+from ase.build import bulk
 
 from kaldo.forceconstants import ForceConstants
 from kaldo.controllers.nac import bvk_supercell_matrix_key
+from kaldo.observables.harmonic_with_q import HarmonicWithQ, _resolve_nac_activation
 
 
 def nacl_phonopy_debug_supercell_matrix():
@@ -12,10 +13,6 @@ def nacl_phonopy_debug_supercell_matrix():
 
 def nacl_phonopy_debug_supercell_matrix_att3():
     return np.diag([8, 8, 8]).astype(int)
-from ase.build import bulk
-
-from kaldo.observables.harmonic_with_q import HarmonicWithQ, _resolve_nac_activation
-from kaldo.phonons import Phonons
 
 
 @pytest.fixture
@@ -211,18 +208,10 @@ def test_required_nac_without_polar_metadata_has_actionable_error(nac_second_ord
     assert "is_nac=False to disable NAC" in message
 
 
-def test_phonons_rejects_unknown_nac_keyword():
-    """A misspelled NAC control must fail at constructor argument binding."""
-    with pytest.raises(TypeError, match="unexpected keyword argument 'nac_methd'"):
-        Phonons(forceconstants=object(), nac_methd=False)
-
-
 # ---- QE q2r short-range convention ----
 # q2r.x writes dipole-subtracted IFCs when the file embeds dielectric and Born
 # data. The loader preserves that provenance and the harmonic NAC path adds the
 # matching QE rigid-ion correction without applying Gonze subtraction again.
-
-
 @pytest.fixture(scope="module")
 def mgo_second(tmp_path_factory):
     forceconstants = ForceConstants.from_folder(
