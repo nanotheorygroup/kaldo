@@ -14,6 +14,8 @@ from kaldo.controllers.displacement import calculate_second, try_symmetrize_ifc
 from kaldo.parallel import is_parallel, validate_parallel_calculator, maybe_warn_ml_delta_shift
 import ase.units as units
 from kaldo.helpers.logger import get_logger, log_size
+from kaldo.storable import Storable, lazy_property
+import kaldo.controllers.nac as nac
 
 logging = get_logger()
 
@@ -29,8 +31,12 @@ def acoustic_sum_rule(dynmat):
     return dynmat
 
 
-class SecondOrder(ForceConstant):
-    """Second-order IFC observable."""
+class SecondOrder(ForceConstant, Storable):
+    """Second-order IFC observable with format-aware NAC preparation caches."""
+
+    _store_formats = {
+        "nac_short_range_force_constants": "numpy",
+    }
 
     def __init__(self, value: ArrayLike | None, is_acoustic_sum: bool = False, *kargs, **kwargs):
         """Initialize IFCs and optionally enforce the translational sum rule."""
@@ -44,7 +50,130 @@ class SecondOrder(ForceConstant):
         super().__init__(value=value, *kargs, **kwargs)
 
         self.n_modes = self.atoms.positions.shape[0] * 3
+        self._nac_precomputed_cache = {}
+        self._nac_short_range_force_constants_cache = {}
         self.storage = "numpy"
+
+    @lazy_property(label="", format="numpy")
+    def nac_short_range_force_constants(self):
+        """Return cached Gonze short-range IFCs for the default BvK grid."""
+        return self.calculate_nac_short_range_force_constants()
+
+    def get_nac_short_range_force_constants(self, nac_bvk_supercell_matrix=None):
+        """Return convention-correct short-range IFCs for harmonic NAC.
+
+        QE q2r IFCs are already short range, so they are converted only to the
+        controller's compact atom-major ordering without another subtraction.
+        Total-IFC inputs are converted once through the Gonze
+        commensurate-mesh subtraction and cached by BvK matrix.
+        """
+        matrix = nac.normalize_bvk_supercell_matrix(nac_bvk_supercell_matrix)
+        if getattr(getattr(self, "_qe_q2r_header", None), "has_zstar", False):
+            # A q2r file written with epsil=.true. already contains QE's
+            # short-range IFCs. Do not run Gonze subtraction or share its cache.
+            return nac._build_interleaved_fc(self)
+        if matrix is None:
+            return self.nac_short_range_force_constants
+
+        key = nac.bvk_supercell_matrix_key(matrix)
+        if key in self._nac_short_range_force_constants_cache:
+            return self._nac_short_range_force_constants_cache[key]
+
+        property_name = "nac_short_range_force_constants_" + key
+        folder = self.get_folder_from_label("")
+        try:
+            loaded = self._load_property(property_name, folder, format="numpy")
+            logging.info("Loading " + folder + "/" + property_name)
+            self._nac_short_range_force_constants_cache[key] = loaded
+            return loaded
+        except (FileNotFoundError, OSError, KeyError):
+            logging.info(
+                folder
+                + "/"
+                + property_name
+                + " not found in numpy format, calculating "
+                + property_name
+            )
+            force_constants = self.calculate_nac_short_range_force_constants(matrix)
+            self._save_property(property_name, folder, force_constants, format="numpy")
+            self._nac_short_range_force_constants_cache[key] = force_constants
+            return force_constants
+
+    def _build_nac_static_data(self, matrix=None):
+        """Delegate construction of q-independent NAC physics to the controller."""
+        return nac.build_static_data(self, matrix)
+
+    def _build_nac_mapping(self, matrix=None):
+        """Build the Wigner--Seitz map for this IFC supercell."""
+        return nac.build_mapping(self, matrix)
+
+    def get_nac_precomputed(self, nac_bvk_supercell_matrix=None):
+        """Return cached NAC kernel data and any convention-required mapping."""
+        matrix = nac.normalize_bvk_supercell_matrix(nac_bvk_supercell_matrix)
+        key = nac.bvk_supercell_matrix_key(matrix) if matrix is not None else "default"
+        if key not in self._nac_precomputed_cache:
+            static_data = self._build_nac_static_data(matrix)
+            mapping = self._build_nac_mapping(matrix)
+            static_data, mapping = nac.ensure_kernel_cache(static_data, mapping)
+            self._nac_precomputed_cache[key] = {
+                "static_data": static_data,
+                "mapping": mapping,
+            }
+        return self._nac_precomputed_cache[key]
+
+    def calculate_nac_short_range_force_constants(self, nac_bvk_supercell_matrix=None):
+        """Remove the Gonze dipole term once and inverse-transform the remainder.
+
+        Polar q2r inputs bypass this operation because q2r already performed
+        the corresponding QE subtraction before writing the IFC body.
+        """
+        if getattr(getattr(self, "_qe_q2r_header", None), "has_zstar", False):
+            return nac._build_interleaved_fc(self)
+        if "dielectric" not in self.atoms.info or "charges" not in self.atoms.arrays:
+            raise ValueError(
+                "NAC short-range force constants require atoms.info['dielectric'] "
+                "and atoms.arrays['charges']."
+            )
+        matrix = nac.normalize_bvk_supercell_matrix(nac_bvk_supercell_matrix)
+        supercell = self.supercell if matrix is None else matrix
+        bundle = self.get_nac_precomputed(matrix)
+        static_data = bundle["static_data"]
+        mapping = bundle["mapping"]
+        qpoints = nac._commensurate_points(supercell, static_data["reciprocal_lattice"])
+        dynmats = np.zeros(
+            (len(qpoints), len(self.atoms) * 3, len(self.atoms) * 3),
+            dtype=np.complex128,
+        )
+        logging.info(
+            "Calculating NAC short-range force constants from "
+            + str(len(qpoints))
+            + " commensurate q-points."
+        )
+        fc_full = nac._build_interleaved_fc(self)
+        conversion = units.mol / (10 * units.J)
+        svecs = mapping.get("phase_svecs", mapping["svecs"])
+        fc_full_converted = fc_full * conversion
+        for i_q, q_point in enumerate(qpoints):
+            dynmat = nac._short_range_dynamical_matrix(
+                fc_full_converted,
+                q_point,
+                svecs,
+                mapping["multi"],
+                static_data["masses"],
+                mapping["s2p_map"],
+                mapping["p2s_map"],
+                phase_weights=mapping["phase_weights"],
+                target_mask=mapping["target_mask"],
+            )
+            dynmat -= nac._dipole_dipole_dynamical_matrix(
+                q_point,
+                static_data,
+                mapping,
+            )
+            dynmats[i_q] = (dynmat + dynmat.conj().T) / 2
+        return nac._inverse_transform_dynmats_to_force_constants(
+            dynmats, qpoints, mapping, static_data["masses"]
+        )
 
     @classmethod
     def from_supercell(cls,
