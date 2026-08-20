@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from functools import cached_property
 
 from kaldo.grid import Grid, TranslationSupport, WignerSeitzImages
 from kaldo.observables.observable import Observable
@@ -151,6 +152,38 @@ class _HarmonicIFCInterpolation:
             include_pair_displacement,
         )
 
+    @cached_property
+    def _assembly(self):
+        """Flattened per-image assembly arrays, resolved once per plan.
+
+        One row per (stored translation, atom pair, tied image) with a
+        nonzero IFC block, ordered translation-major then pair-lexicographic
+        then image-lexicographic: the accumulation order of the equivalent
+        triple loop, so the scatter assembly in :meth:`matrices` reproduces
+        it bit for bit.
+        """
+        nonzero = np.any(self.values != 0, axis=(1, 4)).transpose(1, 0, 2)
+        source_ids, atom_is, atom_js = np.nonzero(nonzero)
+        blocks = self.values[atom_is, :, source_ids, atom_js, :]
+        if self.images is None:
+            translations = self.support.translations[source_ids]
+            fractional_positions = self.positions @ np.linalg.inv(self.cell)
+            pair_offsets = (
+                fractional_positions[atom_js] - fractional_positions[atom_is]
+                if self.include_pair_displacement
+                else 0.0
+            )
+            displacements = (translations + pair_offsets) @ self.cell
+            weights = np.ones(len(source_ids))
+        else:
+            image_ids, translations, displacements, weights = self.images.image_table(
+                source_ids, atom_is, atom_js
+            )
+            atom_is = atom_is[image_ids]
+            atom_js = atom_js[image_ids]
+            blocks = blocks[image_ids]
+        return atom_is, atom_js, blocks, translations, displacements, weights
+
     def matrices(self, q_point, distance_threshold=None):
         """Return the dynamical matrix and its three Cartesian phase kernels.
 
@@ -161,50 +194,34 @@ class _HarmonicIFCInterpolation:
         """
         q_point = np.asarray(q_point, dtype=float)
         n_atoms = len(self.positions)
-        dynamical = np.zeros((n_atoms, 3, n_atoms, 3), dtype=np.complex128)
-        derivatives = np.zeros((3, n_atoms, 3, n_atoms, 3), dtype=np.complex128)
-        fractional_positions = self.positions @ np.linalg.inv(self.cell)
-
-        for source_id, source_translation in enumerate(self.support.translations):
-            for atom_i in range(n_atoms):
-                for atom_j in range(n_atoms):
-                    block = self.values[atom_i, :, source_id, atom_j, :]
-                    if not np.any(block):
-                        continue
-                    if self.images is None:
-                        translations = source_translation[np.newaxis, :]
-                        pair_offset = (
-                            fractional_positions[atom_j] - fractional_positions[atom_i]
-                            if self.include_pair_displacement
-                            else 0.0
-                        )
-                        displacements = (source_translation + pair_offset)[
-                            np.newaxis, :
-                        ] @ self.cell
-                        weights = np.ones(1)
-                    else:
-                        translations, displacements, weights = self.images.image(
-                            source_id, atom_i, atom_j
-                        )
-
-                    for translation, displacement, weight in zip(
-                        translations, displacements, weights
-                    ):
-                        if (
-                            distance_threshold is not None
-                            and np.linalg.norm(displacement) >= distance_threshold
-                        ):
-                            continue
-                        phase = np.exp(2j * np.pi * np.dot(q_point, translation))
-                        contribution = weight * phase * block
-                        dynamical[atom_i, :, atom_j, :] += contribution
-                        for direction in range(3):
-                            derivatives[direction, atom_i, :, atom_j, :] -= (
-                                displacement[direction] * contribution
-                            )
+        atom_is, atom_js, blocks, translations, displacements, weights = (
+            self._assembly
+        )
+        if distance_threshold is not None:
+            kept = np.linalg.norm(displacements, axis=1) < distance_threshold
+            atom_is, atom_js, blocks = atom_is[kept], atom_js[kept], blocks[kept]
+            translations, displacements, weights = (
+                translations[kept],
+                displacements[kept],
+                weights[kept],
+            )
+        phases = np.exp(2j * np.pi * (translations @ q_point))
+        contributions = (weights * phases)[:, None, None] * blocks
+        # Unbuffered scatter adds apply strictly in row order, keeping the
+        # loop's per-element accumulation sequence.
+        dynamical = np.zeros((n_atoms, n_atoms, 3, 3), dtype=np.complex128)
+        np.add.at(dynamical, (atom_is, atom_js), contributions)
+        derivatives = np.zeros((3, n_atoms, n_atoms, 3, 3), dtype=np.complex128)
+        for direction in range(3):
+            np.subtract.at(
+                derivatives[direction],
+                (atom_is, atom_js),
+                displacements[:, direction][:, None, None] * contributions,
+            )
         n_modes = 3 * n_atoms
-        return dynamical.reshape(n_modes, n_modes), derivatives.reshape(
-            3, n_modes, n_modes
+        return (
+            dynamical.transpose(0, 2, 1, 3).reshape(n_modes, n_modes),
+            derivatives.transpose(0, 1, 3, 2, 4).reshape(3, n_modes, n_modes),
         )
 
     def real_space_moments(self, distance_threshold=None):

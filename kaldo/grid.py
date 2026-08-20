@@ -401,51 +401,32 @@ class WignerSeitzImages:
         self._cache[key] = result
         return result
 
-def _all_shortest_supercell_images(displacement, super_lattice, tolerance):
-    """Find all closest vectors in a lattice with a rigorous stopping bound."""
-    displacement = np.asarray(displacement, dtype=float)
-    lattice = np.asarray(super_lattice, dtype=float)
-    return _all_shortest_supercell_images_prepared(
-        displacement,
-        lattice,
-        np.linalg.inv(lattice),
-        np.linalg.svd(lattice, compute_uv=False)[-1],
-        tolerance,
-    )
+    def image_table(self, source_ids, atom_is, atom_js):
+        """Vectorized :meth:`image` for many ``(source, i, j)`` triples.
 
-
-def _all_shortest_supercell_images_prepared(
-    displacement, lattice, inverse_lattice, smallest_singular, tolerance
-):
-    """Closest-image search with q-independent lattice factors precomputed."""
-    center = -displacement @ inverse_lattice
-    origin = np.rint(center).astype(np.int64)
-    radius = 0
-    best = np.inf
-    candidates = []
-    while True:
-        candidates.clear()
-        best = np.inf
-        for a in range(-radius, radius + 1):
-            for b in range(-radius, radius + 1):
-                for c in range(-radius, radius + 1):
-                    shift = origin + np.array((a, b, c), dtype=np.int64)
-                    vector = displacement + shift @ lattice
-                    norm = np.linalg.norm(vector)
-                    if norm < best - tolerance:
-                        best = norm
-                        candidates = [(shift, vector)]
-                    elif abs(norm - best) <= tolerance:
-                        candidates.append((shift, vector))
-        # Any unsearched integer point is at least radius+1/2 from the rounded
-        # continuous center in max norm, hence at least this Cartesian distance.
-        if smallest_singular * (radius + 0.5) > best + tolerance:
-            break
-        radius += 1
-    shifts = np.asarray([item[0] for item in candidates], dtype=np.int64)
-    vectors = np.asarray([item[1] for item in candidates], dtype=float)
-    order = np.lexsort((shifts[:, 2], shifts[:, 1], shifts[:, 0]))
-    return shifts[order], vectors[order]
+        Returns ``(pair_ids, translations, vectors, weights)`` flattened over
+        every tied image, grouped in input order, with the same per-triple
+        arithmetic, tie policy, and shift ordering as :meth:`image`.
+        """
+        source_ids = np.asarray(source_ids, dtype=np.int64)
+        atom_is = np.asarray(atom_is, dtype=np.int64)
+        atom_js = np.asarray(atom_js, dtype=np.int64)
+        source_r = self.support.translations[source_ids]
+        base_fractional = (
+            source_r
+            + self.fractional_positions[atom_js]
+            - self.fractional_positions[atom_is]
+        )
+        pair_ids, shifts, vectors, counts = _all_shortest_supercell_images_batch(
+            base_fractional @ self.cell,
+            self.super_lattice,
+            self._inverse_super_lattice,
+            self._smallest_singular,
+            self.tolerance,
+        )
+        translations = source_r[pair_ids] + shifts @ self.support.supercell.matrix
+        weights = (1.0 / counts)[pair_ids]
+        return pair_ids, translations, vectors, weights
 
 
 def _all_shortest_supercell_images(displacement, super_lattice, tolerance):
@@ -510,6 +491,10 @@ def _all_shortest_supercell_images_batch(
     """
     displacements = np.asarray(displacements, dtype=float)
     n_pairs = len(displacements)
+    if n_pairs == 0:
+        empty_int = np.empty((0, 3), dtype=np.int64)
+        return (np.empty(0, dtype=np.int64), empty_int,
+                np.empty((0, 3), dtype=float), np.empty(0, dtype=np.int64))
     origins = np.rint(-displacements @ inverse_lattice).astype(np.int64)
     counts = np.zeros(n_pairs, dtype=np.int64)
     chunks = []
