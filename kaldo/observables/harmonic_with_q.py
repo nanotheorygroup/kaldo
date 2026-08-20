@@ -288,24 +288,52 @@ class _HarmonicIFCInterpolation:
 
 
 def _resolve_nac_activation(atoms, requested):
-    """Resolve ``None``/``False``/``True`` to an active NAC boolean."""
+    """Resolve ``None``/``False``/``True`` to an active NAC boolean.
+
+    ``None`` is the normal automatic mode: complete dielectric and nonzero
+    Born-charge data activate NAC, while an entirely absent polar block does
+    not. ``False`` deliberately bypasses even incomplete polar metadata for
+    NAC-off diagnostics. ``True`` requires a complete, nonzero polar block so
+    an explicit request cannot silently evaluate the ordinary IFC path.
+    """
     if requested is not None and not isinstance(requested, (bool, np.bool_)):
         raise TypeError("is_nac must be True, False, or None for automatic detection")
     if requested is False:
         return False
+
     has_dielectric = "dielectric" in atoms.info
     has_charges = "charges" in atoms.arrays
-    if has_dielectric != has_charges:
-        raise ValueError(
-            "atoms carries incomplete polar metadata: the non-analytic "
-            "correction needs both a dielectric tensor and Born charges."
-        )
-    # Nonpolar QE files can carry a dielectric block with strictly zero Born
-    # charges; the correction is identically zero there.
-    return bool(
-        has_dielectric
-        and np.abs(atoms.get_array("charges")).max() > 1e-8
+    has_nonzero_charges = bool(
+        has_charges
+        and atoms.get_array("charges").size
+        and np.max(np.abs(atoms.get_array("charges"))) > 1.0e-8
     )
+
+    if requested is True and not (has_dielectric and has_nonzero_charges):
+        problems = []
+        if not has_dielectric:
+            problems.append("atoms.info['dielectric'] is missing")
+        if not has_charges:
+            problems.append("atoms.arrays['charges'] is missing")
+        elif not has_nonzero_charges:
+            problems.append("atoms.arrays['charges'] contains no nonzero Born charges")
+        problem_summary = " and ".join(problems)
+        raise ValueError(
+            f"is_nac=True was requested, but {problem_summary}. "
+            "NAC requires a dielectric tensor and nonzero Born effective "
+            "charges. Provide both polar-response tensors, use is_nac=None "
+            "for automatic detection, or use is_nac=False to disable NAC."
+        )
+
+    if has_dielectric != has_charges:
+        missing = (
+            "atoms.arrays['charges']" if has_dielectric else "atoms.info['dielectric']"
+        )
+        raise ValueError(
+            f"{missing} is missing: the non-analytic correction needs both "
+            "a dielectric tensor and Born effective charges"
+        )
+    return bool(has_dielectric and has_nonzero_charges)
 
 
 class HarmonicWithQ(Observable, Storable):
