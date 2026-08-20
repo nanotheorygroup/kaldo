@@ -1,3 +1,14 @@
+"""Third-order IFC storage, loading, and source-aware interpolation.
+
+IFC3 has two independently phased real-space legs.  This module preserves the
+translations supplied by each interface, or compiles compact periodic blocks
+onto pair-specific Wigner--Seitz images, before the anharmonic controller
+projects the tensor into phonon modes.
+"""
+
+from dataclasses import dataclass
+
+from kaldo.grid import TranslationSupport, WignerSeitzImages
 from kaldo.observables.forceconstant import ForceConstant
 from ase import Atoms
 import os
@@ -8,6 +19,7 @@ from sparse import COO
 from kaldo.interfaces.eskm_io import import_from_files
 from kaldo.interfaces.tdep_io import parse_tdep_third_forceconstant
 import kaldo.interfaces.shengbte_io as shengbte_io
+import kaldo.interfaces.qe_io as qe_io
 import ase.units as units
 from kaldo.controllers.displacement import calculate_third, try_symmetrize_ifc
 from kaldo.parallel import is_parallel, validate_parallel_calculator, maybe_warn_ml_delta_shift
@@ -19,6 +31,80 @@ REPLICATED_ATOMS_THIRD_FILE = 'replicated_atoms_third.xyz'
 REPLICATED_ATOMS_FILE = 'replicated_atoms.xyz'
 THIRD_ORDER_FILE_SPARSE = 'third.npz'
 THIRD_ORDER_FILE = 'third.npy'
+
+_IFC_INTERPOLATION_MODES = ("auto", "wigner-seitz", "periodic")
+
+
+@dataclass(frozen=True)
+class _ThirdOrderIFCInterpolation:
+    """Immutable result of compiling IFC3 onto a translation support.
+
+    ``value`` follows ``(i,a,Rj,j,b,Rk,k,c)``.  Its two translation axes
+    refer to the same ``support``.  Wigner--Seitz compilation changes only
+    those integer translations and partitions tied images by their geometric
+    weights; it does not add basis offsets to kALDo's Fourier phase gauge.
+    """
+
+    value: object
+    support: TranslationSupport
+    resolved_mode: str
+
+
+def _as_coo(value):
+    """Return a pydata/sparse COO without densifying an existing sparse IFC."""
+    if isinstance(value, COO):
+        return value
+    return COO.from_numpy(np.asarray(value))
+
+
+def _rank8_ifc3(value, n_atoms, n_translations):
+    """Normalize legacy flattened IFC3 storage without densifying COO data."""
+    expected = (
+        n_atoms,
+        3,
+        n_translations,
+        n_atoms,
+        3,
+        n_translations,
+        n_atoms,
+        3,
+    )
+    if getattr(value, "ndim", None) == 8:
+        if value.shape != expected:
+            raise ValueError(
+                f"third-order IFC shape {value.shape} does not match {expected}"
+            )
+        return value
+    flattened = (
+        n_atoms * 3,
+        n_translations * n_atoms * 3,
+        n_translations * n_atoms * 3,
+    )
+    if getattr(value, "ndim", None) == 3 and value.shape == flattened:
+        return value.reshape(expected)
+    raise ValueError(
+        "third-order IFC value must have rank 8, or the legacy flattened "
+        f"shape {flattened}"
+    )
+
+
+def _coalesced_coo(coords, data, shape, dtype):
+    """Build a deterministic COO and sum entries mapped to the same slot."""
+    data = np.asarray(data, dtype=dtype)
+    if data.size:
+        coords = np.asarray(coords, dtype=np.int64)
+        if coords.shape[0] != len(shape):
+            coords = coords.T
+        return COO(
+            coords,
+            data,
+            shape=shape,
+            has_duplicates=True,
+            sorted=False,
+        )
+    return COO(
+        np.empty((len(shape), 0), dtype=np.int64), np.empty(0, dtype=dtype), shape=shape
+    )
 
 
 def detect_path(files: list[str], folder: str = ""):
@@ -34,15 +120,248 @@ def detect_path(files: list[str], folder: str = ""):
 
 
 class ThirdOrder(ForceConstant):
+    """Third-order IFCs with explicit translation axes for both outer legs.
+
+    The canonical tensor layout is ``(i,a,Rj,j,b,Rk,k,c)``. ``Rj`` and
+    ``Rk`` index :attr:`translation_support`, not the physical replica count.
+    Legacy rank-three sparse storage is accepted at load time and reshaped
+    without densification when interpolation begins.
+
+    :meth:`get_interpolation` returns an immutable plan rather than mutating
+    the source tensor. This preserves literal file provenance and allows
+    explicit periodic or Wigner--Seitz diagnostics to coexist safely.
+    """
+
+    def get_interpolation(self, mode="auto"):
+        """Compile IFC3 for the requested real-space interpolation rule.
+
+        ``auto`` preserves literal file-provided translations, honors an
+        interface's explicit native-gauge hint (for example d3q's unrecentered
+        cell indices), and otherwise selects pair-dependent Wigner--Seitz
+        interpolation.  ``periodic`` and ``wigner-seitz`` are explicit user
+        overrides: both first fold every source translation into its exact
+        supercell quotient class.  The latter then distributes each ``(i,j)``
+        and ``(i,k)`` pair independently over all tied shortest images, with
+        the Cartesian-product weight.
+
+        Sparse input remains sparse throughout compilation.  The returned
+        object is cached per requested mode and source identity.
+        """
+        if mode not in _IFC_INTERPOLATION_MODES:
+            raise ValueError(
+                f"ifc_interpolation={mode!r} is invalid; choose one of "
+                f"{_IFC_INTERPOLATION_MODES}"
+            )
+        support = self.translation_support
+        source_value = self.value
+        if source_value is None:
+            raise ValueError("third-order IFC value is not available")
+        value = _rank8_ifc3(source_value, len(self.atoms), support.size)
+
+        cache_key = (mode, id(source_value), support.digest)
+        cache = getattr(self, "_interpolation_cache", None)
+        if cache is None:
+            cache = {}
+            self._interpolation_cache = cache
+        if cache_key in cache:
+            return cache[cache_key]
+
+        hint = getattr(self, "ifc_interpolation_hint", None)
+        if mode == "auto" and support.provenance == "file":
+            result = _ThirdOrderIFCInterpolation(value, support, "file")
+        else:
+            resolved = (hint or "wigner-seitz") if mode == "auto" else mode
+            if support.provenance == "file" and mode != "auto":
+                logging.warning(
+                    "ifc_interpolation=%r folds %d file-provided IFC3 "
+                    "translations into %d periodic classes by explicit "
+                    "user request.",
+                    mode,
+                    support.size,
+                    support.supercell.size,
+                )
+            folded, periodic_support = self._fold_periodic_classes(value, support)
+            if resolved == "periodic":
+                result = _ThirdOrderIFCInterpolation(folded, periodic_support, resolved)
+            else:
+                compiled, compiled_support = self._compile_wigner_seitz(
+                    folded, periodic_support
+                )
+                result = _ThirdOrderIFCInterpolation(
+                    compiled, compiled_support, resolved
+                )
+        cache[cache_key] = result
+        return result
+
+    def gamma_contracted_value(self):
+        """Return IFC3 summed over both real-space translation axes.
+
+        At Gamma the two IFC3 Fourier phases are identically one. The exact
+        tensor consumed by a Gamma-only amorphous calculation is therefore
+        ``sum_Rj,Rk Phi(Rj,Rk)``. Performing that reduction on the canonical
+        rank-eight representation supports compact, literal, and expanded
+        translation supports without confusing their size with the physical
+        replica count.
+
+        Returns
+        -------
+        sparse.COO or numpy.ndarray
+            Tensor with shape ``(3*n_atoms, 3*n_atoms, 3*n_atoms)`` in the
+            historical ``(central, partner-j, partner-k)`` mode ordering.
+        """
+        rank8 = _rank8_ifc3(self.value, len(self.atoms), self.n_translations)
+        n_modes = 3 * len(self.atoms)
+        return rank8.sum(axis=(2, 5)).reshape((n_modes, n_modes, n_modes))
+
+    @staticmethod
+    def _fold_periodic_classes(value, support):
+        """Coalesce both IFC3 translation axes into exact quotient classes."""
+        source = _as_coo(value)
+        coords = np.array(source.coords, dtype=np.int64, copy=True)
+        coords[2] = support.class_ids[coords[2]]
+        coords[5] = support.class_ids[coords[5]]
+        shape = list(source.shape)
+        shape[2] = shape[5] = support.supercell.size
+        folded = COO(
+            coords,
+            np.asarray(source.data),
+            shape=tuple(shape),
+            has_duplicates=True,
+            sorted=False,
+        )
+        periodic_support = TranslationSupport.periodic(
+            support.supercell, order=support.supercell.order
+        )
+        return folded, periodic_support
+
+    def _compile_wigner_seitz(self, folded, support):
+        """Partition nonzero IFC3 entries over pair-shortest images.
+
+        Pair geometry is evaluated once per distinct ``(R,i,j)`` leg, not
+        once per Cartesian tensor component.  Coordinate expansion is then
+        vectorized by tied-image index.  This keeps the cost proportional to
+        the sparse IFC support and avoids millions of Python list appends for
+        production IFC3 tensors.
+        """
+        images = WignerSeitzImages.build(
+            support,
+            np.asarray(self.atoms.positions),
+            np.asarray(self.atoms.cell),
+            pbc=self.atoms.pbc,
+        )
+        coords = np.asarray(folded.coords, dtype=np.int64)
+        data = np.asarray(folded.data)
+
+        # The first three columns identify a reusable IFC leg: stored
+        # translation, central atom i, and partner atom j/k.  np.unique also
+        # gives a vectorized map from every scalar COO entry to that geometry.
+        pair_j = np.column_stack((coords[2], coords[0], coords[3]))
+        pair_k = np.column_stack((coords[5], coords[0], coords[6]))
+        pair_rows = np.concatenate((pair_j, pair_k), axis=0)
+        unique_pairs, pair_inverse = np.unique(pair_rows, axis=0, return_inverse=True)
+        pair_inverse = np.reshape(pair_inverse, -1)
+        pair_j_ids = pair_inverse[: data.size]
+        pair_k_ids = pair_inverse[data.size :]
+
+        pair_images = [
+            images.image(source_id, atom_i, atom_j)
+            for source_id, atom_i, atom_j in unique_pairs
+        ]
+
+        # A shared, sorted axis is required because Rj and Rk occupy axes of
+        # one tensor. Build it from precisely the images used by nonzero IFCs.
+        translations = {
+            tuple(int(x) for x in translation)
+            for image_translations, _, _ in pair_images
+            for translation in image_translations
+        }
+        if not translations:
+            translations.update(tuple(int(x) for x in r) for r in support.translations)
+        ordered = np.asarray(sorted(translations), dtype=np.int64)
+        compiled_support = TranslationSupport(
+            ordered, support.supercell, provenance="wigner-seitz"
+        )
+        translation_ids = {tuple(r): index for index, r in enumerate(ordered)}
+
+        max_multiplicity = max((len(item[0]) for item in pair_images), default=1)
+        target_ids = np.full((len(pair_images), max_multiplicity), -1, dtype=np.int64)
+        pair_weights = np.zeros((len(pair_images), max_multiplicity), dtype=float)
+        for pair_id, (pair_translations, _, weights) in enumerate(pair_images):
+            if not np.isclose(np.sum(weights), 1.0, rtol=0, atol=1e-14):
+                raise ValueError(
+                    "Wigner-Seitz weights for an IFC3 pair do not sum to one"
+                )
+            multiplicity = len(weights)
+            target_ids[pair_id, :multiplicity] = [
+                translation_ids[tuple(r)] for r in pair_translations
+            ]
+            pair_weights[pair_id, :multiplicity] = weights
+
+        # At most ``max_multiplicity**2`` vector operations are needed.  Each
+        # selects every COO scalar with the same tied-image indices at once.
+        output_coords = []
+        output_data = []
+        for image_j in range(max_multiplicity):
+            targets_j = target_ids[pair_j_ids, image_j]
+            weights_j = pair_weights[pair_j_ids, image_j]
+            for image_k in range(max_multiplicity):
+                targets_k = target_ids[pair_k_ids, image_k]
+                selected = (targets_j >= 0) & (targets_k >= 0)
+                if not np.any(selected):
+                    continue
+                target = np.array(coords[:, selected], copy=True)
+                target[2] = targets_j[selected]
+                target[5] = targets_k[selected]
+                output_coords.append(target)
+                output_data.append(
+                    data[selected]
+                    * weights_j[selected]
+                    * pair_weights[pair_k_ids[selected], image_k]
+                )
+
+        shape = list(folded.shape)
+        shape[2] = shape[5] = compiled_support.size
+        if output_coords:
+            output_coords = np.concatenate(output_coords, axis=1)
+            output_data = np.concatenate(output_data)
+        else:
+            output_coords = np.empty((len(shape), 0), dtype=np.int64)
+            output_data = np.empty(0, dtype=folded.dtype)
+        compiled = _coalesced_coo(
+            output_coords, output_data, tuple(shape), folded.dtype
+        )
+        # Redistribution must preserve the Gamma zeroth moment separately for
+        # every Cartesian (i,a,j,b,k,c) block.  A comparison of one global
+        # signed sum is ill-conditioned for physical IFC3 tensors because the
+        # acoustic sum rule makes that scalar nearly zero through cancellation.
+        # Reducing only the two translation axes tests the actual invariant
+        # without densifying the six remaining atom/Cartesian axes.
+        source_gamma = folded.sum(axis=(2, 5))
+        compiled_gamma = compiled.sum(axis=(2, 5))
+        gamma_error = compiled_gamma - source_gamma
+        error = float(np.max(np.abs(gamma_error.data))) if gamma_error.nnz else 0.0
+        scale = max(
+            float(np.max(np.abs(source_gamma.data))) if source_gamma.nnz else 0.0,
+            1.0,
+        )
+        if error > 5e-13 * scale:
+            raise ValueError(
+                "Wigner-Seitz IFC3 compilation did not conserve the per-block "
+                "Gamma translation sum"
+            )
+        return compiled, compiled_support
 
     @classmethod
-    def load(cls,
-             folder: str,
-             supercell: tuple[int, int, int] = (1, 1, 1),
-             format: str = 'sparse',
-             third_energy_threshold: float = 0.,
-             chunk_size: int = 100000,
-             supercell_matrix: np.ndarray | None = None):
+    def load(
+        cls,
+        folder: str,
+        supercell: tuple[int, int, int] | np.ndarray = (1, 1, 1),
+        format: str = "sparse",
+        third_energy_threshold: float = 0.0,
+        chunk_size: int = 100000,
+        supercell_matrix: np.ndarray | None = None,
+        atoms_override: Atoms | None = None,
+    ):
         """
         Load third order force constants from a folder in the given format, used for library internally.
 
@@ -52,8 +371,11 @@ class ThirdOrder(ForceConstant):
         ----------
         folder : str
             Specifies where to load the data files.
-        supercell : tuple[int, int, int]
-            The supercell for the third order force constant matrix.
+        supercell : tuple[int, int, int] or ndarray
+            Diagonal repetitions or an integer 3 by 3 supercell matrix for
+            the third-order force constants. TDEP and ShengBTE-style literal
+            IFC3 readers support matrices; compact legacy formats require a
+            diagonal three-vector.
             Default: (1, 1, 1)
         format : str
             Format of the third order force constant information being loaded into ForceConstant object.
@@ -67,10 +389,14 @@ class ThirdOrder(ForceConstant):
             Larger values use more memory but may be faster for very large files.
             Default: 100000
         supercell_matrix : np.ndarray, optional
-            3x3 integer supercell expansion matrix. Accepted for API symmetry
-            with ``ForceConstants.from_folder``; for ``format='tdep'`` the
-            (possibly non-diagonal) supercell is inferred from
-            ``infile.ucposcar`` / ``infile.ssposcar`` instead.
+            Expected 3x3 integer supercell expansion matrix. For TDEP the
+            structure files remain authoritative, and a supplied matrix must
+            match their inferred (possibly non-diagonal) tiling.
+            Default: None
+        atoms_override : ase.Atoms, optional
+            Authoritative primitive structure supplied by an already loaded
+            IFC2 object. Used for QE q2r-backed formats so IFC3 cannot be
+            interpreted in a stale CONTROL/POSCAR atom order.
             Default: None
 
         Returns
@@ -78,6 +404,31 @@ class ThirdOrder(ForceConstant):
         third_order : ThirdOrder object
             A new instance of the ThirdOrder class
         """
+
+        matrix_capable_formats = {
+            "tdep",
+            "vasp-sheng",
+            "shengbte",
+            "qe-sheng",
+            "shengbte-qe",
+        }
+        supplied_matrix = np.asarray(supercell)
+        if supplied_matrix.shape == (3, 3) and format not in matrix_capable_formats:
+            diagonal = np.diag(supplied_matrix)
+            if np.array_equal(supplied_matrix, np.diag(diagonal)):
+                rounded = np.rint(diagonal)
+                if not np.allclose(diagonal, rounded, rtol=0, atol=1e-12) or np.any(
+                    rounded <= 0
+                ):
+                    raise ValueError(
+                        "diagonal supercell matrix entries must be positive integers"
+                    )
+                supercell = tuple(int(value) for value in rounded)
+            else:
+                raise ValueError(
+                    f"format={format!r} does not encode a non-diagonal IFC3 "
+                    "topology; use TDEP/ShengBTE input or a diagonal supercell"
+                )
 
         match format:
             case 'sparse' | 'numpy':
@@ -99,14 +450,26 @@ class ThirdOrder(ForceConstant):
                               cell=unit_cell,
                               pbc=[1, 1, 1])
 
-                _third_order = COO.from_scipy_sparse(load_npz(os.path.join(folder, THIRD_ORDER_FILE_SPARSE))) \
-                    .reshape((n_unit_atoms * 3, n_replicas * n_unit_atoms * 3, n_replicas * n_unit_atoms * 3)) \
+                _third_order = (
+                    COO.from_scipy_sparse(
+                        load_npz(os.path.join(folder, THIRD_ORDER_FILE_SPARSE))
+                    )
+                    .reshape(
+                        (
+                            n_unit_atoms * 3,
+                            n_replicas * n_unit_atoms * 3,
+                            n_replicas * n_unit_atoms * 3,
+                        )
+                    )
                     .astype(np.float64)
-                third_order = ThirdOrder(atoms=atoms,
-                                         replicated_positions=replicated_atoms.positions,
-                                         supercell=supercell,
-                                         value=_third_order,
-                                         folder=folder)
+                )
+                third_order = ThirdOrder(
+                    atoms=atoms,
+                    replicated_positions=replicated_atoms.positions,
+                    supercell=supercell,
+                    value=_third_order,
+                    folder=folder,
+                )
 
             case 'eskm' | 'lammps':
                 if format == 'eskm':
@@ -155,20 +518,77 @@ class ThirdOrder(ForceConstant):
                         logging.info('Trying to open POSCAR')
                         atoms = ase.io.read(config_path)
 
+                if atoms_override is not None:
+                    if format not in (
+                        "qe-sheng",
+                        "shengbte-qe",
+                        "qe-d3q",
+                        "shengbte-d3q",
+                    ):
+                        raise ValueError(
+                            "atoms_override is only valid for QE q2r-backed IFC3 formats"
+                        )
+                    header = qe_io.read_q2r_header(
+                        os.path.join(folder, "espresso.ifc2")
+                    )
+                    # IFC2-only loading may diagnose and ignore an unrelated
+                    # auxiliary structure. IFC2+IFC3 cannot: the third-order
+                    # tensor has the same atom labels, so a mismatch would
+                    # silently combine two different crystals.
+                    qe_io.validate_q2r_auxiliary_structure(header, atoms, strict=True)
+                    qe_io.validate_q2r_auxiliary_structure(
+                        header, atoms_override, strict=True
+                    )
+                    # IFC2 supplies the authoritative q2r geometry and atom
+                    # order, but IFC2 and IFC3 must not share one mutable
+                    # Atoms instance. Otherwise wrapping or translating one
+                    # observable silently changes the other's Fourier gauge.
+                    atoms = atoms_override.copy()
+
                 match format:
                     case ("vasp-sheng" | "shengbte") | ("qe-sheng" | "shengbte-qe"):
                         # load VASP third order force constant
                         third_file = os.path.join(folder, 'FORCE_CONSTANTS_3RD')
-                        third_order = shengbte_io.read_third_order_matrix(third_file, atoms, supercell, order='C')
+                        third_order, translation_support = (
+                            shengbte_io.read_third_order_matrix(
+                                third_file,
+                                atoms,
+                                supercell,
+                                order="C",
+                                return_support=True,
+                            )
+                        )
                     case _:
                         # load d3q third order force constant
                         third_file = os.path.join(folder, 'FORCE_CONSTANTS_3RD_D3Q')
-                        third_order = shengbte_io.read_third_d3q(third_file, atoms, supercell, order='C')
-                third_order = ThirdOrder.from_supercell(atoms=atoms,
-                                                        grid_type=grid_type,
-                                                        supercell=supercell,
-                                                        value=third_order,
-                                                        folder=folder)
+                        third_order = qe_io.read_third_d3q(
+                            third_file, atoms, supercell, order="C"
+                        )
+                        translation_support = None
+                third_order = ThirdOrder.from_supercell(
+                    atoms=atoms,
+                    grid_type=grid_type,
+                    supercell=supercell,
+                    value=third_order,
+                    # d3q writes explicit unrecentered cell indices; retain
+                    # that native direct Fourier gauge.
+                    ifc_interpolation_hint=(
+                        "periodic"
+                        if format
+                        in (
+                            "qe-d3q",
+                            "shengbte-d3q",
+                            "vasp-d3q",
+                        )
+                        else None
+                    ),
+                    folder=folder,
+                    **(
+                        {"translation_support": translation_support}
+                        if translation_support is not None
+                        else {}
+                    ),
+                )
 
             case 'hiphive':
                 filename = 'atom_prim.xyz'
@@ -177,9 +597,11 @@ class ThirdOrder(ForceConstant):
                 try:
                     import kaldo.interfaces.hiphive_io as hiphive_io
                 except ImportError:
-                    logging.error('In order to use hiphive along with kaldo, hiphive is required. \
+                    logging.error(
+                        "In order to use hiphive along with kaldo, hiphive is required. \
                         Please consider installing hihphive. More info can be found at: \
-                        https://hiphive.materialsmodeling.org/')
+                        https://hiphive.materialsmodeling.org/"
+                    )
 
                 atom_prime_file = os.path.join(folder, filename)
                 replicated_atom_prime_file = os.path.join(folder, replicated_filename)
@@ -213,10 +635,21 @@ class ThirdOrder(ForceConstant):
                     attach_snf_metadata,
                     resolve_tdep_supercell,
                 )
+                from kaldo.grid import SupercellGrid
 
                 uc, sc, diagonal_supercell = resolve_tdep_supercell(folder, supercell, supercell_matrix)
                 fc_filename = os.path.join(folder, 'infile.forceconstant_thirdorder')
 
+                matrix = np.rint(
+                    np.asarray(sc.cell) @ np.linalg.inv(np.asarray(uc.cell))
+                ).astype(int)
+                physical_grid = SupercellGrid(matrix, order="C")
+                third_ifcs, support = parse_tdep_third_forceconstant(
+                    fc_filename=fc_filename,
+                    primitive=uc,
+                    supercell_grid=physical_grid,
+                    return_support=True,
+                )
                 if diagonal_supercell is None:
                     # Deliberately the det(M) class table, not the per-pair
                     # table SecondOrder uses since issue #297: nothing pins
@@ -224,20 +657,23 @@ class ThirdOrder(ForceConstant):
                     # independent.
                     kw = build_nondiag_observable_kwargs(uc, sc)
                     mapping = kw.pop("_mapping")
-                    third_ifcs = parse_tdep_third_forceconstant(fc_filename=fc_filename, primitive=uc,
-                                                                grid=kw["grid"])
-                    third_order = cls(value=third_ifcs, folder=folder, **kw)
+                    third_order = cls(
+                        value=third_ifcs,
+                        folder=folder,
+                        translation_support=support,
+                        **kw,
+                    )
                     return attach_snf_metadata(third_order, mapping)
 
                 supercell = diagonal_supercell
-                third_ifcs = parse_tdep_third_forceconstant(fc_filename=fc_filename, primitive=uc,
-                                                            supercell=supercell)
-
-                third_order = cls(atoms=uc,
-                                  replicated_positions=sc.positions,
-                                  supercell=supercell,
-                                  value=third_ifcs,
-                                  folder=folder)
+                third_order = cls.from_supercell(
+                    atoms=uc,
+                    supercell=supercell,
+                    grid_type="C",
+                    value=third_ifcs,
+                    folder=folder,
+                    translation_support=support,
+                )
 
             case 'gpumd':
                 from kaldo.interfaces import gpumd_io
@@ -260,16 +696,42 @@ class ThirdOrder(ForceConstant):
 
         return third_order
 
-
     def save(self, filename='THIRD', format='sparse', min_force=1e-6):
+        """Export a compact periodic IFC3 tensor in a legacy file format.
+
+        The existing ESKM and sparse/numpy formats do not serialize an
+        arbitrary ``TranslationSupport``. Export is therefore permitted only
+        when the tensor axes exactly match the physical compact support;
+        literal file translations or Wigner--Seitz-expanded tensors would be
+        irreversibly mislabelled and are rejected.
+
+        Parameters
+        ----------
+        filename : str
+            ESKM output name. Sparse/numpy output retains the historical
+            fixed filenames in ``self.folder``.
+        format : {"eskm", "sparse", "numpy"}
+            Legacy target representation.
+        min_force : float
+            Norm threshold used when writing ESKM text blocks.
+        """
+        if format in ("eskm", "sparse", "numpy"):
+            compact_support = TranslationSupport.periodic(self.supercell_grid)
+            if self.translation_support.provenance != "periodic" or not np.array_equal(
+                self.translation_support.translations,
+                compact_support.translations,
+            ):
+                raise ValueError(
+                    f"format={format!r} cannot preserve this IFC3 translation "
+                    "support; export requires compact periodic axes"
+                )
         folder = self.folder
         filename = folder + '/' + filename
         n_atoms = self.atoms.positions.shape[0]
         match format:
             case 'eskm':
                 logging.info('Exporting third in eskm format')
-                n_replicas = self.n_replicas
-                n_replicated_atoms = n_atoms * n_replicas
+                n_replicated_atoms = n_atoms * self.n_translations
                 tenjovermoltoev = 10 * units.J / units.mol
                 third = self.value.reshape((n_atoms, 3, n_replicated_atoms, 3, n_replicated_atoms, 3)) / tenjovermoltoev
                 with open(filename, 'w') as out_file:
@@ -292,12 +754,18 @@ class ThirdOrder(ForceConstant):
                                             out_file.write('\n')
                 logging.info('Done exporting third.')
             case 'sparse' | 'numpy':
-                config_file = folder + REPLICATED_ATOMS_THIRD_FILE
+                config_file = os.path.join(folder, REPLICATED_ATOMS_THIRD_FILE)
                 ase.io.write(config_file, self.replicated_atoms, format='extxyz')
 
-                save_npz(folder + '/' + THIRD_ORDER_FILE_SPARSE, self.value.reshape((n_atoms * 3 * self.n_replicas *
-                                                                            n_atoms * 3, self.n_replicas *
-                                                                            n_atoms * 3)).to_scipy_sparse())
+                save_npz(
+                    folder + "/" + THIRD_ORDER_FILE_SPARSE,
+                    self.value.reshape(
+                        (
+                            n_atoms * 3 * self.n_translations * n_atoms * 3,
+                            self.n_translations * n_atoms * 3,
+                        )
+                    ).to_scipy_sparse(),
+                )
             case _:
                 super(ThirdOrder, self).save(filename, format)
 

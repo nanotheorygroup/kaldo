@@ -155,6 +155,7 @@ class Conductivity(Storable):
         self.is_classic = self.phonons.is_classic
         self.third_bandwidth = self.phonons.third_bandwidth
         self.include_isotopes = self.phonons.include_isotopes
+        self.ifc_cache_key = self.phonons.ifc_cache_key
 
         # initalize QHGK method
         self.diffusivity_bandwidth = diffusivity_bandwidth
@@ -343,10 +344,16 @@ class Conductivity(Storable):
 
 
     def calculate_conductivity_and_diffusivity_qhgk(self):
+        """Compute QHGK conductivity and diffusivity from mode-pair fluxes.
+
+        The temporary harmonic objects share ``self.phonons``' interpolation
+        settings so their frequencies, eigenvectors, heat capacities, and
+        flux operators stay on one dynamical-matrix definition.
+        """
         phonons = self.phonons
         omega = phonons.omega.reshape((phonons.n_k_points, phonons.n_modes))
         volume = np.abs(np.linalg.det(phonons.atoms.cell))
-        q_points = phonons._reciprocal_grid.unitary_grid(is_wrapping=False)
+        q_points = phonons._reciprocal_grid.fractional_points
         physical_mode = phonons.physical_mode
         conductivity_per_mode = np.zeros((self.phonons.n_k_points, self.phonons.n_modes, 3, 3), dtype=np.float32)
         diffusivity_with_axis = np.zeros_like(conductivity_per_mode)
@@ -386,8 +393,8 @@ class Conductivity(Storable):
                 temperature=self.temperature,
                 is_classic=self.is_classic,
                 is_nw=phonons.is_nw,
-                is_unfolding=phonons.is_unfolding,
-                is_amorphous=phonons._is_amorphous
+                ifc_interpolation=phonons.ifc_interpolation,
+                is_amorphous=phonons._is_amorphous,
             )
             heat_capacity_2d = phonon.heat_capacity_2d
             if phonons.n_modes > 100:

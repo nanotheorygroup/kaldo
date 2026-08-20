@@ -7,6 +7,8 @@ import numpy as np
 from numpy.typing import ArrayLike
 from kaldo.interfaces.eskm_io import import_from_files
 import kaldo.interfaces.shengbte_io as shengbte_io
+import kaldo.interfaces.vasp_io as vasp_io
+import kaldo.interfaces.qe_io as qe_io
 from kaldo.interfaces.tdep_io import parse_tdep_forceconstant
 from kaldo.controllers.displacement import calculate_second, try_symmetrize_ifc
 from kaldo.parallel import is_parallel, validate_parallel_calculator, maybe_warn_ml_delta_shift
@@ -28,10 +30,13 @@ def acoustic_sum_rule(dynmat):
 
 
 class SecondOrder(ForceConstant):
+    """Second-order IFC observable."""
+
     def __init__(self, value: ArrayLike | None, is_acoustic_sum: bool = False, *kargs, **kwargs):
-        # apply acoustic sum rule before initialize in forceconstnat
-        # (value is None for the empty object used to compute force constants
-        # later; calculate() applies the sum rule itself in that case)
+        """Initialize IFCs and optionally enforce the translational sum rule."""
+        # Apply the acoustic sum rule before the base class validates and
+        # stores the tensor. ``value`` is None for an empty finite-difference
+        # object; calculate() applies the rule after generating IFCs instead.
         self.is_acoustic_sum = is_acoustic_sum
         if is_acoustic_sum and value is not None:
             value = acoustic_sum_rule(value)
@@ -39,7 +44,6 @@ class SecondOrder(ForceConstant):
         super().__init__(value=value, *kargs, **kwargs)
 
         self.n_modes = self.atoms.positions.shape[0] * 3
-        self._list_of_replicas = None  # TODO: why overwrite _list_of_replicas here?
         self.storage = "numpy"
 
     @classmethod
@@ -49,7 +53,15 @@ class SecondOrder(ForceConstant):
                        supercell: tuple[int, int, int] = None,
                        value: ArrayLike | None = None,
                        is_acoustic_sum: bool = False,
-                       folder: str = "kALDo"):
+                       folder: str = "kALDo", translation_support=None, ifc_interpolation_hint=None):
+        """Construct an IFC2 container on a physical supercell topology.
+
+        ``supercell`` determines periodic equivalence, whereas
+        ``translation_support`` determines the ordered Fourier axis stored by
+        ``value``.  They normally coincide for compact finite-displacement
+        data but deliberately differ for literal file translations and
+        Wigner--Seitz interpolation.
+        """
         # acoustic sum rule will be applied later in SecondOrder.__init__ if applicable
         ifc = super().from_supercell(
             atoms=atoms,
@@ -57,7 +69,10 @@ class SecondOrder(ForceConstant):
             grid_type=grid_type,
             value=value,
             is_acoustic_sum=is_acoustic_sum,
-            folder=folder)
+            folder=folder,
+            translation_support=translation_support,
+            ifc_interpolation_hint=ifc_interpolation_hint,
+        )
         return ifc
 
     @classmethod
@@ -76,8 +91,11 @@ class SecondOrder(ForceConstant):
         ----------
         folder : str
             Specifies where to load the data files.
-        supercell : tuple[int, int, int]
-            The supercell for the third order force constant matrix.
+        supercell : tuple[int, int, int] or ndarray
+            Diagonal repetitions or an integer 3 by 3 supercell matrix for
+            the second-order force constants. Matrix topology is currently
+            supported by the TDEP loader; other file formats require a
+            diagonal three-vector.
             Default: (1, 1, 1)
         format : str
             Format of the second order force constant information being loaded into SecondOrder object.
@@ -86,10 +104,9 @@ class SecondOrder(ForceConstant):
             If true, the acoustic sum rule is applied to the dynamical matrix.
             Default: False
         supercell_matrix : np.ndarray, optional
-            3x3 integer supercell expansion matrix. Accepted for API symmetry
-            with ``ForceConstants.from_folder``; for ``format='tdep'`` the
-            (possibly non-diagonal) supercell is inferred from
-            ``infile.ucposcar`` / ``infile.ssposcar`` instead.
+            Expected 3x3 integer supercell expansion matrix. For TDEP the
+            structure files remain authoritative, and a supplied matrix must
+            match their inferred (possibly non-diagonal) tiling.
             Default: None
 
         Returns
@@ -97,6 +114,28 @@ class SecondOrder(ForceConstant):
         second_order : SecondOrder object
             A new instance of the SecondOrder class
         """
+
+        supplied_matrix = np.asarray(supercell)
+        if supplied_matrix.shape == (3, 3) and format != "tdep":
+            diagonal = np.diag(supplied_matrix)
+            if np.array_equal(supplied_matrix, np.diag(diagonal)):
+                # Legacy readers operate on repetition triples. A diagonal
+                # matrix carries exactly the same topology and is losslessly
+                # normalized here; only genuine non-diagonal topology is
+                # unsupported.
+                rounded = np.rint(diagonal)
+                if not np.allclose(diagonal, rounded, rtol=0, atol=1e-12) or np.any(
+                    rounded <= 0
+                ):
+                    raise ValueError(
+                        "diagonal supercell matrix entries must be positive integers"
+                    )
+                supercell = tuple(int(value) for value in rounded)
+            else:
+                raise ValueError(
+                    f"format={format!r} does not encode a non-diagonal IFC2 "
+                    "topology; use format='tdep' or a diagonal supercell"
+                )
 
         match format:
             case "numpy":
@@ -174,17 +213,41 @@ class SecondOrder(ForceConstant):
                 # TODO: we need to read the grid type here
                 n_replicas = np.prod(supercell)
                 n_unit_atoms = atoms.positions.shape[0]
+                qe_header = None
                 match format:
                     case ("qe-sheng" | "shengbte-qe") | ("qe-d3q" | "shengbte-d3q"):
                         # load QE second order force constant
                         filename = os.path.join(folder, "espresso.ifc2")
                         if not os.path.isfile(filename):
                             raise FileNotFoundError(f"File {filename} not found.")
-                        _second_order, supercell, charges = shengbte_io.read_second_order_qe_matrix(filename)
-                        if (not charges is None):
+                        qe_header = qe_io.read_q2r_header(filename)
+                        # q2r's header fixes the lattice and atom order used
+                        # by every IFC block. Do not let an independently
+                        # relaxed CONTROL/POSCAR silently reinterpret them.
+                        qe_io.validate_q2r_auxiliary_structure(qe_header, atoms)
+                        control_dielectric = atoms.info.get("dielectric")
+                        control_charges = (
+                            atoms.get_array("charges")
+                            if "charges" in atoms.arrays
+                            else None
+                        )
+                        atoms = qe_header.to_ase_atoms(auxiliary=atoms)
+                        n_unit_atoms = len(atoms)
+                        _second_order, supercell, charges = (
+                            qe_io.read_second_order_qe_matrix(
+                                filename, header=qe_header
+                            )
+                        )
+                        n_replicas = np.prod(supercell)
+                        if qe_header.has_zstar:
                             atoms.info['dielectric'] = charges[0, :, :]
                             atoms.set_array('charges', charges[1:, :, :], shape=(3, 3))
-                        _second_order = _second_order.reshape((n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
+                        elif control_dielectric is not None and control_charges is not None:
+                            atoms.info["dielectric"] = control_dielectric
+                            atoms.set_array("charges", control_charges, shape=(3, 3))
+                        _second_order = _second_order.reshape(
+                            (n_unit_atoms, 3, n_replicas, n_unit_atoms, 3)
+                        )
                         _second_order = _second_order.transpose(3, 4, 2, 0, 1)
                         # must match the C-order flattening of (t1, t2, t3) in the reshape above
                         grid_type = "C"
@@ -195,8 +258,12 @@ class SecondOrder(ForceConstant):
                             filename = os.path.join(folder, "FORCE_CONSTANTS")
                         if not os.path.isfile(filename):
                             raise FileNotFoundError(f"File {filename} not found.")
-                        _second_order = shengbte_io.read_second_order_matrix(filename, supercell)
-                        _second_order = _second_order.reshape((n_unit_atoms, 3, n_replicas, n_unit_atoms, 3))
+                        _second_order = vasp_io.read_second_order_matrix(
+                            filename, supercell
+                        )
+                        _second_order = _second_order.reshape(
+                            (n_unit_atoms, 3, n_replicas, n_unit_atoms, 3)
+                        )
                         # the reader's replica axis is C-ordered, like the QE
                         # case above; declared together with the vasp-* case in
                         # ThirdOrder.load (see #272 for the QE analogue)
@@ -207,6 +274,9 @@ class SecondOrder(ForceConstant):
                     supercell=supercell,
                     value=_second_order[np.newaxis, ...],
                     is_acoustic_sum=True,
+                    ifc_interpolation_hint=(
+                        "wigner-seitz" if qe_header is not None else None
+                    ),
                     folder=folder,
                 )
 
@@ -252,30 +322,47 @@ class SecondOrder(ForceConstant):
                     build_nondiag_observable_kwargs,
                     attach_snf_metadata,
                     resolve_tdep_supercell,
-                    scan_tdep_lattice_vectors,
                 )
-                from kaldo.grid import Grid
+                from kaldo.grid import SupercellGrid
 
                 uc, sc, diagonal_supercell = resolve_tdep_supercell(folder, supercell, supercell_matrix)
                 fc_file = os.path.join(folder, "infile.forceconstant")
 
+                matrix = np.rint(
+                    np.asarray(sc.cell) @ np.linalg.inv(np.asarray(uc.cell))
+                ).astype(int)
+                physical_grid = SupercellGrid(matrix, order="C")
+                d2, support = parse_tdep_forceconstant(
+                    fc_file=fc_file,
+                    primitive=uc,
+                    supercell_grid=physical_grid,
+                    return_support=True,
+                )
                 if diagonal_supercell is None:
                     # Per-pair lattice vectors from the file, not the det(M)
                     # congruence classes: exact at commensurate q either way,
                     # but only the per-pair table matches TDEP/phonopy/ALAMODE
                     # between commensurate points (issue #297).
-                    kw = build_nondiag_observable_kwargs(
-                        uc, sc, replica_table=scan_tdep_lattice_vectors(fc_file))
+                    kw = build_nondiag_observable_kwargs(uc, sc)
                     mapping = kw.pop("_mapping")
-                    d2 = parse_tdep_forceconstant(fc_file=fc_file, primitive=uc, grid=kw["grid"])
-                    second_order = SecondOrder(value=d2, is_acoustic_sum=is_acoustic_sum, folder=folder, **kw)
+                    second_order = SecondOrder(
+                        value=d2,
+                        is_acoustic_sum=is_acoustic_sum,
+                        folder=folder,
+                        translation_support=support,
+                        **kw,
+                    )
                     return attach_snf_metadata(second_order, mapping)
 
                 supercell = diagonal_supercell
-                d2 = parse_tdep_forceconstant(fc_file=fc_file, primitive=uc, grid=Grid(supercell, order="C"))
-                second_order = SecondOrder(
-                    atoms=uc, replicated_positions=sc.positions, supercell=supercell, value=d2,
-                    is_acoustic_sum=is_acoustic_sum, folder=folder
+                second_order = SecondOrder.from_supercell(
+                    atoms=uc,
+                    supercell=supercell,
+                    grid_type="C",
+                    value=d2,
+                    is_acoustic_sum=is_acoustic_sum,
+                    folder=folder,
+                    translation_support=support,
                 )
 
             case "gpumd":
