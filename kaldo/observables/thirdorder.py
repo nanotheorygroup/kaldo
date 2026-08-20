@@ -13,6 +13,7 @@ from kaldo.observables.forceconstant import ForceConstant
 from ase import Atoms
 import os
 import ase.io
+import hashlib
 import numpy as np
 from scipy.sparse import load_npz, save_npz
 from sparse import COO
@@ -33,6 +34,24 @@ THIRD_ORDER_FILE_SPARSE = 'third.npz'
 THIRD_ORDER_FILE = 'third.npy'
 
 _IFC_INTERPOLATION_MODES = ("auto", "wigner-seitz", "periodic")
+
+
+def _ifc3_source_digest(source_value):
+    """Content digest of the raw IFC3 tensor, for interpolation caching.
+
+    ``id()`` is not a safe cache key: in-place mutation keeps the id while
+    changing the content, and a freed id can be reused by a new object.
+    Hash the actual buffers instead (sparse coordinates and data, or the
+    dense array).
+    """
+    h = hashlib.sha256()
+    if hasattr(source_value, "coords") and hasattr(source_value, "data"):
+        h.update(np.ascontiguousarray(source_value.coords).tobytes())
+        h.update(np.ascontiguousarray(source_value.data).tobytes())
+    else:
+        h.update(np.ascontiguousarray(source_value).tobytes())
+    h.update(str(source_value.shape).encode())
+    return h.hexdigest()[:16]
 
 
 @dataclass(frozen=True)
@@ -158,7 +177,7 @@ class ThirdOrder(ForceConstant):
             raise ValueError("third-order IFC value is not available")
         value = _rank8_ifc3(source_value, len(self.atoms), support.size)
 
-        cache_key = (mode, id(source_value), support.digest)
+        cache_key = (mode, _ifc3_source_digest(source_value), support.digest)
         cache = getattr(self, "_interpolation_cache", None)
         if cache is None:
             cache = {}
