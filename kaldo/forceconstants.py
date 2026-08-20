@@ -17,11 +17,11 @@ MAIN_FOLDER = 'displacement'
 
 
 def _normalize_supercell(supercell: tuple[int, int, int] | np.ndarray | None):
-    """Return an exact diagonal triple or integer expansion matrix.
+    """Return a diagonal triple or an exact integer expansion matrix.
 
-    Supercell indices define a finite lattice quotient and therefore cannot be
-    rounded approximately. Length-three repetitions must also be positive;
-    general matrices are checked for nonsingularity by ``SupercellGrid``.
+    Length-three repetitions keep their historical int() coercion; general
+    matrices define a finite lattice quotient, so they must be exactly
+    integer and are checked for nonsingularity by ``SupercellGrid``.
     """
     if supercell is None:
         return None
@@ -357,38 +357,6 @@ class ForceConstants:
             ).reshape(grid.grid_size, grid.grid_size)
 
 
-    @staticmethod
-    def _project_second_onto_snf_class_table(raw_pair, ifc_obj, mapping):
-        """Reindex per-pair IFC2 onto the det(M) congruence-class table.
-
-        After PR #301, ``SecondOrder`` on a non-diagonal TDEP supercell stores
-        IFC2 on the unique per-pair lattice vectors from the file (correct for
-        Fourier phases) while ``_snf_mapping['replica_table']`` keeps the full
-        ``det(M)`` class table (closed under supercell PBC). Translational
-        expansion via :meth:`irred_to_full` needs that closed table.
-
-        Returns
-        -------
-        raw_class : ndarray, shape (n_uc, 3, n_class, n_uc, 3)
-        class_grid : NonDiagonalGrid
-        """
-        class_table = np.asarray(mapping["replica_table"], dtype=int)
-        M = np.rint(mapping["M"]).astype(int)
-        pair_table = np.asarray(ifc_obj._direct_grid._replica_table, dtype=int)
-        n_uc = raw_pair.shape[0]
-        n_class = len(class_table)
-        raw_class = np.zeros((n_uc, 3, n_class, n_uc, 3), dtype=np.float64)
-        for r, R in enumerate(pair_table):
-            class_id = int(wrap_lattice_vector_to_replica(R, class_table, M))
-            # Two per-pair R's in the same class are periodic images
-            # (they differ by a supercell lattice vector); the supercell
-            # force constant is the sum over images. With TDEP cutoffs
-            # below half the box each class has a single image, so this
-            # reduces to a plain assignment.
-            raw_class[:, :, class_id, :, :] += raw_pair[:, :, r, :, :]
-        class_grid = NonDiagonalGrid(replica_table=class_table, M=M)
-        return raw_class, class_grid
-
     def irred_to_full(self, order: int, grid: Grid | None = None) -> np.ndarray:
         """Reconstruct the full IFC tensor from the irreducible part stored in this object.
 
@@ -416,8 +384,9 @@ class ForceConstants:
         order : int
             IFC order; 2 or 3.
         grid : Grid, optional
-            Supercell grid.  Defaults to the grid of the corresponding order object
-            (``self.second._direct_grid`` or ``self.third._direct_grid``).
+            Supercell grid.  Defaults to a grid reconstructed from the
+            object's SNF mapping (non-diagonal) or its translation
+            support (diagonal).
 
         Returns
         -------
@@ -434,28 +403,73 @@ class ForceConstants:
             raw = np.asarray(ifc_obj.value[0], dtype=np.float64)
         else:
             ifc_obj = self.third
-            n_rep_obj = ifc_obj.n_replicas
+            n_rep_obj = ifc_obj.translation_support.size
             raw = ifc_obj.value
             if hasattr(raw, 'todense'):
                 raw = raw.todense()
             raw = np.asarray(raw, dtype=np.float64).reshape(n_unit, 3, n_rep_obj, n_unit, 3, n_rep_obj, n_unit, 3)
 
         if grid is None:
-            grid = ifc_obj._direct_grid
-
-        # Per-pair IFC2 on SNF is not closed under replica addition; project
-        # onto the det(M) class table before building shifted_rep.
-        if (
-            order == 2
-            and isinstance(grid, NonDiagonalGrid)
-            and getattr(ifc_obj, "_snf_mapping", None) is not None
-        ):
-            mapping = ifc_obj._snf_mapping
-            class_table = np.asarray(mapping["replica_table"], dtype=int)
-            if len(grid._replica_table) != len(class_table):
-                raw, grid = self._project_second_onto_snf_class_table(
-                    raw, ifc_obj, mapping,
+            mapping = getattr(ifc_obj, "_snf_mapping", None)
+            if mapping is not None:
+                grid = NonDiagonalGrid(
+                    replica_table=np.asarray(mapping["replica_table"], dtype=int),
+                    M=mapping["M"],
                 )
+            else:
+                support = ifc_obj.translation_support
+                matrix = np.asarray(support.supercell.matrix)
+                if not np.array_equal(matrix, np.diag(np.diag(matrix))):
+                    raise ValueError(
+                        "irred_to_full needs an SNF mapping for a "
+                        "non-diagonal supercell; this object has none."
+                    )
+                grid = Grid(
+                    tuple(int(x) for x in np.diag(matrix)),
+                    support.supercell.order,
+                )
+
+        # The stored translation axis may hold literal per-pair file vectors
+        # in an order or count that differs from the grid's
+        # replica enumeration. Translational expansion needs the closed
+        # det(M) table, so fold the axis onto grid indices first. Congruent
+        # vectors are periodic images; their force constants add.
+        translations = np.asarray(
+            ifc_obj.translation_support.translations, dtype=int
+        )
+        if isinstance(grid, NonDiagonalGrid):
+            class_table = np.asarray(grid._replica_table, dtype=int)
+            M = np.rint(grid._M).astype(int)
+            class_ids = [
+                int(wrap_lattice_vector_to_replica(R, class_table, M))
+                for R in translations
+            ]
+            if any(class_id < 0 for class_id in class_ids):
+                raise ValueError(
+                    "an IFC translation does not reduce to any replica class"
+                )
+        else:
+            class_ids = np.ravel_multi_index(
+                np.mod(translations, grid.grid_shape).T,
+                grid.grid_shape,
+                order=grid.order,
+            )
+        if order == 2:
+            folded = np.zeros(
+                (n_unit, 3, grid.grid_size, n_unit, 3), dtype=np.float64
+            )
+            for source_id, class_id in enumerate(class_ids):
+                folded[:, :, class_id, :, :] += raw[:, :, source_id, :, :]
+            raw = folded
+        else:
+            folded = np.zeros(
+                (n_unit, 3, grid.grid_size, n_unit, 3, grid.grid_size, n_unit, 3),
+                dtype=np.float64,
+            )
+            for r2, c2 in enumerate(class_ids):
+                for r3, c3 in enumerate(class_ids):
+                    folded[:, :, c2, :, :, c3, :, :] += raw[:, :, r2, :, :, r3, :, :]
+            raw = folded
 
         n_rep = grid.grid_size
         # Relative-replica axes in the irreducible tensor: 2, 5, ... (one per non-first atom)
@@ -475,7 +489,6 @@ class ForceConstants:
             fc_full[rep_i] = temp
 
         return fc_full
-
 
     def elastic_prop(self):
         """
