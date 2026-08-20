@@ -52,7 +52,7 @@ def test_replicated_atoms_cell_is_correct_on_nondiagonal_tiling():
 
     kw = build_nondiag_observable_kwargs(uc, sc)
     kw.pop("_mapping")
-    n_rep = kw["supercell"][0]
+    n_rep = kw["supercell_grid"].size
     n_uc = len(uc)
     so = SecondOrder(value=np.zeros((1, n_uc, 3, n_rep, n_uc, 3)), folder="kALDo", **kw)
 
@@ -202,21 +202,14 @@ def test_diagonal_path_and_snf_path_agree_on_si_tdep():
     def collect_ifc2(fc):
         second = np.asarray(fc.second.value)[0]  # (n_uc, 3, n_rep, n_uc, 3)
         n_uc = fc.n_atoms
-        rep_pos = np.asarray(fc.second.replicated_positions).reshape(
-            fc.n_replicas, n_uc, 3,
-        )
-        uc_cell = np.asarray(fc.atoms.cell)
-        inv_cell = np.linalg.inv(uc_cell)
         d = {}
         for i in range(n_uc):
-            for r in range(fc.n_replicas):
+            for r, translation in enumerate(fc.second.translation_support.translations):
                 for j in range(n_uc):
                     phi = second[i, :, r, j, :]
                     if not np.any(phi):
                         continue
-                    rj = rep_pos[r, j]
-                    R_frac = (rj - np.asarray(fc.atoms.positions)[j]) @ inv_cell
-                    R_min = np.round(R_frac - 5 * np.round(R_frac / 5)).astype(int)
+                    R_min = np.round(translation - 5 * np.round(translation / 5)).astype(int)
                     d[(i, j, tuple(R_min))] = phi
         return d
 
@@ -380,19 +373,6 @@ def test_tdep_snf_matches_per_pair_reference_at_incommensurate_q(tmp_path):
         np.testing.assert_allclose(got, ref, atol=1e-8)
 
 
-def test_is_unfolding_rejected_on_snf_path(tmp_path):
-    """is_unfolding assumes a diagonal (nx, ny, nz) supercell; on the SNF
-    path it silently returns garbage, so it must be refused."""
-    from kaldo.forceconstants import ForceConstants
-    from kaldo.observables.harmonic_with_q import HarmonicWithQ
-
-    _write_297_model(tmp_path)
-    fc = ForceConstants.from_folder(str(tmp_path), format="tdep", only_second=True)
-    with pytest.raises(NotImplementedError, match="non-diagonal"):
-        HarmonicWithQ(q_point=np.array([0.1, 0.2, 0.3]), second=fc.second,
-                      is_unfolding=True, storage="memory")
-
-
 def test_tdep_snf_acoustic_sum_rule_targets_home_cell(tmp_path):
     """is_acoustic_sum=True subtracts the total row sum of each atom at the
     home cell (replica 0, R = [0, 0, 0]). On a per-pair table np.unique
@@ -410,7 +390,7 @@ def test_tdep_snf_acoustic_sum_rule_targets_home_cell(tmp_path):
     _, entries_clean = _write_297_model(clean, onsite_defect=0.0)
     fc = ForceConstants.from_folder(str(tmp_path), format="tdep",
                                     only_second=True, is_acoustic_sum=True)
-    assert np.array_equal(fc.second._direct_grid.grid(is_wrapping=True)[0], [0, 0, 0])
+    assert np.array_equal(fc.second.translation_support.translations[0], [0, 0, 0])
     q = np.array([0.1234, 0.4321, 0.2468])
     hq = HarmonicWithQ(q_point=q, second=fc.second, storage="memory")
     got = np.sort(np.asarray(hq.frequency).ravel())

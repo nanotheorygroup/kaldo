@@ -13,7 +13,7 @@ import ase.io
 import numpy as np
 import pytest
 
-from kaldo.grid import Grid, NonDiagonalGrid
+from kaldo.grid import SupercellGrid
 from kaldo.interfaces.tdep_io import (
     build_supercell_replica_mapping,
     parse_tdep_forceconstant,
@@ -34,7 +34,7 @@ def test_ifc2_grid_polymorphism_diagonal_fixture():
     supercell = (5, 5, 5)  # si-tdep ssposcar is a 5x5x5 tiling
 
     # Diagonal Grid path
-    g_diag = Grid(supercell, order="C")
+    g_diag = SupercellGrid(np.diag(supercell), order="C")
     d2_diag = parse_tdep_forceconstant(
         fc_file=str(SI_TDEP / "infile.forceconstant"),
         primitive=uc,
@@ -43,9 +43,7 @@ def test_ifc2_grid_polymorphism_diagonal_fixture():
 
     # NonDiagonalGrid path (built from the same diagonal mapping)
     mapping = build_supercell_replica_mapping(uc, sc)
-    g_snf = NonDiagonalGrid(
-        replica_table=mapping["replica_table"], M=mapping["M"],
-    )
+    g_snf = SupercellGrid(np.rint(mapping["M"]).astype(int), order="C")
     d2_snf = parse_tdep_forceconstant(
         fc_file=str(SI_TDEP / "infile.forceconstant"),
         primitive=uc,
@@ -69,15 +67,8 @@ def test_ifc2_grid_polymorphism_diagonal_fixture():
     # is in min-Cartesian-norm form (e.g. R = [0, 2, -3] for FCC primitives at
     # 5x5x5), which can fall outside Grid's [0, N) lookup range. Wrap via
     # modular arithmetic before comparing.
-    grid_shape = np.array(g_diag.grid_shape)
-    for snf_id, R in enumerate(mapping["replica_table"]):
-        R_mod = np.array(R) % grid_shape
-        diag_ids = g_diag.grid_index_to_id(R_mod, is_wrapping=False)
-        assert len(diag_ids) == 1, (
-            f"diagonal grid did not resolve replica vector {R} (mod"
-            f" {tuple(grid_shape)}) to a single id"
-        )
-        diag_id = int(diag_ids[0])
+    for snf_id, R in enumerate(g_snf.representatives):
+        diag_id = g_diag.class_id(R)
         np.testing.assert_allclose(
             d2_snf_arr[0, :, :, snf_id, :, :],
             d2_diag_arr[0, :, :, diag_id, :, :],
@@ -94,7 +85,7 @@ def test_ifc3_grid_polymorphism_diagonal_fixture():
     sc = ase.io.read(str(SI_TDEP / "infile.ssposcar"), format="vasp")
     supercell = (5, 5, 5)  # si-tdep ssposcar is a 5x5x5 tiling
 
-    g_diag = Grid(supercell, order="C")
+    g_diag = SupercellGrid(np.diag(supercell), order="C")
     d3_diag = parse_tdep_third_forceconstant(
         fc_filename=str(SI_TDEP / "infile.forceconstant_thirdorder"),
         primitive=str(SI_TDEP / "infile.ucposcar"),
@@ -102,9 +93,7 @@ def test_ifc3_grid_polymorphism_diagonal_fixture():
     )
 
     mapping = build_supercell_replica_mapping(uc, sc)
-    g_snf = NonDiagonalGrid(
-        replica_table=mapping["replica_table"], M=mapping["M"],
-    )
+    g_snf = SupercellGrid(np.rint(mapping["M"]).astype(int), order="C")
     d3_snf = parse_tdep_third_forceconstant(
         fc_filename=str(SI_TDEP / "infile.forceconstant_thirdorder"),
         primitive=uc,
@@ -119,15 +108,10 @@ def test_ifc3_grid_polymorphism_diagonal_fixture():
     # Compare slice-by-slice via the lattice-vector mapping for both pair
     # replicas (R2 and R3). SNF replica vectors may lie outside [0, N) — wrap
     # via modular arithmetic before the diagonal-grid lookup.
-    grid_shape = np.array(g_diag.grid_shape)
-    for snf_r2, R2 in enumerate(mapping["replica_table"]):
-        diag_r2 = int(
-            g_diag.grid_index_to_id(np.array(R2) % grid_shape, is_wrapping=False)[0]
-        )
-        for snf_r3, R3 in enumerate(mapping["replica_table"]):
-            diag_r3 = int(
-                g_diag.grid_index_to_id(np.array(R3) % grid_shape, is_wrapping=False)[0]
-            )
+    for snf_r2, R2 in enumerate(g_snf.representatives):
+        diag_r2 = g_diag.class_id(R2)
+        for snf_r3, R3 in enumerate(g_snf.representatives):
+            diag_r3 = g_diag.class_id(R3)
             np.testing.assert_allclose(
                 d3_snf_arr[:, :, snf_r2, :, :, snf_r3, :, :],
                 d3_diag_arr[:, :, diag_r2, :, :, diag_r3, :, :],

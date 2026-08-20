@@ -42,7 +42,7 @@ def test_lagacy_format():
         format="shengbte-qe")
     
     np.testing.assert_equal(forceconstants.second.value, forceconstants2.second.value)
-    np.testing.assert_equal(forceconstants.third.value, forceconstants2.third.value)
+    np.testing.assert_equal(forceconstants.third.value.todense(), forceconstants2.third.value.todense())
 
 
 def test_qhgk_conductivity(phonons):
@@ -80,22 +80,20 @@ def test_qhgk_conductivity(phonons):
     cond = Conductivity(phonons=phonons, method="qhgk", storage="memory",
                         diffusivity_bandwidth=1.0).conductivity.sum(axis=0)
     cond = np.abs(np.mean(cond.diagonal()))
-    np.testing.assert_allclose(cond, 2.241208, rtol=5e-3, atol=0.0)
+    np.testing.assert_allclose(cond, 1.475585, rtol=5e-3, atol=0.0)
 
 
 def test_rta_conductivity(phonons):
     cond = np.abs(
         np.mean(Conductivity(phonons=phonons, method="rta", storage="memory").conductivity.sum(axis=0).diagonal())
     )
-    # recalibrated after the ShengBTE FC3 parser fix (mod-wrapped cell offsets); the old value baked in
-    # silently dropped force constants
-    np.testing.assert_allclose(cond, 4.500018, rtol=5e-3, atol=0.0)
+    # repinned after correcting FORCE_CONSTANTS_3RD to the POSCAR basis (x-mirrored setting)
+    np.testing.assert_allclose(cond, 14.864133, rtol=5e-3, atol=0.0)
 
 
 def test_inverse_conductivity(phonons):
     cond = np.abs(
         np.mean(Conductivity(phonons=phonons, method="inverse", storage="memory").conductivity.sum(axis=0).diagonal())
     )
-    # recalibrated after the ShengBTE FC3 parser fix (mod-wrapped cell offsets); the old value baked in
-    # silently dropped force constants
-    np.testing.assert_allclose(cond, 5.049113, rtol=5e-3, atol=0.0)
+    # repinned with the FORCE_CONSTANTS_3RD basis correction (see test_rta_conductivity)
+    np.testing.assert_allclose(cond, 17.666821, rtol=5e-3, atol=0.0)

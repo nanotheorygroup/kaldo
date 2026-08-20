@@ -75,4 +75,4 @@ def test_iso_bw(phonons):
     """
     iso_bw = phonons.isotopic_bandwidth.flatten()
     triplet_mean = np.mean(iso_bw[3:6])
-    np.testing.assert_approx_equal(triplet_mean, 7.75 * 1e-3, significant=3)
+    np.testing.assert_approx_equal(triplet_mean, 7.7042 * 1e-3, significant=3)

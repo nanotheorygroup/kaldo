@@ -79,8 +79,8 @@ def test_fc3_offset_sign_convention_resolves_to_same_replica(tmp_path):
                                              (2, 1, 1), order="C")
     third_negative = read_third_order_matrix(str(negative_dir / "FORCE_CONSTANTS_3RD"), atoms_negative,
                                              (2, 1, 1), order="C")
-    dense_positive = np.asarray(third_positive).reshape((2, 3, 2, 2, 3, 2, 2, 3))
-    dense_negative = np.asarray(third_negative).reshape((2, 3, 2, 2, 3, 2, 2, 3))
+    dense_positive = third_positive.todense()
+    dense_negative = third_negative.todense()
     np.testing.assert_allclose(dense_negative, dense_positive, atol=1e-12)
     # block lands at replica 1 (the (1, 0, 0) cell on Grid((2, 1, 1), 'C'))
     np.testing.assert_allclose(dense_negative[0, :, 1, 1, :, 0, 0, :], phi, atol=1e-12)
@@ -118,8 +118,8 @@ def test_fc3_out_of_representative_range_offset_resolves_on_odd_grid(tmp_path):
                                             (3, 1, 1), order="C")
     third_unwrapped = read_third_order_matrix(str(unwrapped_dir / "FORCE_CONSTANTS_3RD"), atoms_unwrapped,
                                               (3, 1, 1), order="C")
-    dense_wrapped = np.asarray(third_wrapped).reshape((2, 3, 3, 2, 3, 3, 2, 3))
-    dense_unwrapped = np.asarray(third_unwrapped).reshape((2, 3, 3, 2, 3, 3, 2, 3))
+    dense_wrapped = third_wrapped.todense()
+    dense_unwrapped = third_unwrapped.todense()
     np.testing.assert_allclose(dense_unwrapped, dense_wrapped, atol=1e-12)
     assert np.count_nonzero(dense_unwrapped) == np.count_nonzero(phi)
 
