@@ -174,6 +174,8 @@ class ForceConstants:
         - tdep: infile.ucposcar, infile.ssposcar, infile.forceconstant, infile.forceconstant_thirdorder
                 (+ infile.forceconstant_fourthorder if ``include_fourth=True``)
         - gpumd: gpumd_fc.npz (single compact archive; supercell/geometry embedded)
+        - pheasy: POSCAR/cell.in, FORCE_CONSTANTS/fc2.hdf5, FORCE_CONSTANTS_3RD/fc3.hdf5
+                  (+ FORCE_CONSTANTS_4TH if ``include_fourth=True``; + born.fmt for the non-analytic correction)
 
         Parameters
         ----------
@@ -182,8 +184,10 @@ class ForceConstants:
         supercell : (int, int, int), optional
             Number of unit cells in each cartesian direction replicated to form the input structure.
             Default is (1, 1, 1)
-        format : 'numpy', 'eskm', 'lammps', 'vasp-sheng', 'qe-sheng', 'vasp-d3q', 'qe-d3q', 'hiphive', 'tdep', 'gpumd'
-            Format of force constant information being loaded into ForceConstants object.
+        format : str
+            Format of force constant information being loaded into ForceConstants object. One of
+            'numpy', 'eskm', 'lammps', 'vasp-sheng', 'qe-sheng', 'vasp-d3q', 'qe-d3q', 'hiphive',
+            'tdep', 'gpumd', 'pheasy'.
             Default is ``'numpy'``
         third_energy_threshold : float, optional
             When importing sparse third order force constant matrices, energies below
@@ -213,9 +217,9 @@ class ForceConstants:
 
         # Validate include_fourth early so we don't waste time loading IFC2/3
         # only to discover the format is wrong.
-        if include_fourth and format != 'tdep':
+        if include_fourth and format not in ('tdep', 'pheasy'):
             raise ValueError(
-                f"include_fourth=True is only supported for format='tdep'"
+                f"include_fourth=True is only supported for format='tdep' or format='pheasy'"
                 f" (got format={format!r})"
             )
 
@@ -245,11 +249,11 @@ class ForceConstants:
         fourth_order = None
         if include_fourth and not only_second:
             # Fourth-order loading is opt-in because most existing datasets
-            # ship only IFC2 + IFC3. Today only format='tdep' is wired
+            # ship only IFC2 + IFC3. Wired for format='tdep' and format='pheasy'
             # (validated at the top of this method).
             fourth_order = FourthOrder.load(folder=folder,
                                             supercell=target_third_supercell,
-                                            format='tdep',
+                                            format=format,
                                             supercell_matrix=supercell_matrix)
 
         return cls(atoms=atoms,
