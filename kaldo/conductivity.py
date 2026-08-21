@@ -346,9 +346,9 @@ class Conductivity(Storable):
     def calculate_conductivity_and_diffusivity_qhgk(self):
         """Compute QHGK conductivity and diffusivity from mode-pair fluxes.
 
-        The temporary harmonic objects share ``self.phonons``' interpolation
-        settings so their frequencies, eigenvectors, heat capacities, and
-        flux operators stay on one dynamical-matrix definition.
+        The temporary harmonic objects receive the same NAC BvK convention as
+        ``self.phonons``. This keeps their frequencies, eigenvectors, heat
+        capacities, and flux operators on one dynamical-matrix definition.
         """
         phonons = self.phonons
         omega = phonons.omega.reshape((phonons.n_k_points, phonons.n_modes))
@@ -395,6 +395,8 @@ class Conductivity(Storable):
                 is_nw=phonons.is_nw,
                 ifc_interpolation=phonons.ifc_interpolation,
                 is_amorphous=phonons._is_amorphous,
+                is_nac=phonons.is_nac,
+                nac_bvk_supercell_matrix=phonons.nac_bvk_supercell_matrix,
             )
             heat_capacity_2d = phonon.heat_capacity_2d
             if phonons.n_modes > 100:
