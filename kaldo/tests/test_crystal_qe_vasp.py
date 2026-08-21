@@ -7,6 +7,8 @@ from kaldo.forceconstants import ForceConstants
 import numpy as np
 from kaldo.phonons import Phonons
 from kaldo.conductivity import Conductivity
+from kaldo.observables.thirdorder import _rank8_ifc3
+from kaldo.tests.test_ifc_format_origin_invariance import _move_origin
 import pytest
 
 
@@ -97,3 +99,150 @@ def test_inverse_conductivity(phonons):
     )
     # repinned with the FORCE_CONSTANTS_3RD basis correction (see test_rta_conductivity)
     np.testing.assert_allclose(cond, 17.666821, rtol=5e-3, atol=0.0)
+
+
+def _translated_qe_si_phonons():
+    """Load Si and apply the exact wrapped-basis IFC gauge transformation."""
+    forceconstants = ForceConstants.from_folder(
+        folder="kaldo/tests/si-crystal/qe",
+        supercell=[3, 3, 3],
+        third_supercell=[3, 3, 3],
+        format="qe-sheng",
+    )
+    _move_origin(forceconstants)
+    return Phonons(
+        forceconstants=forceconstants,
+        kpts=[3, 3, 3],
+        is_classic=False,
+        temperature=300,
+        third_bandwidth=0.5,
+        storage="memory",
+    )
+
+
+def test_qe_si_rta_is_invariant_to_wrapped_crystal_origin(phonons):
+    """A rigid origin shift must not alter boundary IFC3 weight or RTA kappa.
+
+    The commensurate harmonic spectrum was already origin invariant in the
+    legacy implementation, so frequencies alone could not detect the bug.
+    The guard below checks the TRANSLATED object: the origin shift relabels
+    both IFC3 translation legs by the atom crossing counts, pushing weight
+    onto translations outside the 27 compact representatives, so the
+    invariance assertions exercise the literal-support machinery no matter
+    how compact the pristine file is. (Since the FORCE_CONSTANTS_3RD basis
+    correction, the pristine file's translations are all compact.)
+    The original origin-shift reproducer did not relabel both IFC translation
+    legs and therefore cannot support a quantitative historical percentage.
+    This regression applies the exact gauge transformation and tests the
+    physical invariant directly rather than retaining that stale number.
+    """
+    translated = _translated_qe_si_phonons()
+
+    interpolation = translated.forceconstants.third.get_interpolation("auto")
+    periodic = translated.forceconstants.third.get_interpolation("periodic")
+    periodic_translations = {
+        tuple(translation) for translation in periodic.support.translations
+    }
+    outside_periodic = np.array(
+        [
+            tuple(translation) not in periodic_translations
+            for translation in interpolation.support.translations
+        ]
+    )
+    coords = np.asarray(interpolation.value.coords)
+    boundary_entries = outside_periodic[coords[2]] | outside_periodic[coords[5]]
+    boundary_weight = np.sum(
+        np.abs(np.asarray(interpolation.value.data)[boundary_entries])
+    )
+
+    assert np.count_nonzero(boundary_entries) > 0
+    assert boundary_weight > 1.0
+    np.testing.assert_allclose(
+        translated.frequency[1:], phonons.frequency[1:], rtol=0.0, atol=2e-13
+    )
+    np.testing.assert_allclose(
+        translated.frequency[0], phonons.frequency[0], rtol=0.0, atol=2e-7
+    )
+
+    reference_conductivity = Conductivity(
+        phonons=phonons, method="rta", storage="memory"
+    ).conductivity.sum(axis=0)
+    translated_conductivity = Conductivity(
+        phonons=translated, method="rta", storage="memory"
+    ).conductivity.sum(axis=0)
+    np.testing.assert_allclose(
+        np.trace(translated_conductivity),
+        np.trace(reference_conductivity),
+        rtol=5e-4,
+        atol=0.0,
+    )
+
+
+def test_is_unfolding_maps_interpolation_plan(phonons):
+    """is_unfolding is the public control; it maps to the interpolation plan."""
+    forceconstants = phonons.forceconstants
+    unfolded = Phonons(
+        forceconstants=forceconstants,
+        kpts=[3, 3, 3],
+        temperature=300,
+        storage="memory",
+        is_unfolding=True,
+    )
+    assert unfolded.ifc_interpolation == "wigner-seitz"
+    folded = Phonons(
+        forceconstants=forceconstants,
+        kpts=[3, 3, 3],
+        temperature=300,
+        storage="memory",
+        is_unfolding=False,
+    )
+    assert folded.ifc_interpolation == "auto"
+    with pytest.raises(ValueError, match="_ifc_interpolation"):
+        Phonons(
+            forceconstants=forceconstants,
+            kpts=[3, 3, 3],
+            temperature=300,
+            storage="memory",
+            _ifc_interpolation="bogus",
+        )
+
+
+def test_use_q_symmetry_downgrades_on_expanded_file_support(phonons):
+    """File IFC3 support off the |det(M)| classes falls back, not raises.
+
+    The qe-sheng fixture stores 25 literal translations against 27 periodic
+    classes, so the symmetry-replicated anharmonic projection is not
+    validated for it. The contract is a warned downgrade: finite bandwidths
+    from the full q-point grid with the flag cleared before any artifact is
+    stored.
+    """
+    symmetric = Phonons(
+        forceconstants=phonons.forceconstants,
+        kpts=[3, 3, 3],
+        temperature=300,
+        third_bandwidth=0.5,
+        storage="memory",
+        use_q_symmetry=True,
+    )
+    bandwidth = symmetric.bandwidth
+    assert np.isfinite(bandwidth).all()
+    assert symmetric.use_q_symmetry is False
+
+
+def test_use_q_symmetry_constructs_before_third_is_available():
+    """The symmetry flag must not force IFC3 resolution at construction."""
+    forceconstants = ForceConstants.from_folder(
+        folder="kaldo/tests/si-crystal/qe",
+        supercell=[3, 3, 3],
+        only_second=True,
+        format="qe-sheng",
+    )
+    symmetric = Phonons(
+        forceconstants=forceconstants,
+        kpts=[3, 3, 3],
+        temperature=300,
+        storage="memory",
+        use_q_symmetry=True,
+    )
+    assert symmetric._use_q_symmetry is True
+    assert np.isfinite(np.asarray(symmetric.frequency)).all()
