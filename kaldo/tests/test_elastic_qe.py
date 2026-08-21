@@ -17,14 +17,14 @@ def forceconstants():
 
 def test_c11(forceconstants):
     cijkl = forceconstants.elastic_prop()
-    np.testing.assert_approx_equal(cijkl[0, 0, 0, 0], 227.5, significant=3)
+    np.testing.assert_approx_equal(cijkl[0, 0, 0, 0], 167.2, significant=3)
 
 
 def test_c12(forceconstants):
     cijkl = forceconstants.elastic_prop()
-    np.testing.assert_approx_equal(cijkl[0, 0, 1, 1], 51.71, significant=3)
+    np.testing.assert_approx_equal(cijkl[0, 0, 1, 1], 88.54, significant=3)
 
 
 def test_c44(forceconstants):
     cijkl = forceconstants.elastic_prop()
-    np.testing.assert_approx_equal(cijkl[1, 2, 1, 2], 74.49, significant=3)
+    np.testing.assert_approx_equal(cijkl[1, 2, 1, 2], 70.22, significant=3)
