@@ -113,7 +113,15 @@ class ThirdOrder(ForceConstant):
                     config_file = os.path.join(folder, "CONFIG")
                     replicated_atoms = ase.io.read(config_file, format='dlp4')
                 elif format == 'lammps':
-                    config_file = os.path.join(folder, "replicated_atoms.xyz")
+                    # Mixed-supercell support: a replicated_atoms_third.xyz
+                    # describes a (smaller) third-order supercell alongside the
+                    # second-order replicated_atoms.xyz, matching the
+                    # convention of the sparse/numpy loaders.
+                    config_file, config_name = detect_path(
+                        [REPLICATED_ATOMS_THIRD_FILE, REPLICATED_ATOMS_FILE], folder)
+                    if config_name == REPLICATED_ATOMS_THIRD_FILE:
+                        logging.info(f'Loading third-order supercell from {config_name} '
+                                     f'(mixed-supercell run; second order uses {REPLICATED_ATOMS_FILE})')
                     replicated_atoms = ase.io.read(config_file, format='extxyz')
 
                 third_file = os.path.join(folder, "THIRD")
