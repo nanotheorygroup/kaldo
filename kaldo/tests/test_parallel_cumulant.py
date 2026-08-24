@@ -25,6 +25,96 @@ def _have_ne_fixture():
            (NE_IFC / "infile.ucposcar").exists()
 
 
+def test_quartet_mode_contraction_matches_scatter():
+    """Direct quartet-space Psi4 matches the original real-space scatter."""
+    from kaldo.cumulant.free_energy import (
+        _build_psi4_modes_quartet,
+        _build_psi4_modes_quartet_batch,
+        _prepare_psi4_q1,
+        build_psi4_realspace_v,
+    )
+
+    rng = np.random.default_rng(123)
+    n_quartets = 11
+    nb = 6
+    qd = {
+        "a1": rng.integers(0, 2, n_quartets, dtype=np.int32),
+        "a2": rng.integers(0, 2, n_quartets, dtype=np.int32),
+        "a3": rng.integers(0, 2, n_quartets, dtype=np.int32),
+        "a4": rng.integers(0, 2, n_quartets, dtype=np.int32),
+        "lv2c": rng.standard_normal((n_quartets, 3)),
+        "lv3c": rng.standard_normal((n_quartets, 3)),
+        "lv4c": rng.standard_normal((n_quartets, 3)),
+        "ifc": rng.standard_normal((n_quartets, 3, 3, 3, 3)),
+        "nb": nb,
+    }
+    q1 = rng.standard_normal(3)
+    q2 = rng.standard_normal(3)
+    M1 = rng.standard_normal((nb, nb, nb)) + 1j * rng.standard_normal((nb, nb, nb))
+    M2 = rng.standard_normal((nb, nb, nb)) + 1j * rng.standard_normal((nb, nb, nb))
+
+    A = build_psi4_realspace_v(qd, q1, q2)
+    tmp = np.einsum("kab,abcd->kcd", M1, A)
+    expected = np.einsum("kcd,lcd->kl", tmp, M2)
+    left_q1 = _prepare_psi4_q1(qd, M1, q1)
+    actual = _build_psi4_modes_quartet(qd, left_q1, M2, q2)
+
+    np.testing.assert_allclose(actual, expected, rtol=1e-12, atol=1e-12)
+
+    q2_batch = rng.standard_normal((4, 3))
+    M2_batch = rng.standard_normal((4, nb, nb, nb)) \
+        + 1j * rng.standard_normal((4, nb, nb, nb))
+    expected_batch = np.stack([
+        _build_psi4_modes_quartet(qd, left_q1, M2_batch[i], q2_batch[i])
+        for i in range(len(q2_batch))
+    ])
+    actual_batch = _build_psi4_modes_quartet_batch(
+        qd, left_q1, M2_batch, q2_batch,
+    )
+    np.testing.assert_allclose(actual_batch, expected_batch, rtol=1e-12, atol=1e-12)
+
+
+def test_triplet_mode_contraction_matches_scatter():
+    """Direct triplet-space Psi3 matches the original real-space scatter."""
+    from kaldo.cumulant.free_energy import (
+        _build_psi3_modes_triplet_batch,
+        _prepare_psi3_q1,
+        build_psi3_realspace,
+    )
+
+    rng = np.random.default_rng(456)
+    n_triplets = 13
+    nb = 6
+    td = {
+        "a1": rng.integers(0, 2, n_triplets, dtype=np.int32),
+        "a2": rng.integers(0, 2, n_triplets, dtype=np.int32),
+        "a3": rng.integers(0, 2, n_triplets, dtype=np.int32),
+        "lv2c": rng.standard_normal((n_triplets, 3)),
+        "lv3c": rng.standard_normal((n_triplets, 3)),
+        "ifc": rng.standard_normal((n_triplets, 3, 3, 3)),
+        "nb": nb,
+    }
+    batch = 4
+    q2 = rng.standard_normal((batch, 3))
+    q3 = rng.standard_normal((batch, 3))
+    e1 = rng.standard_normal((nb, nb)) + 1j * rng.standard_normal((nb, nb))
+    e2 = rng.standard_normal((batch, nb, nb)) \
+        + 1j * rng.standard_normal((batch, nb, nb))
+    e3 = rng.standard_normal((batch, nb, nb)) \
+        + 1j * rng.standard_normal((batch, nb, nb))
+
+    expected = []
+    for ib in range(batch):
+        A = build_psi3_realspace(td, q2[ib], q3[ib])
+        T1 = np.einsum("abc,ak->kbc", A, np.conj(e1))
+        T2 = np.einsum("kbc,bl->klc", T1, np.conj(e2[ib]))
+        expected.append(np.einsum("klc,cm->klm", T2, np.conj(e3[ib])))
+
+    left_q1 = _prepare_psi3_q1(td, e1)
+    actual = _build_psi3_modes_triplet_batch(td, left_q1, e2, e3, q2, q3)
+    np.testing.assert_allclose(actual, np.asarray(expected), rtol=1e-12, atol=1e-12)
+
+
 @pytest.fixture(scope="module")
 def ne_fc():
     if not _have_ne_fixture():

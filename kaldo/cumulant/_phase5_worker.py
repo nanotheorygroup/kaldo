@@ -89,7 +89,8 @@ def build_energy_eval(spec):
     return BatchEnergyEvaluator(atoms, spec["eq"])
 
 
-def run_phase5_loop(nconf, sampler, contractors, energy_eval, verbose=False, logger=None):
+def run_phase5_loop(nconf, sampler, contractors, energy_eval, verbose=False, logger=None,
+                    progress=None, progress_index=None):
     """Serial Phase-5 loop over ``nconf`` draws. Used by n_workers=1 and by each worker."""
     V = np.zeros(nconf)
     V2 = np.zeros(nconf)
@@ -99,6 +100,7 @@ def run_phase5_loop(nconf, sampler, contractors, energy_eval, verbose=False, log
     dV2_tilde_dT = np.zeros(nconf)
     import time
     t0 = time.time()
+    progress_every = max(1, min(10, nconf // 100))
     for n in range(nconf):
         u, z = sampler.draw_with_z()
         V[n] = energy_eval.energy(u)
@@ -106,6 +108,8 @@ def run_phase5_loop(nconf, sampler, contractors, energy_eval, verbose=False, log
         V3[n] = contractors.V3(u)
         V4[n] = contractors.V4(u)
         V2_tilde[n], dV2_tilde_dT[n] = sampler.V2_tilde_and_dT_from_z(z)
+        if progress is not None and ((n + 1) % progress_every == 0 or n + 1 == nconf):
+            progress[progress_index, 0] = n + 1
         if verbose and logger is not None and (n + 1) % max(1, nconf // 10) == 0:
             logger.info(f"  n={n+1}/{nconf}  ({time.time()-t0:.1f}s)")
     return V, V2, V3, V4, V2_tilde, dV2_tilde_dT
@@ -141,4 +145,19 @@ def run_phase5_chunk(spec):
         np.random.PCG64(spec["seed"]).jumped(int(spec["worker_id"]))
     )
     energy_eval = build_energy_eval(spec)
-    return run_phase5_loop(int(spec["n_local"]), sampler, contractors, energy_eval)
+    progress_shm = None
+    progress = None
+    if spec.get("progress_shm_name") is not None:
+        from multiprocessing import shared_memory
+        progress_shm = shared_memory.SharedMemory(name=spec["progress_shm_name"])
+        progress = np.ndarray(
+            tuple(spec["progress_shape"]), dtype=np.int64, buffer=progress_shm.buf,
+        )
+    try:
+        return run_phase5_loop(
+            int(spec["n_local"]), sampler, contractors, energy_eval,
+            progress=progress, progress_index=int(spec["worker_id"]),
+        )
+    finally:
+        if progress_shm is not None:
+            progress_shm.close()

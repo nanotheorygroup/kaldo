@@ -135,6 +135,48 @@ def build_psi4_realspace_v(QD, q1_cart, q2_cart):
     return A
 
 
+def _quartet_mode_blocks(Mq, atom_left, atom_right):
+    """Gather per-quartet 3x3 blocks from mode outer products."""
+    xyz = np.arange(3)
+    left = 3 * atom_left[:, None] + xyz[None, :]
+    right = 3 * atom_right[:, None] + xyz[None, :]
+    blocks = Mq[:, left[:, :, None], right[:, None, :]]
+    return np.moveaxis(blocks, 1, 0)
+
+
+def _quartet_mode_blocks_batch(Mq, atom_left, atom_right):
+    """Gather per-quartet 3x3 blocks for a batch of q-points."""
+    xyz = np.arange(3)
+    left = 3 * atom_left[:, None] + xyz[None, :]
+    right = 3 * atom_right[:, None] + xyz[None, :]
+    blocks = Mq[:, :, left[:, :, None], right[:, None, :]]
+    return np.moveaxis(blocks, 2, 1)
+
+
+def _prepare_psi4_q1(QD, M1, q1_cart):
+    """Contract the q1 mode blocks with IFC4 once for an outer-q1 task."""
+    M1_blocks = _quartet_mode_blocks(M1, QD["a1"], QD["a2"])
+    left = np.einsum("nkab,nabcd->nkcd", M1_blocks, QD["ifc"], optimize=True)
+    phase_q1 = np.exp(-1j * (QD["lv2c"] @ q1_cart))
+    return left * phase_q1[:, None, None, None]
+
+
+def _build_psi4_modes_quartet(QD, left_q1, M2, q2_cart):
+    """Build mode-space Psi4 directly in quartet space, without scattering."""
+    M2_blocks = _quartet_mode_blocks(M2, QD["a3"], QD["a4"])
+    phase_q2 = np.exp(1j * ((QD["lv3c"] - QD["lv4c"]) @ q2_cart))
+    per_quartet = np.einsum("nkcd,nlcd->nkl", left_q1, M2_blocks, optimize=True)
+    return np.einsum("n,nkl->kl", phase_q2, per_quartet, optimize=True)
+
+
+def _build_psi4_modes_quartet_batch(QD, left_q1, M2, q2_cart):
+    """Build mode-space Psi4 for a batch of q2 points."""
+    M2_blocks = _quartet_mode_blocks_batch(M2, QD["a3"], QD["a4"])
+    phase_q2 = np.exp(1j * (q2_cart @ (QD["lv3c"] - QD["lv4c"]).T))
+    per_quartet = np.einsum("nkcd,bnlcd->bnkl", left_q1, M2_blocks, optimize=True)
+    return np.einsum("bn,bnkl->bkl", phase_q2, per_quartet, optimize=True)
+
+
 # ---------------------------------------------------------------------------
 # Process-pool q1 reduction: SharedMemory for flattened IFCs (QD/TD) and
 # other large read-only arrays. Nested quartet/triplet lists never leave
@@ -143,6 +185,8 @@ def build_psi4_realspace_v(QD, q1_cart, q2_cart):
 
 _QD_ARRAY_KEYS = ('a1', 'a2', 'a3', 'a4', 'lv2c', 'lv3c', 'lv4c', 'ifc')
 _TD_ARRAY_KEYS = ('a1', 'a2', 'a3', 'lv2c', 'lv3c', 'ifc')
+_F1_Q2_BATCH_SIZE = 4
+_F2_Q2_BATCH_SIZE = 8
 
 # Filled by _init_q1_worker in process-pool children; unused on the serial path.
 _WORKER_Q1 = None
@@ -236,7 +280,7 @@ def _q1_chunk_worker(iq1_list):
 
 
 def _run_parallel_q1(accumulate_key, q1_indices, n_workers, arrays, scalars):
-    """Map q1 chunks onto processes; reduce (F, S, Cv) with +."""
+    """Map individual q1 points onto processes; reduce (F, S, Cv) with +."""
     from kaldo.parallel import get_executor, is_parallel
 
     iq1s = [int(i) for i in q1_indices]
@@ -244,29 +288,33 @@ def _run_parallel_q1(accumulate_key, q1_indices, n_workers, arrays, scalars):
         return _ACCUMULATORS[accumulate_key](iq1s, arrays, scalars)
 
     n_cpu = n_workers if n_workers is not None else (os.cpu_count() or 1)
-    n_chunks = max(1, min(int(n_cpu), len(iq1s)))
-    chunks = [
-        c.tolist() for c in np.array_split(np.asarray(iq1s, dtype=int), n_chunks)
-        if c.size
-    ]
+    n_processes = max(1, min(int(n_cpu), len(iq1s)))
     payload = dict(scalars)
     payload['_accumulate'] = accumulate_key
     store = _SharedArrayStore(arrays)
     F = S = Cv = 0.0
+    n_q1 = len(iq1s)
+    report_every = max(1, n_q1 // 20)
+    t0 = time.time()
     try:
         with get_executor(
             backend='process',
-            n_workers=len(chunks),
+            n_workers=n_processes,
             initializer=_init_q1_worker,
             initargs=(1, store.spec, payload),
         ) as executor:
-            futures = [executor.submit(_q1_chunk_worker, chunk) for chunk in chunks]
+            futures = [executor.submit(_q1_chunk_worker, [iq1]) for iq1 in iq1s]
             for i, fut in enumerate(as_completed(futures), 1):
                 f, s, cv = fut.result()
                 F += f
                 S += s
                 Cv += cv
-                logging.info(f"  q1-chunk {i}/{len(chunks)}")
+                if i == 1 or i == n_q1 or i % report_every == 0:
+                    elapsed = time.time() - t0
+                    logging.info(
+                        f"  q1={i}/{n_q1} ({100.0*i/n_q1:.0f}%)  "
+                        f"elapsed={elapsed:.1f}s"
+                    )
     finally:
         store.close_and_unlink()
     return F, S, Cv
@@ -293,28 +341,32 @@ def _accumulate_f1_q1s(iq1_list, arrays, scalars):
     for _i, iq1 in enumerate(iq1_list):
         q1c = cart[iq1]
         M1 = M[iq1]
+        psi4_left = _prepare_psi4_q1(QD, M1, q1c)
         inv_w1 = inv_w[iq1]
         two1 = two_np1[iq1]
         dn1 = dn_tab[iq1]
         ddn1 = ddn_tab[iq1]
         ok1 = ok[iq1]
         w1 = q1_weights[iq1]
-        for iq2 in range(nq):
-            q2c = cart[iq2]
-            A = build_psi4_realspace_v(QD, q1c, q2c)
-            T = np.einsum("kab,abcd->kcd", M1, A)
-            Psi4 = np.einsum("kcd,lcd->kl", T, M[iq2])
+        for iq2_start in range(0, nq, _F1_Q2_BATCH_SIZE):
+            iq2_stop = min(iq2_start + _F1_Q2_BATCH_SIZE, nq)
+            q2_slice = slice(iq2_start, iq2_stop)
+            Psi4 = _build_psi4_modes_quartet_batch(
+                QD, psi4_left, M[q2_slice], cart[q2_slice],
+            )
             psi_re = np.real(Psi4)
-            mask = ok1[:, None] & ok[iq2][None, :]
-            inv_w_prod = inv_w1[:, None] * inv_w[iq2][None, :]
+            mask = ok1[None, :, None] & ok[q2_slice][:, None, :]
+            inv_w_prod = inv_w1[None, :, None] * inv_w[q2_slice][:, None, :]
 
-            two2 = two_np1[iq2][None, :]
-            dn2 = dn_tab[iq2][None, :]
-            ddn2 = ddn_tab[iq2][None, :]
-            f_w = two1[:, None] * two2 * inv_w_prod
-            s_w = -(2.0 * dn1[:, None] * two2 + two1[:, None] * 2.0 * dn2) * inv_w_prod
-            cv_w = -(2.0 * ddn1[:, None] * two2 + 2.0 * ddn2 * two1[:, None]
-                     + 8.0 * dn1[:, None] * dn2) * T_K * inv_w_prod
+            two2 = two_np1[q2_slice][:, None, :]
+            dn2 = dn_tab[q2_slice][:, None, :]
+            ddn2 = ddn_tab[q2_slice][:, None, :]
+            f_w = two1[None, :, None] * two2 * inv_w_prod
+            s_w = -(2.0 * dn1[None, :, None] * two2
+                    + two1[None, :, None] * 2.0 * dn2) * inv_w_prod
+            cv_w = -(2.0 * ddn1[None, :, None] * two2
+                     + 2.0 * ddn2 * two1[None, :, None]
+                     + 8.0 * dn1[None, :, None] * dn2) * T_K * inv_w_prod
 
             F1_acc += w1 * (psi_re * f_w * mask).sum()
             S1_acc += w1 * (psi_re * s_w * mask).sum()
@@ -353,39 +405,31 @@ def _accumulate_f2_q1s(iq1_list, arrays, scalars):
     for _i, iq1 in enumerate(iq1_list):
         i1, j1, k1 = frac_rounded[iq1]
         e1 = egvs[iq1]
+        psi3_left = _prepare_psi3_q1(TD, e1)
         w1 = omegas[iq1]
         ok1 = ok_tab[iq1]
         w_q1 = q1_weights[iq1]
-        for iq2 in range(nq):
-            i2, j2, k2 = frac_rounded[iq2]
-            i3 = (-i1 - i2) % nx
-            j3 = (-j1 - j2) % ny
-            k3 = (-k1 - k2) % nz
+        for iq2_start in range(0, nq, _F2_Q2_BATCH_SIZE):
+            iq2_stop = min(iq2_start + _F2_Q2_BATCH_SIZE, nq)
+            q2_slice = slice(iq2_start, iq2_stop)
+            q2_grid = frac_rounded[q2_slice]
+            i3 = (-i1 - q2_grid[:, 0]) % nx
+            j3 = (-j1 - q2_grid[:, 1]) % ny
+            k3 = (-k1 - q2_grid[:, 2]) % nz
             iq3 = lookup[i3, j3, k3]
-            q2c = cart[iq2]
-            q3c = cart[iq3]
 
-            A = build_psi3_realspace(TD, q2c, q3c)
-
-            e2 = egvs[iq2]
-            e3 = egvs[iq3]
-            w2 = omegas[iq2]
-            w3 = omegas[iq3]
-            ok2 = ok_tab[iq2]
-            ok3 = ok_tab[iq3]
-
-            e1c = np.conj(e1)
-            e2c = np.conj(e2)
-            e3c = np.conj(e3)
-            T1 = np.einsum("abc,ak->kbc", A, e1c)
-            T2 = np.einsum("kbc,bl->klc", T1, e2c)
-            Psi3 = np.einsum("klc,cm->klm", T2, e3c)
+            Psi3 = _build_psi3_modes_triplet_batch(
+                TD, psi3_left, egvs[q2_slice], egvs[iq3],
+                cart[q2_slice], cart[iq3],
+            )
             psisq = np.abs(Psi3) ** 2
 
-            w1_ = w1[:, None, None]
-            w2_ = w2[None, :, None]
-            w3_ = w3[None, None, :]
-            mask = ok1[:, None, None] & ok2[None, :, None] & ok3[None, None, :]
+            w1_ = w1[None, :, None, None]
+            w2_ = omegas[q2_slice][:, None, :, None]
+            w3_ = omegas[iq3][:, None, None, :]
+            mask = (ok1[None, :, None, None]
+                    & ok_tab[q2_slice][:, None, :, None]
+                    & ok_tab[iq3][:, None, None, :])
 
             inv_w_prod = np.zeros_like(psisq)
             inv_w_prod[mask] = 1.0 / (w1_ * w2_ * w3_)[mask]
@@ -398,24 +442,24 @@ def _accumulate_f2_q1s(iq1_list, arrays, scalars):
                 common_S[mask] = 8.0 * (KB ** 2) * T_K / ((HBAR ** 2) * w_prod[mask])
                 common_Cv = common_S
             else:
-                s1 = sigma_table[iq1][:, None, None]
-                s2 = sigma_table[iq2][None, :, None]
-                s3 = sigma_table[iq3][None, None, :]
+                s1 = sigma_table[iq1][None, :, None, None]
+                s2 = sigma_table[q2_slice][:, None, :, None]
+                s3 = sigma_table[iq3][:, None, None, :]
                 sigma_combo = np.sqrt(s1 ** 2 + s2 ** 2 + s3 ** 2)
                 denom1 = w1_ + w2_ + w3_
                 Re1 = denom1 / (denom1 ** 2 + sigma_combo ** 2)
                 denom2 = w1_ + w2_ - w3_
                 Re2 = denom2 / (denom2 ** 2 + sigma_combo ** 2)
 
-                n1_ = n_tab[iq1][:, None, None]
-                n2_ = n_tab[iq2][None, :, None]
-                n3_ = n_tab[iq3][None, None, :]
-                dn1_ = dn_tab[iq1][:, None, None]
-                dn2_ = dn_tab[iq2][None, :, None]
-                dn3_ = dn_tab[iq3][None, None, :]
-                ddn1_ = ddn_tab[iq1][:, None, None]
-                ddn2_ = ddn_tab[iq2][None, :, None]
-                ddn3_ = ddn_tab[iq3][None, None, :]
+                n1_ = n_tab[iq1][None, :, None, None]
+                n2_ = n_tab[q2_slice][:, None, :, None]
+                n3_ = n_tab[iq3][:, None, None, :]
+                dn1_ = dn_tab[iq1][None, :, None, None]
+                dn2_ = dn_tab[q2_slice][:, None, :, None]
+                dn3_ = dn_tab[iq3][:, None, None, :]
+                ddn1_ = ddn_tab[iq1][None, :, None, None]
+                ddn2_ = ddn_tab[q2_slice][:, None, :, None]
+                ddn3_ = ddn_tab[iq3][:, None, None, :]
 
                 f1 = (n1_ + 1.0) * (n2_ + n3_ + 1.0) + n2_ * n3_
                 f2 = n3_ * (n1_ + n2_ + 1.0) - n1_ * n2_
@@ -631,6 +675,35 @@ def build_psi3_realspace(TD, q2_cart, q3_cart):
     a1_idx, a2_idx, a3_idx = np.broadcast_arrays(a1_idx, a2_idx, a3_idx)
     np.add.at(A, (a1_idx, a2_idx, a3_idx), scaled)
     return A
+
+
+def _triplet_mode_vectors(egv, atoms):
+    """Gather Cartesian mode vectors for each triplet atom."""
+    xyz = np.arange(3)
+    indices = 3 * atoms[:, None] + xyz[None, :]
+    return np.moveaxis(egv[indices, :], 2, 1)
+
+
+def _triplet_mode_vectors_batch(egv, atoms):
+    """Gather Cartesian mode vectors for a batch of q-points."""
+    xyz = np.arange(3)
+    indices = 3 * atoms[:, None] + xyz[None, :]
+    return np.moveaxis(egv[:, indices, :], 3, 2)
+
+
+def _prepare_psi3_q1(TD, e1):
+    """Contract q1 mode vectors with IFC3 once for an outer-q1 task."""
+    e1_vectors = _triplet_mode_vectors(np.conj(e1), TD["a1"])
+    return np.einsum("nka,nabc->nkbc", e1_vectors, TD["ifc"], optimize=True)
+
+
+def _build_psi3_modes_triplet_batch(TD, left_q1, e2, e3, q2_cart, q3_cart):
+    """Build mode-space Psi3 for a batch without a real-space scatter."""
+    e2_vectors = _triplet_mode_vectors_batch(np.conj(e2), TD["a2"])
+    e3_vectors = _triplet_mode_vectors_batch(np.conj(e3), TD["a3"])
+    phase = np.exp(-1j * (q2_cart @ TD["lv2c"].T + q3_cart @ TD["lv3c"].T))
+    middle = np.einsum("nkbc,qnlb->qnklc", left_q1, e2_vectors, optimize=True)
+    return np.einsum("qnklc,qnmc,qn->qklm", middle, e3_vectors, phase, optimize=True)
 
 
 def planck_and_derivs(omega, T_K, is_classic=False):

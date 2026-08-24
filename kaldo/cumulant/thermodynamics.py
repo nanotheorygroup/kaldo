@@ -438,6 +438,13 @@ def cumulant_thermo(
         if verbose:
             logging.info(f"Phase 5: starting {len(counts)} processes "
                          f"({nconf} configs, one LAMMPS each) ...")
+        from multiprocessing import shared_memory
+        progress_shape = (len(counts), 8)  # one cache line per worker
+        progress_shm = shared_memory.SharedMemory(
+            create=True, size=int(np.prod(progress_shape)) * np.dtype(np.int64).itemsize,
+        )
+        progress = np.ndarray(progress_shape, dtype=np.int64, buffer=progress_shm.buf)
+        progress.fill(0)
         base = dict(
             sampler=sampler,
             tdep_folder=str(Path(tdep_folder)),
@@ -449,6 +456,8 @@ def cumulant_thermo(
             lammps_kwargs=lammps_kwargs,
             calculator=calculator,
             seed=seed,
+            progress_shm_name=progress_shm.name,
+            progress_shape=progress_shape,
         )
         specs = []
         for i, n_local in enumerate(counts):
@@ -456,19 +465,35 @@ def cumulant_thermo(
             spec["n_local"] = int(n_local)
             spec["worker_id"] = i
             specs.append(spec)
-        from concurrent.futures import as_completed
+        from concurrent.futures import FIRST_COMPLETED, wait
         parts = [None] * len(specs)
-        with get_executor(backend="process", n_workers=len(specs)) as executor:
-            futures = {executor.submit(run_phase5_chunk, spec): i
-                       for i, spec in enumerate(specs)}
-            n_done = 0
-            for fut in as_completed(futures):
-                i = futures[fut]
-                parts[i] = fut.result()
-                n_done += 1
-                if verbose:
-                    logging.info(f"  Phase 5 finished {n_done}/{len(specs)} chunks "
-                                 f"({time.time()-t0:.1f}s)")
+        try:
+            with get_executor(backend="process", n_workers=len(specs)) as executor:
+                futures = {executor.submit(run_phase5_chunk, spec): i
+                           for i, spec in enumerate(specs)}
+                pending = set(futures)
+                report_every = max(1, (nconf + 49) // 50)
+                next_report = report_every
+                while pending:
+                    done, pending = wait(
+                        pending, timeout=1.0, return_when=FIRST_COMPLETED,
+                    )
+                    for fut in done:
+                        i = futures[fut]
+                        parts[i] = fut.result()
+                    elapsed = time.time() - t0
+                    completed = int(progress[:, 0].sum())
+                    if verbose and (completed >= next_report or not pending):
+                        logging.info(
+                            f"  Phase 5: {completed}/{nconf} "
+                            f"({100.0*completed/nconf:.0f}%)  "
+                            f"elapsed={elapsed:.1f}s"
+                        )
+                        while next_report <= completed:
+                            next_report += report_every
+        finally:
+            progress_shm.close()
+            progress_shm.unlink()
         V = np.concatenate([p[0] for p in parts])
         V2 = np.concatenate([p[1] for p in parts])
         V3 = np.concatenate([p[2] for p in parts])
