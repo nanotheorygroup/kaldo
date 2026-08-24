@@ -15,6 +15,7 @@ matches to 1.7e-7 eV/atom < Ethan's own SE).
 """
 from __future__ import annotations
 
+import os
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -73,13 +74,55 @@ class CumulantResult:
     V2_tilde: np.ndarray
 
 
-def _harmonic_thermo(forceconstants, kmesh, T_K, is_classic=False):
+def _parallel_phonon_frequencies(ph, n_workers):
+    """``HarmonicWithQ`` frequencies on ``ph``'s mesh, sharded over processes."""
+    from concurrent.futures import as_completed
+
+    from kaldo.parallel import get_executor
+
+    from ._harmonic_worker import freq_q_chunk, init_freq_worker
+
+    q_points = np.asarray(ph._reciprocal_grid.unitary_grid(is_wrapping=False))
+    n_q = int(q_points.shape[0])
+    n_cpu = n_workers if n_workers is not None else (os.cpu_count() or 1)
+    n_cpu = max(1, min(int(n_cpu), n_q))
+    chunks = [c for c in np.array_split(q_points, n_cpu) if c.size]
+    second = ph.forceconstants.second
+    # Materialize IFC2 as numpy so spawn pickles arrays, not TF tensors.
+    second._dynmat = np.asarray(second.dynmat)
+    hwq_kwargs = dict(
+        distance_threshold=ph.forceconstants.distance_threshold,
+        folder=ph.folder,
+        storage="memory",
+        is_nw=ph.is_nw,
+        is_unfolding=ph.is_unfolding,
+        is_amorphous=ph._is_amorphous,
+    )
+    parts = [None] * len(chunks)
+    with get_executor(
+        backend="process",
+        n_workers=len(chunks),
+        initializer=init_freq_worker,
+        initargs=(1, second, hwq_kwargs),
+    ) as executor:
+        futures = {executor.submit(freq_q_chunk, chunk): i
+                   for i, chunk in enumerate(chunks)}
+        for fut in as_completed(futures):
+            parts[futures[fut]] = fut.result()
+    return np.concatenate(parts, axis=0)
+
+
+def _harmonic_thermo(forceconstants, kmesh, T_K, is_classic=False, n_workers=1):
     """Phase-1 F_H/U_H/S_H/Cv_H from ``Phonons`` frequencies.
 
     Uses kaldo's ``HarmonicWithQ`` dynamical matrix (including the
     per-pair Fourier phases on non-diagonal TDEP supercells from PR #301),
     then the cumulant classical/quantum closed-form sums.
+    ``n_workers=1`` is the in-process ``Phonons.frequency`` loop; ``>1``
+    shards that q-loop across processes (same dynmat, same ``n_workers``
+    flag as F1/F2 and Phase 5).
     """
+    from kaldo.parallel import is_parallel
     from kaldo.phonons import Phonons
 
     ph = Phonons(
@@ -89,7 +132,10 @@ def _harmonic_thermo(forceconstants, kmesh, T_K, is_classic=False):
         is_classic=is_classic,
         storage="memory",
     )
-    freqs = np.asarray(ph.frequency)  # (n_q, n_modes) THz
+    if is_parallel(n_workers):
+        freqs = _parallel_phonon_frequencies(ph, n_workers)
+    else:
+        freqs = np.asarray(ph.frequency)  # (n_q, n_modes) THz
     n_q, n_modes = freqs.shape
     n_uc = n_modes // 3
     F, U, S, Cv = harmonic_thermo(
@@ -113,6 +159,7 @@ def cumulant_thermo(
     lammps_kwargs: dict | None = None,
     calculator=None,
     verbose: bool = True,
+    n_workers: int | None = 1,
 ) -> CumulantResult:
     """
     Full cumulant thermodynamics on TDEP IFC inputs.
@@ -170,6 +217,16 @@ def cumulant_thermo(
         ``calculator`` must be given.
     verbose : bool
         If True, print progress messages. Default is True.
+    n_workers : int or None
+        Process-pool size for Phase-1 frequencies (full harmonic q-mesh),
+        analytic F1/F2 (outer IBZ q1 loop), and Phase-5 sampling (one
+        LAMMPS / calculator per process). ``1`` (default) is serial; ``>1``
+        that many processes; ``None`` uses all CPUs. This is the only
+        parallelism control for ``cumulant_thermo``; V2/V3/V4 contractions
+        stay in-process. See :func:`kaldo.cumulant.free_energy.F1_vectorized`.
+        When ``n_workers > 1`` and ``calculator=`` is used, pass a picklable
+        instance or a no-arg factory (same rule as finite-difference
+        ``n_workers``).
 
     Returns
     -------
@@ -177,6 +234,10 @@ def cumulant_thermo(
     """
 
     from ase import Atoms
+    from kaldo.cumulant.free_energy import _check_n_workers
+    from kaldo.parallel import is_parallel, get_executor, validate_parallel_calculator
+
+    _check_n_workers(n_workers)
 
     if (lammps_cmds is None) == (calculator is None):
         raise ValueError(
@@ -228,6 +289,7 @@ def cumulant_thermo(
     t0 = time.time()
     harm = _harmonic_thermo(
         forceconstants, tuple(harmonic_mesh), temperature, is_classic=is_classic,
+        n_workers=n_workers,
     )
     if verbose:
         logging.info(f"  F_H={harm['F_H']:+.4e}  U_H={harm['U_H']:+.4e}  "
@@ -243,6 +305,7 @@ def cumulant_thermo(
         forceconstants, masses_amu=masses_amu_uc,
         kmesh=tuple(free_energy_mesh), T_K=temperature,
         use_q_symmetry=use_q_symmetry, is_classic=is_classic,
+        n_workers=n_workers,
     )
     if verbose:
         logging.info(f"  F1={res1['F1']:+.4e}  U1={res1['U1']:+.4e}  "
@@ -258,6 +321,7 @@ def cumulant_thermo(
         forceconstants, masses_amu=masses_amu_uc,
         kmesh=tuple(free_energy_mesh), T_K=temperature, sigma_THz=None,
         use_q_symmetry=use_q_symmetry, is_classic=is_classic,
+        n_workers=n_workers,
     )
     if verbose:
         logging.info(f"  F2={res2['F2']:+.4e}  U2={res2['U2']:+.4e}  "
@@ -310,22 +374,26 @@ def cumulant_thermo(
     if verbose:
         logging.info(f"Phase 5: Built sampler ...")
 
-    contractors = SCContractors.from_tdep_folder(tdep_folder, include_fourth=True)
-
-    if verbose:
-        logging.info(f"Phase 5: Build contractors ...")
+    # Serial keeps contractors in-process. Parallel workers rebuild from
+    # the TDEP folder so we do not pickle phi4.
+    contractors = None
+    if not is_parallel(n_workers):
+        contractors = SCContractors.from_tdep_folder(tdep_folder, include_fourth=True)
+        if verbose:
+            logging.info("Phase 5: Build contractors ...")
 
     sc_cell_A = np.asarray(sc.get_cell())
     sc_pos_eq_A = np.asarray(sc.get_positions())
 
-    at = Atoms(species_sc, positions=sc_pos_eq_A, cell=sc_cell_A, pbc=True)
+    if calculator is not None and is_parallel(n_workers):
+        validate_parallel_calculator(calculator, "cumulant_thermo")
+
+    from ._phase5_worker import run_phase5_loop, run_phase5_chunk, _lammps_log_path
+
     if calculator is not None:
         if verbose:
             logging.info(f"Phase 5: Using ASE calculator {type(calculator).__name__} ...")
-        at.calc = calculator
     else:
-        from ase.calculators.lammpslib import LAMMPSlib
-
         # Build mappings for the LAMMPS calculator
         _, unique_species_idx = np.unique(species_uc, return_index=True)
         if "atom_types" not in lammps_kwargs:
@@ -333,42 +401,80 @@ def cumulant_thermo(
         if "atom_type_masses" not in lammps_kwargs:
             lammps_kwargs["atom_type_masses"] = {species_uc[idx]: masses_amu_uc[idx]
                                                  for i, idx in enumerate(unique_species_idx)}
-
         if verbose:
             logging.info("Phase 5: Building LAMMPS calculator ...")
             logging.info(f"  LAMMPS atom_types: {lammps_kwargs['atom_types']}")
             logging.info(f"  LAMMPS atom_type_masses: {lammps_kwargs['atom_type_masses']}")
 
-        at.calc = LAMMPSlib(
-            lmpcmds=list(lammps_cmds),
-            keep_alive=True,
-            log_file="/tmp/cumulant_thermo_lammps.log",
-            **lammps_kwargs
-        )
-    # Every sampled configuration shares topology (same atoms, same box; only
-    # positions move), so keep one LAMMPS instance alive and, per config,
-    # scatter coordinates + `run 1 pre no` (LDT pattern: recompute pe without
-    # rebuilding neighbors; large skin keeps the list valid). The first
-    # energy() call does the full ASE setup. See BatchEnergyEvaluator.
-    from ._energy_evaluator import BatchEnergyEvaluator
-    energy_eval = BatchEnergyEvaluator(at, sc_pos_eq_A)
-
-    V = np.zeros(nconf)
-    V2 = np.zeros(nconf)
-    V3 = np.zeros(nconf)
-    V4 = np.zeros(nconf)
-    V2_tilde = np.zeros(nconf)
-    dV2_tilde_dT = np.zeros(nconf)
     t0 = time.time()
-    for n in range(nconf):
-        u, z = sampler.draw_with_z()
-        V[n] = energy_eval.energy(u)
-        V2[n] = contractors.V2(u)
-        V3[n] = contractors.V3(u)
-        V4[n] = contractors.V4(u)
-        V2_tilde[n], dV2_tilde_dT[n] = sampler.V2_tilde_and_dT_from_z(z)
-        if verbose and (n + 1) % max(1, nconf // 10) == 0:
-            logging.info(f"  n={n+1}/{nconf}  ({time.time()-t0:.1f}s)")
+    if not is_parallel(n_workers):
+        at = Atoms(species_sc, positions=sc_pos_eq_A, cell=sc_cell_A, pbc=True)
+        if calculator is not None:
+            at.calc = calculator
+        else:
+            from ase.calculators.lammpslib import LAMMPSlib
+            at.calc = LAMMPSlib(
+                lmpcmds=list(lammps_cmds),
+                keep_alive=True,
+                log_file=_lammps_log_path(),
+                **lammps_kwargs
+            )
+        # Every sampled configuration shares topology (same atoms, same box; only
+        # positions move), so keep one LAMMPS instance alive and, per config,
+        # scatter coordinates + `run 1 pre no` (LDT pattern: recompute pe without
+        # rebuilding neighbors; large skin keeps the list valid). The first
+        # energy() call does the full ASE setup. See BatchEnergyEvaluator.
+        from ._energy_evaluator import BatchEnergyEvaluator
+        energy_eval = BatchEnergyEvaluator(at, sc_pos_eq_A)
+        V, V2, V3, V4, V2_tilde, dV2_tilde_dT = run_phase5_loop(
+            nconf, sampler, contractors, energy_eval,
+            verbose=verbose, logger=logging,
+        )
+    else:
+        n_cpu = n_workers if n_workers is not None else (os.cpu_count() or 1)
+        n_cpu = max(1, min(int(n_cpu), nconf))
+        counts = [len(c) for c in np.array_split(np.arange(nconf), n_cpu)]
+        counts = [c for c in counts if c > 0]
+        if verbose:
+            logging.info(f"Phase 5: starting {len(counts)} processes "
+                         f"({nconf} configs, one LAMMPS each) ...")
+        base = dict(
+            sampler=sampler,
+            tdep_folder=str(Path(tdep_folder)),
+            include_fourth=True,
+            species=list(species_sc),
+            eq=np.asarray(sc_pos_eq_A),
+            cell=np.asarray(sc_cell_A),
+            lammps_cmds=lammps_cmds,
+            lammps_kwargs=lammps_kwargs,
+            calculator=calculator,
+            seed=seed,
+        )
+        specs = []
+        for i, n_local in enumerate(counts):
+            spec = dict(base)
+            spec["n_local"] = int(n_local)
+            spec["worker_id"] = i
+            specs.append(spec)
+        from concurrent.futures import as_completed
+        parts = [None] * len(specs)
+        with get_executor(backend="process", n_workers=len(specs)) as executor:
+            futures = {executor.submit(run_phase5_chunk, spec): i
+                       for i, spec in enumerate(specs)}
+            n_done = 0
+            for fut in as_completed(futures):
+                i = futures[fut]
+                parts[i] = fut.result()
+                n_done += 1
+                if verbose:
+                    logging.info(f"  Phase 5 finished {n_done}/{len(specs)} chunks "
+                                 f"({time.time()-t0:.1f}s)")
+        V = np.concatenate([p[0] for p in parts])
+        V2 = np.concatenate([p[1] for p in parts])
+        V3 = np.concatenate([p[2] for p in parts])
+        V4 = np.concatenate([p[3] for p in parts])
+        V2_tilde = np.concatenate([p[4] for p in parts])
+        dV2_tilde_dT = np.concatenate([p[5] for p in parts])
 
     # Classical: V_ref = V2, dV_ref_dT ≡ 0.
     # Quantum: V_ref = V2_tilde (Bose-reweighted), with explicit ∂Ṽ₂/∂T.
@@ -426,11 +532,11 @@ def print_thermo_table(result: CumulantResult) -> None:
         ("Cv", "kB/atom", result.Cv_H, result.Cv_0, result.Cv_1, result.Cv_2,
          result.Cv_total, result.Cv_total_SE),
     ]
+    col = 14
     for name, unit, H, zeroth, a1, a2, tot, se in rows:
         print(f"\n# {name} [{unit}]")
-        print(f"       {name}_H          {name}_0            "
-              f"{name}_1            {name}_2            {name}_total")
-        print(f"  {H:+.7f}      {zeroth:+.7f}      "
-              f"{a1:+.7f}      {a2:+.7f}      {tot:+.7f}")
-        print(f"  {'0':>14}      {se:.7f}      "
-              f"{'0':>14}      {'0':>14}      {se:.7f}")
+        labels = (f"{name}_H", f"{name}_0", f"{name}_1", f"{name}_2",
+                  f"{name}_total")
+        print("".join(f"{lab:>{col}}" for lab in labels))
+        print("".join(f"{v:+{col}.7f}" for v in (H, zeroth, a1, a2, tot)))
+        print("".join(f"{v:+{col}.7f}" for v in (0.0, se, 0.0, 0.0, se)))

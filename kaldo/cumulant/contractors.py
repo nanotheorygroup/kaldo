@@ -26,10 +26,7 @@ with u in Angstroms and phi^{(n)} in eV/A^n; returns V in eV.
 """
 from __future__ import annotations
 
-from concurrent.futures import ThreadPoolExecutor
-import os
 from pathlib import Path
-from typing import Iterable
 
 import h5py
 import numpy as np
@@ -156,85 +153,29 @@ class SCContractors:
 
     def V3(self, u_flat):
         """V_3 in eV."""
-        return _vn_threaded(
-            self._phi3_9_3,
-            u_flat[self.a1_3], u_flat[self.a2_3], u_flat[self.a3_3], None,
-            order=3,
-        )
+        u1 = u_flat[self.a1_3]
+        u2 = u_flat[self.a2_3]
+        u3 = u_flat[self.a3_3]
+        n = u1.shape[0]
+        if n == 0:
+            return 0.0
+        t = np.matmul(self._phi3_9_3, u3[:, :, None])[..., 0]
+        t = np.matmul(t.reshape(n, 3, 3), u2[:, :, None])[..., 0]
+        return float((t * u1).sum()) / 6.0
 
     def V4(self, u_flat):
-        """V_4 in eV.
-
-        Chunks the flat quartet table across threads (stdlib
-        ``ThreadPoolExecutor``), same idea as LDT's ``@tasks for a1`` over
-        IFC interactions. This is *shared-memory* parallelism over the
-        tensor — not ``kaldo.parallel`` process pools (those pickle whole
-        work items; shipping ``phi4`` every call would dominate).
-        """
-        return _vn_threaded(
-            self._phi4_27_3,
-            u_flat[self.a1_4], u_flat[self.a2_4], u_flat[self.a3_4], u_flat[self.a4_4],
-            order=4,
-        )
-
-
-def _n_contract_workers(n_terms):
-    """Worker count for IFC-table threading (Julia-style naive split)."""
-    # Prefer user/OpenMP hint when set, else all CPUs — same spirit as
-    # ``kaldo.parallel.get_executor(n_workers=None)``.
-    omp = os.environ.get("OMP_NUM_THREADS") or os.environ.get("KALDO_CONTRACT_THREADS")
-    if omp is not None:
-        try:
-            n_cpu = max(1, int(omp))
-        except ValueError:
-            n_cpu = os.cpu_count() or 1
-    else:
-        n_cpu = os.cpu_count() or 1
-    # Need enough terms per worker that thread overhead doesn't dominate.
-    return max(1, min(n_cpu, n_terms // 4096))
-
-
-def _v3_slice(phi_9_3, u1, u2, u3, i0, i1):
-    m = i1 - i0
-    if m <= 0:
-        return 0.0
-    t = np.matmul(phi_9_3[i0:i1], u3[i0:i1, :, None])[..., 0]
-    t = np.matmul(t.reshape(m, 3, 3), u2[i0:i1, :, None])[..., 0]
-    return float((t * u1[i0:i1]).sum()) / 6.0
-
-
-def _v4_slice(phi_27_3, u1, u2, u3, u4, i0, i1):
-    """Batched matmul contraction for quartets ``[i0:i1)``; returns sum/24."""
-    m = i1 - i0
-    if m <= 0:
-        return 0.0
-    t = np.matmul(phi_27_3[i0:i1], u4[i0:i1, :, None])[..., 0]
-    t = np.matmul(t.reshape(m, 9, 3), u3[i0:i1, :, None])[..., 0]
-    t = np.matmul(t.reshape(m, 3, 3), u2[i0:i1, :, None])[..., 0]
-    return float((t * u1[i0:i1]).sum()) / 24.0
-
-
-def _vn_threaded(phi_view, u1, u2, u3, u4, order):
-    """Split flat IFC table across threads and sum slice contractions."""
-    n = u1.shape[0]
-    if n == 0:
-        return 0.0
-    n_workers = _n_contract_workers(n)
-    if order == 3:
-        slice_fn = lambda i0, i1: _v3_slice(phi_view, u1, u2, u3, i0, i1)
-    else:
-        slice_fn = lambda i0, i1: _v4_slice(phi_view, u1, u2, u3, u4, i0, i1)
-
-    if n_workers == 1:
-        return slice_fn(0, n)
-
-    bounds = np.linspace(0, n, n_workers + 1, dtype=np.int64)
-    with ThreadPoolExecutor(max_workers=n_workers) as pool:
-        futs = [
-            pool.submit(slice_fn, int(bounds[i]), int(bounds[i + 1]))
-            for i in range(n_workers)
-        ]
-        return float(sum(f.result() for f in futs))
+        """V_4 in eV."""
+        u1 = u_flat[self.a1_4]
+        u2 = u_flat[self.a2_4]
+        u3 = u_flat[self.a3_4]
+        u4 = u_flat[self.a4_4]
+        n = u1.shape[0]
+        if n == 0:
+            return 0.0
+        t = np.matmul(self._phi4_27_3, u4[:, :, None])[..., 0]
+        t = np.matmul(t.reshape(n, 9, 3), u3[:, :, None])[..., 0]
+        t = np.matmul(t.reshape(n, 3, 3), u2[:, :, None])[..., 0]
+        return float((t * u1).sum()) / 24.0
 
 
 # ---------------------------------------------------------------------------
