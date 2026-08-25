@@ -26,6 +26,7 @@ from numpy.typing import ArrayLike
 import ase.units as units
 from kaldo.helpers.tools import timeit
 from kaldo.helpers.logger import get_logger
+import scipy.sparse as sp  # <-- ADDED for sparse matrix inversion
 
 logging = get_logger()
 
@@ -1725,3 +1726,247 @@ class Phonons(Storable):
                 ])
 
         return sparse_phase, sparse_potential
+
+    # =====================================================================
+    # Phonon Angular Momentum and Response Tensor
+    # =====================================================================
+
+    def compute_pam(self, mode_indices=None, return_mesh=False, grid_density=51,is_unfolding=False):
+        """
+        Compute phonon angular momentum (PAM) for specified modes.
+
+        Parameters
+        ----------
+        mode_indices : list or None, optional
+            If provided, a list of mode indices (0‑based) to compute PAM for.
+            If None, all modes are computed.
+        return_mesh : bool, default False
+            If True, generate a Cartesian grid in the qz=0 plane, mask the first BZ,
+            and return a dictionary with all data for easy plotting.
+        grid_density : int, default 51
+            Number of points along each axis when generating the Cartesian grid.
+
+        Returns
+        -------
+        If return_mesh is False:
+            pam : np.ndarray, shape (n_k_points, n_modes, 3) or (n_k_points, len(mode_indices), 3)
+                PAM vector components (in units of ħ) for each k‑point and mode.
+
+        If return_mesh is True:
+            result : dict
+                {
+                    'pam': np.ndarray,          # shape (grid_density, grid_density, n_modes_selected, 3)
+                    'QX': np.ndarray,           # 2D meshgrid for x (grid_density, grid_density)
+                    'QY': np.ndarray,           # 2D meshgrid for y
+                    'mask': np.ndarray,         # boolean mask (grid_density, grid_density)
+                    'mode_indices': list,       # the indices used
+                    'grid_cart': np.ndarray,    # Cartesian coordinates of all grid points (N, 3)
+                    'grid_frac': np.ndarray,    # Fractional coordinates (N, 3)
+                    'rec_lat': np.ndarray,      # reciprocal lattice vectors (3,3)
+                    'n_grid': int               # grid density
+                }
+        """
+        from kaldo.observables.harmonic_with_q import HarmonicWithQ
+        n_atoms = self.n_atoms
+        n_modes = self.n_modes
+        if mode_indices is None:
+            mode_indices = list(range(n_modes))
+        else:
+            # Ensure it's a list
+            mode_indices = list(mode_indices)
+
+        # Helper function to compute PAM at a single q-point
+        def _pam_at_q(q_frac):
+            harmonic = HarmonicWithQ(q_point=q_frac,
+                                     second=self.forceconstants.second,
+                                     is_unfolding=is_unfolding)
+            # _eigensystem: first row eigenvalues, rest eigenvectors as columns
+            evecs = np.array(harmonic._eigensystem[1:, :])  # shape (3*n_atoms, n_modes)
+            L_modes = np.zeros((n_modes, 3))
+            for mode in range(n_modes):
+                e_col = evecs[:, mode]
+                e_atoms = e_col.reshape(n_atoms, 3)
+                # sum over atoms: Im( conj(e) × e )
+                L = np.imag(np.sum(np.cross(np.conj(e_atoms), e_atoms), axis=0))
+                L_modes[mode] = L
+            return L_modes  # (n_modes, 3)
+
+        # If we don't need the mesh, compute on the current kpoints
+        if not return_mesh:
+            q_points_frac = self._reciprocal_grid.unitary_grid(is_wrapping=False)  # (n_k, 3)
+            pam = np.zeros((len(q_points_frac), len(mode_indices), 3))
+            for i, q_frac in enumerate(q_points_frac):
+                L = _pam_at_q(q_frac)
+                pam[i] = L[mode_indices]
+            return pam
+
+        # ----------------------------------------------------------------
+        # Generate Cartesian grid and BZ mask
+        # ----------------------------------------------------------------
+        rec_lat = self.forceconstants.atoms.cell.reciprocal()
+        q_max = np.max(np.linalg.norm(rec_lat, axis=1))
+        qx_1d = np.linspace(-q_max, q_max, grid_density)
+        qy_1d = np.linspace(-q_max, q_max, grid_density)
+        QX, QY = np.meshgrid(qx_1d, qy_1d)
+        QZ = np.zeros_like(QX)
+
+        Q_cart = np.column_stack([QX.ravel(), QY.ravel(), QZ.ravel()])
+        inv_rec = np.linalg.inv(rec_lat)
+        Q_frac = Q_cart @ inv_rec
+
+        # Wigner-Seitz first BZ mask
+        def in_first_bz(cart_vec, rec_lat, shell_radius=2):
+            r = np.arange(-shell_radius, shell_radius+1)
+            offsets = np.array(np.meshgrid(r, r, r, indexing='ij')).T.reshape(-1, 3)
+            offsets = offsets[~np.all(offsets == 0, axis=1)]
+            G_vectors = offsets @ rec_lat
+            dists = np.linalg.norm(cart_vec[np.newaxis, :] - G_vectors, axis=1)
+            return np.linalg.norm(cart_vec) <= np.min(dists)
+
+        mask_flat = np.array([in_first_bz(qc, rec_lat) for qc in Q_cart])
+        mask_2d = mask_flat.reshape(grid_density, grid_density)
+
+        # Get fractional q‑points inside BZ
+        Q_frac_in = Q_frac[mask_flat]
+
+        # Compute PAM for each q‑point inside BZ
+        pam_in = np.zeros((len(Q_frac_in), len(mode_indices), 3))
+        for i, q_frac in enumerate(Q_frac_in):
+            L = _pam_at_q(q_frac)
+            pam_in[i] = L[mode_indices]
+
+        # Map to full 2D grid with NaN outside BZ
+        pam_full = np.full((len(Q_cart), len(mode_indices), 3), np.nan)
+        pam_full[mask_flat] = pam_in
+        pam_grid = pam_full.reshape(grid_density, grid_density, len(mode_indices), 3)
+
+        # Return everything needed for plotting
+        return {
+            'pam': pam_grid,                 # (g, g, n_sel, 3)
+            'QX': QX,
+            'QY': QY,
+            'mask': mask_2d,
+            'mode_indices': mode_indices,
+            'grid_cart': Q_cart,
+            'grid_frac': Q_frac,
+            'rec_lat': rec_lat,
+            'n_grid': grid_density,
+        }
+    @lazy_property(
+    label='<temperature>/<statistics>/<third_bandwidth>/<broadening_shape>/'
+      '<broadening_kernel>/<is_balanced>/<include_isotopes>/<use_q_symmetry>'
+)
+    def angular_momentum_response(self):
+        """
+        Compute the angular momentum response tensor R_{αβ}.
+
+        R_{αβ} = - 1/(N_k k_B T^2) Σ_{k,μ} l_α F_β ħω f₀(1+f₀)
+        with F = Γ^{-1} v (full inversion) or F = τ v (RTA).
+
+        Full inversion is activated by self._use_full_inversion_for_response = True.
+        Default is RTA (fast). Non‑physical modes (Gamma acoustic) are set to F=0.
+
+     Returns
+        -------
+        R : np.ndarray, shape (3, 3)
+            Response tensor. Units: [Å/K].
+         """
+        logging.info("Computing angular momentum response tensor...")
+
+        # --- 1. Phonon angular momentum (using new compute_pam) ---
+        logging.info("  - Computing PAM...")
+        # Ensure we use the same grid and unfolding as the parent Phonons object
+        pam = self.compute_pam(mode_indices=None, return_mesh=False, is_unfolding=self.is_unfolding)
+        logging.info(f"    PAM shape: {pam.shape}")
+
+        # --- 2. Constants and occupation ---
+        velocity = self.velocity                 # (n_k, n_modes, 3)
+        bandwidth = self.bandwidth               # (n_k, n_modes) in THz
+        omega = self.omega                       # (n_k, n_modes) in rad/ps
+        physical = self.physical_mode            # bool mask (n_k, n_modes)
+        T = self.temperature
+
+        k_B_eV = units._k / units._e             # eV/K
+        hbar_evps = (units._hbar / units._e) * 1e12  # eV·ps
+
+        energy_eV = hbar_evps * omega            # (n_k, n_modes) eV
+        x = energy_eV / (k_B_eV * T)
+        f0 = np.where(x > 700, 0.0, 1.0 / (np.exp(x) - 1.0))
+        thermo_factor = energy_eV * f0 * (1.0 + f0) * physical  # (n_k, n_modes)
+
+        # --- 3. Decide on RTA vs full inversion ---
+        use_full = getattr(self, '_use_full_inversion_for_response', False)
+
+        if use_full and hasattr(self, '_ps_gamma_and_gamma_tensor') and \
+            self._ps_gamma_and_gamma_tensor is not None and \
+            self._ps_gamma_and_gamma_tensor.shape[1] > 2:
+
+            logging.info("  - Full inversion (sparse Γ F = v) ...")
+
+            # Build dense matrix, convert to sparse, drop small entries
+            gamma_dense = self._ps_gamma_and_gamma_tensor[:, 2:].reshape(
+                self.n_phonons, self.n_phonons) * (2.0 * np.pi)
+
+            tol = 1e-14 * np.max(np.abs(gamma_dense))
+            rows, cols = np.where(np.abs(gamma_dense) > tol)
+            data = gamma_dense[rows, cols]
+            sparse_gamma = sp.csr_matrix((data, (rows, cols)),
+                                 shape=(self.n_phonons, self.n_phonons))
+            del gamma_dense
+
+            nnz = sparse_gamma.nnz
+            fill = 100 * nnz / (self.n_phonons**2)
+            logging.info(f"    Sparse matrix: {nnz} non-zeros ({fill:.2f}% fill)")
+
+            # --- Enforce F=0 for non‑physical modes (Gamma acoustic modes) ---
+            phys_flat = physical.flatten()
+            non_phys_indices = np.where(~phys_flat)[0]
+
+            if len(non_phys_indices) > 0:
+                logging.info(f"    Setting F=0 for {len(non_phys_indices)} non‑physical modes")
+                sparse_gamma = sparse_gamma.tolil()
+                for idx in non_phys_indices:
+                    sparse_gamma[idx, :] = 0.0
+                    sparse_gamma[idx, idx] = 1.0
+                sparse_gamma = sparse_gamma.tocsr()
+
+            v_flat = velocity.reshape((self.n_phonons, 3))
+            v_flat[non_phys_indices, :] = 0.0
+
+            # Direct sparse solver (SuperLU)
+            F_flat = sp.linalg.spsolve(sparse_gamma, v_flat)
+            F = F_flat.reshape((self.n_k_points, self.n_modes, 3))
+            logging.info("    Sparse inversion done.")
+
+        else:
+            logging.info("  - Using RTA (F = τ v) – fast.")
+            eps = 1e-12
+            tau = np.divide(1.0, (2.0 * bandwidth),
+                        out=np.zeros_like(bandwidth, dtype=float),
+                        where=bandwidth > eps)
+            F = velocity * tau[..., np.newaxis]   # (n_k, n_modes, 3)
+
+        # --- 4. Sanity checks ---
+        for name, arr in [('PAM', pam), ('F', F), ('thermo_factor', thermo_factor)]:
+            if np.any(np.isnan(arr)) or np.any(np.isinf(arr)):
+                logging.warning(f"  {name} contains NaN or Inf")
+            if np.iscomplexobj(arr):
+                logging.warning(f"  {name} is complex – taking real part")
+                arr = np.real(arr)
+
+        # --- 5. Flatten leading dimensions for safe contraction ---
+        n_phonons = self.n_phonons
+        pam_flat = pam.reshape(n_phonons, 3)          # (n_phonons, 3)
+        F_flat = F.reshape(n_phonons, 3)              # (n_phonons, 3)
+        thermo_flat = thermo_factor.reshape(n_phonons) # (n_phonons,)
+
+        logging.info("  - Assembling tensor via einsum (flattened)...")
+        S = np.einsum('ia,ib,i->ab', pam_flat, F_flat, thermo_flat)
+
+        # --- 6. Normalize (no volume factor) – units = Å/K ---
+        N_k = self.n_k_points
+        denom = N_k * k_B_eV * (T ** 2)
+        R = -S / denom
+
+        logging.info("  Done.")
+        return R
