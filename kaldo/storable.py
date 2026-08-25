@@ -197,7 +197,7 @@ class Storable:
         return base_folder
     
     def _add_grid_components(self, base_folder):
-        """Add k-point grid or q-point components to folder path."""
+        """Add reciprocal-grid and IFC-model cache components."""
         # Check if this is a multi-kpoint system
         if hasattr(self, 'kpts') and np.prod(self.kpts) > 1:
             kpts = self.kpts
@@ -206,6 +206,15 @@ class Storable:
         elif hasattr(self, 'q_point'):
             q_point = self.q_point
             base_folder += '/single_q/' + str(q_point[0]) + '_' + str(q_point[1]) + '_' + str(q_point[2])
+        # IFC interpolation changes every downstream harmonic and anharmonic
+        # observable. Always use a versioned, support-specific namespace so
+        # pre-refactor periodic caches cannot be read as Wigner--Seitz data.
+        # Conductivity and other wrappers may have copied the key before a
+        # lazy IFC3 object was loaded. Resolve it from their Phonons owner at
+        # path-construction time so literal third-order support is included.
+        cache_owner = getattr(self, "phonons", self)
+        if hasattr(cache_owner, "ifc_cache_key"):
+            base_folder += "/ifc_" + str(cache_owner.ifc_cache_key)
         return base_folder
     
     def _get_folder_path_components(self, label):

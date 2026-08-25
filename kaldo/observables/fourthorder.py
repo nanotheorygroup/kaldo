@@ -29,7 +29,7 @@ class FourthOrder(ForceConstant):
     @classmethod
     def load(cls,
              folder: str,
-             supercell: tuple[int, int, int] = (1, 1, 1),
+             supercell: tuple[int, int, int] | np.ndarray = (1, 1, 1),
              format: str = "tdep",
              supercell_matrix: np.ndarray | None = None):
         """Load IFC4 from a folder in the given format.
@@ -38,16 +38,16 @@ class FourthOrder(ForceConstant):
         ----------
         folder : str
             Directory containing the IFC4 + structure files for ``format``.
-        supercell : (int, int, int)
-            Primitive → supercell tiling. Used for diagonal supercells; a
-            non-diagonal ``infile.ssposcar`` is detected automatically and
-            routed through the SNF (NonDiagonalGrid) path.
+        supercell : (int, int, int) or ndarray
+            Diagonal repetitions or an integer 3 by 3 supercell matrix. A
+            non-diagonal TDEP ``infile.ssposcar`` is detected automatically
+            and routed through the exact supercell quotient.
         format : {"tdep"}
             File format. Only ``"tdep"`` is supported at this time.
         supercell_matrix : np.ndarray, optional
-            3x3 integer supercell expansion matrix. Accepted for API symmetry
-            with ``ForceConstants.from_folder``; for TDEP the supercell is
-            inferred from ``infile.ucposcar`` / ``infile.ssposcar`` instead.
+            Expected 3x3 integer supercell expansion matrix. The TDEP
+            structure files remain authoritative, and a supplied matrix must
+            match their inferred (possibly non-diagonal) tiling.
         """
         match format:
             case "tdep":
@@ -64,7 +64,7 @@ class FourthOrder(ForceConstant):
                     kw = build_nondiag_observable_kwargs(uc, sc)
                     mapping = kw.pop("_mapping")
                     fourth_ifcs = parse_tdep_fourth_forceconstant(fc_filename=fc_filename, primitive=uc,
-                                                                  grid=kw["grid"])
+                                                                  grid=kw["supercell_grid"])
                     fourth_order = cls(value=fourth_ifcs, folder=folder, **kw)
                     return attach_snf_metadata(fourth_order, mapping)
 

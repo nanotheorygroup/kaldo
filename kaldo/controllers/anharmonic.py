@@ -1,9 +1,12 @@
-"""
-kaldo
-Anharmonic Lattice Dynamics
+"""Three-phonon phase space, IFC3 projection, and collision kernels.
 
-This module contains functions for calculating anharmonic properties of phonons
-in both amorphous and crystalline materials.
+Crystal scattering has two logically separate sums. Reciprocal-grid momentum
+conservation selects allowed mode triplets and a broadened delta approximates
+energy conservation. Independently, each of the two real-space IFC3
+translation axes contributes its Fourier phase. ``sparse_potential_mu`` is the
+boundary where those source-aware phases and the three phonon eigenvectors are
+contracted; the remaining routines form phase space, linewidths, and the
+linearized collision operator from the projected matrix elements.
 """
 
 import numpy as np
@@ -73,8 +76,49 @@ def calculate_ps_and_gamma(sparse_phase, sparse_potential, population, is_balanc
 
 def sparse_potential_mu(
     nu_single, evect_tf, sparse_phase, index_k, mu, n_k_points, n_modes, is_plus, is_sparse,
-    index_kpp_full, _chi_k, second_minus, second_minus_chi, third_tf, n_replicas, omega, hbar
+    index_kpp_full, _chi_k, second_minus, second_minus_chi, third_tf, n_translations, omega, hbar
 ):
+    """Project IFC3 onto one initial phonon and all allowed partner modes.
+
+    Wigner--Seitz interpolation and file-provided translations may require
+    more Fourier translations than the ``|det(M)|`` periodic classes of the
+    finite-displacement supercell.  The two IFC3 legs share an ordered support
+    of size ``n_translations``; only this dimension belongs in the phase and
+    tensor reshapes below.
+
+    The real-space contraction is
+    ``sum_Rj,Rk Phi3 exp(2*pi*i*(q'.Rj + q''.Rk))``. Integer translations, not
+    basis offsets, appear in these phases because the atomic basis is already
+    carried by the phonon eigenvectors. Adding basis positions here would mix
+    eigenvector gauges and reintroduce origin dependence.
+
+    Parameters
+    ----------
+    nu_single, index_k, mu : int
+        Flattened and ``(q, branch)`` ids of the initial phonon.
+    evect_tf : Tensor
+        Mass-rescaled eigenvectors with shape ``(n_q, n_modes, n_modes)``.
+    sparse_phase : SparseTensor
+        Allowed partner indices for one decay or absorption channel.
+    is_plus : bool
+        Select absorption when true and decay when false.
+    third_tf : Tensor or SparseTensor
+        IFC3 reshaped so its two translation axes each have length
+        ``n_translations``.
+    _chi_k : Tensor
+        Fourier phases ``exp(2*pi*i*q.R)`` with shape
+        ``(n_q, n_translations)``.
+    n_translations : int
+        Size of the compiled or literal IFC3 translation support.
+    omega : array-like
+        Positive angular frequencies in kALDo's internal units.
+
+    Returns
+    -------
+    tensorflow.SparseTensor
+        Frequency-normalized squared matrix elements on exactly the indices
+        supplied by ``sparse_phase``.
+    """
     nup_vec, nupp_vec = tf.unstack(sparse_phase.indices, axis=1)
 
     index_kp_vec, mup_vec = tf.unravel_index(nup_vec, (n_k_points, n_modes))
@@ -85,17 +129,17 @@ def sparse_potential_mu(
     third_chi = tf.math.conj(tf.gather(_chi_k, index_kpp_full))
 
     chi_prod = tf.einsum("kt,kl->ktl", second_chi, third_chi)
-    chi_prod = tf.reshape(chi_prod, (n_k_points, n_replicas**2))
+    chi_prod = tf.reshape(chi_prod, (n_k_points, n_translations**2))
 
     if is_sparse:
         third_nu_tf = tf.sparse.sparse_dense_matmul(third_tf, evect_tf[index_k, :, mu, tf.newaxis])
     else:
         third_nu_tf = contract("ijk,i->jk", third_tf, evect_tf[index_k, :, mu], backend="tensorflow")
-        third_nu_tf = tf.reshape(third_nu_tf, (n_replicas * n_replicas, n_modes, n_modes))
+        third_nu_tf = tf.reshape(third_nu_tf, (n_translations * n_translations, n_modes, n_modes))
 
-    third_nu_tf = tf.cast(tf.reshape(third_nu_tf, (n_replicas, n_modes, n_replicas, n_modes)), dtype=tf.complex128)
+    third_nu_tf = tf.cast(tf.reshape(third_nu_tf, (n_translations, n_modes, n_translations, n_modes)), dtype=tf.complex128)
     third_nu_tf = tf.transpose(third_nu_tf, (0, 2, 1, 3))
-    third_nu_tf = tf.reshape(third_nu_tf, (n_replicas * n_replicas, n_modes, n_modes))
+    third_nu_tf = tf.reshape(third_nu_tf, (n_translations * n_translations, n_modes, n_modes))
 
     scaled_potential = tf.tensordot(chi_prod, third_nu_tf, (1, 0))
     scaled_potential = tf.einsum("kij,kim->kjm", scaled_potential, second)

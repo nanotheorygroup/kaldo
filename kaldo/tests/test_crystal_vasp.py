@@ -42,25 +42,25 @@ def test_lagacy_format():
         format="shengbte")
     
     np.testing.assert_equal(forceconstants.second.value, forceconstants2.second.value)
-    np.testing.assert_equal(forceconstants.third.value, forceconstants2.third.value)
+    np.testing.assert_equal(forceconstants.third.value.todense(), forceconstants2.third.value.todense())
 
 
 def test_qhgk_conductivity(phonons):
     cond = Conductivity(phonons=phonons, method="qhgk", storage="memory",
                         diffusivity_bandwidth=1.0).conductivity.sum(axis=0)
     cond = np.abs(np.mean(cond.diagonal()))
-    np.testing.assert_allclose(cond, 1.693686, rtol=5e-3, atol=0.0)
+    np.testing.assert_allclose(cond, 1.615985, rtol=5e-3, atol=0.0)
 
 
 def test_rta_conductivity(phonons):
     cond = np.abs(
         np.mean(Conductivity(phonons=phonons, method="rta", storage="memory").conductivity.sum(axis=0).diagonal())
     )
-    np.testing.assert_allclose(cond, 16.406325, rtol=5e-3, atol=0.0)
+    np.testing.assert_allclose(cond, 12.840515, rtol=5e-3, atol=0.0)
 
 
 def test_inverse_conductivity(phonons):
     cond = np.abs(
         np.mean(Conductivity(phonons=phonons, method="inverse", storage="memory").conductivity.sum(axis=0).diagonal())
     )
-    np.testing.assert_allclose(cond, 16.576349, rtol=5e-3, atol=0.0)
+    np.testing.assert_allclose(cond, 12.895325, rtol=5e-3, atol=0.0)
