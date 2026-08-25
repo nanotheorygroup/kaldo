@@ -238,7 +238,7 @@ def read_third_d3q(
             "-nrep/2 to nrep/2."
         )
         if not np.array_equal(supercell, test_supercell):
-            logging.error(
+            raise ValueError(
                 "third supercell not consistent with 3rd Forces file: "
                 f"{test_supercell} != {supercell}"
             )

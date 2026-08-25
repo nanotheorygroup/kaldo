@@ -49,7 +49,7 @@ def read_second_order_matrix(filename, supercell):
                 i -= 1
                 j -= 1
             except ValueError as err:
-                print(err)
+                raise ValueError(f"malformed index line in second order file: {line!r}") from err
 
             # i_ix, i_iy, i_iz, i_iatom, j_ix, j_iy, j_iz, j_iatom, alpha are zero-indexing
             i_ix, i_iy, i_iz, i_iatom = _split_index(i, supercell[0], supercell[1], supercell[2])
