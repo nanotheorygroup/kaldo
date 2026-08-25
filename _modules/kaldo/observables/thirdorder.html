@@ -818,16 +818,29 @@
 
 
 <h1>Source code for kaldo.observables.thirdorder</h1><div class="highlight"><pre>
-<span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.observables.forceconstant</span><span class="w"> </span><span class="kn">import</span> <span class="n">ForceConstant</span>
+<span></span><code><span class="sd">&quot;&quot;&quot;Third-order IFC storage, loading, and source-aware interpolation.</span>
+
+<span class="sd">IFC3 has two independently phased real-space legs.  This module preserves the</span>
+<span class="sd">translations supplied by each interface, or compiles compact periodic blocks</span>
+<span class="sd">onto pair-specific Wigner--Seitz images, before the anharmonic controller</span>
+<span class="sd">projects the tensor into phonon modes.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.grid</span><span class="w"> </span><span class="kn">import</span> <span class="n">TranslationSupport</span><span class="p">,</span> <span class="n">WignerSeitzImages</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.observables.forceconstant</span><span class="w"> </span><span class="kn">import</span> <span class="n">ForceConstant</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">ase</span><span class="w"> </span><span class="kn">import</span> <span class="n">Atoms</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">ase.io</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">hashlib</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">scipy.sparse</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_npz</span><span class="p">,</span> <span class="n">save_npz</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">sparse</span><span class="w"> </span><span class="kn">import</span> <span class="n">COO</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.interfaces.eskm_io</span><span class="w"> </span><span class="kn">import</span> <span class="n">import_from_files</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.interfaces.tdep_io</span><span class="w"> </span><span class="kn">import</span> <span class="n">parse_tdep_third_forceconstant</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">kaldo.interfaces.shengbte_io</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">shengbte_io</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">kaldo.interfaces.qe_io</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">qe_io</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">ase.units</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">units</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.controllers.displacement</span><span class="w"> </span><span class="kn">import</span> <span class="n">calculate_third</span><span class="p">,</span> <span class="n">try_symmetrize_ifc</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.parallel</span><span class="w"> </span><span class="kn">import</span> <span class="n">is_parallel</span><span class="p">,</span> <span class="n">validate_parallel_calculator</span><span class="p">,</span> <span class="n">maybe_warn_ml_delta_shift</span>
@@ -839,6 +852,98 @@
 <span class="n">REPLICATED_ATOMS_FILE</span> <span class="o">=</span> <span class="s1">&#39;replicated_atoms.xyz&#39;</span>
 <span class="n">THIRD_ORDER_FILE_SPARSE</span> <span class="o">=</span> <span class="s1">&#39;third.npz&#39;</span>
 <span class="n">THIRD_ORDER_FILE</span> <span class="o">=</span> <span class="s1">&#39;third.npy&#39;</span>
+
+<span class="n">_IFC_INTERPOLATION_MODES</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;auto&quot;</span><span class="p">,</span> <span class="s2">&quot;wigner-seitz&quot;</span><span class="p">,</span> <span class="s2">&quot;periodic&quot;</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_ifc3_source_digest</span><span class="p">(</span><span class="n">source_value</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Content digest of the raw IFC3 tensor, for interpolation caching.</span>
+
+<span class="sd">    ``id()`` is not a safe cache key: in-place mutation keeps the id while</span>
+<span class="sd">    changing the content, and a freed id can be reused by a new object.</span>
+<span class="sd">    Hash the actual buffers instead (sparse coordinates and data, or the</span>
+<span class="sd">    dense array).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">h</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">sha256</span><span class="p">()</span>
+    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">source_value</span><span class="p">,</span> <span class="s2">&quot;coords&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">source_value</span><span class="p">,</span> <span class="s2">&quot;data&quot;</span><span class="p">):</span>
+        <span class="n">h</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ascontiguousarray</span><span class="p">(</span><span class="n">source_value</span><span class="o">.</span><span class="n">coords</span><span class="p">)</span><span class="o">.</span><span class="n">tobytes</span><span class="p">())</span>
+        <span class="n">h</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ascontiguousarray</span><span class="p">(</span><span class="n">source_value</span><span class="o">.</span><span class="n">data</span><span class="p">)</span><span class="o">.</span><span class="n">tobytes</span><span class="p">())</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">h</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ascontiguousarray</span><span class="p">(</span><span class="n">source_value</span><span class="p">)</span><span class="o">.</span><span class="n">tobytes</span><span class="p">())</span>
+    <span class="n">h</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">source_value</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">())</span>
+    <span class="k">return</span> <span class="n">h</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()[:</span><span class="mi">16</span><span class="p">]</span>
+
+
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">_ThirdOrderIFCInterpolation</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Immutable result of compiling IFC3 onto a translation support.</span>
+
+<span class="sd">    ``value`` follows ``(i,a,Rj,j,b,Rk,k,c)``.  Its two translation axes</span>
+<span class="sd">    refer to the same ``support``.  Wigner--Seitz compilation changes only</span>
+<span class="sd">    those integer translations and partitions tied images by their geometric</span>
+<span class="sd">    weights; it does not add basis offsets to kALDo&#39;s Fourier phase gauge.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">value</span><span class="p">:</span> <span class="nb">object</span>
+    <span class="n">support</span><span class="p">:</span> <span class="n">TranslationSupport</span>
+    <span class="n">resolved_mode</span><span class="p">:</span> <span class="nb">str</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_as_coo</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return a pydata/sparse COO without densifying an existing sparse IFC.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">COO</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">value</span>
+    <span class="k">return</span> <span class="n">COO</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">value</span><span class="p">))</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_rank8_ifc3</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">n_atoms</span><span class="p">,</span> <span class="n">n_translations</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Normalize legacy flattened IFC3 storage without densifying COO data.&quot;&quot;&quot;</span>
+    <span class="n">expected</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">n_atoms</span><span class="p">,</span>
+        <span class="mi">3</span><span class="p">,</span>
+        <span class="n">n_translations</span><span class="p">,</span>
+        <span class="n">n_atoms</span><span class="p">,</span>
+        <span class="mi">3</span><span class="p">,</span>
+        <span class="n">n_translations</span><span class="p">,</span>
+        <span class="n">n_atoms</span><span class="p">,</span>
+        <span class="mi">3</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="s2">&quot;ndim&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="o">==</span> <span class="mi">8</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">value</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="n">expected</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;third-order IFC shape </span><span class="si">{</span><span class="n">value</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2"> does not match </span><span class="si">{</span><span class="n">expected</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="n">value</span>
+    <span class="n">flattened</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">n_atoms</span> <span class="o">*</span> <span class="mi">3</span><span class="p">,</span>
+        <span class="n">n_translations</span> <span class="o">*</span> <span class="n">n_atoms</span> <span class="o">*</span> <span class="mi">3</span><span class="p">,</span>
+        <span class="n">n_translations</span> <span class="o">*</span> <span class="n">n_atoms</span> <span class="o">*</span> <span class="mi">3</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="s2">&quot;ndim&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="o">==</span> <span class="mi">3</span> <span class="ow">and</span> <span class="n">value</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="n">flattened</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">value</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">expected</span><span class="p">)</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+        <span class="s2">&quot;third-order IFC value must have rank 8, or the legacy flattened &quot;</span>
+        <span class="sa">f</span><span class="s2">&quot;shape </span><span class="si">{</span><span class="n">flattened</span><span class="si">}</span><span class="s2">&quot;</span>
+    <span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_coalesced_coo</span><span class="p">(</span><span class="n">coords</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">shape</span><span class="p">,</span> <span class="n">dtype</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Build a deterministic COO and sum entries mapped to the same slot.&quot;&quot;&quot;</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">size</span><span class="p">:</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">coords</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">coords</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">):</span>
+            <span class="n">coords</span> <span class="o">=</span> <span class="n">coords</span><span class="o">.</span><span class="n">T</span>
+        <span class="k">return</span> <span class="n">COO</span><span class="p">(</span>
+            <span class="n">coords</span><span class="p">,</span>
+            <span class="n">data</span><span class="p">,</span>
+            <span class="n">shape</span><span class="o">=</span><span class="n">shape</span><span class="p">,</span>
+            <span class="n">has_duplicates</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="nb">sorted</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="k">return</span> <span class="n">COO</span><span class="p">(</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">),</span> <span class="mi">0</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">),</span> <span class="n">shape</span><span class="o">=</span><span class="n">shape</span>
+    <span class="p">)</span>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">detect_path</span><span class="p">(</span><span class="n">files</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">folder</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">):</span>
@@ -854,17 +959,250 @@
 
 
 <span class="k">class</span><span class="w"> </span><span class="nc">ThirdOrder</span><span class="p">(</span><span class="n">ForceConstant</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Third-order IFCs with explicit translation axes for both outer legs.</span>
+
+<span class="sd">    The canonical tensor layout is ``(i,a,Rj,j,b,Rk,k,c)``. ``Rj`` and</span>
+<span class="sd">    ``Rk`` index :attr:`translation_support`, not the physical replica count.</span>
+<span class="sd">    Legacy rank-three sparse storage is accepted at load time and reshaped</span>
+<span class="sd">    without densification when interpolation begins.</span>
+
+<span class="sd">    :meth:`get_interpolation` returns an immutable plan rather than mutating</span>
+<span class="sd">    the source tensor. This preserves literal file provenance and allows</span>
+<span class="sd">    explicit periodic or Wigner--Seitz diagnostics to coexist safely.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_interpolation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;auto&quot;</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compile IFC3 for the requested real-space interpolation rule.</span>
+
+<span class="sd">        ``auto`` preserves literal file-provided translations, honors an</span>
+<span class="sd">        interface&#39;s explicit native-gauge hint (for example d3q&#39;s unrecentered</span>
+<span class="sd">        cell indices), and otherwise selects pair-dependent Wigner--Seitz</span>
+<span class="sd">        interpolation.  ``periodic`` and ``wigner-seitz`` are explicit user</span>
+<span class="sd">        overrides: both first fold every source translation into its exact</span>
+<span class="sd">        supercell quotient class.  The latter then distributes each ``(i,j)``</span>
+<span class="sd">        and ``(i,k)`` pair independently over all tied shortest images, with</span>
+<span class="sd">        the Cartesian-product weight.</span>
+
+<span class="sd">        Sparse input remains sparse throughout compilation.  The returned</span>
+<span class="sd">        object is cached per requested mode and source identity.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">mode</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">_IFC_INTERPOLATION_MODES</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;ifc_interpolation=</span><span class="si">{</span><span class="n">mode</span><span class="si">!r}</span><span class="s2"> is invalid; choose one of &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">_IFC_INTERPOLATION_MODES</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+        <span class="n">support</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">translation_support</span>
+        <span class="n">source_value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span>
+        <span class="k">if</span> <span class="n">source_value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;third-order IFC value is not available&quot;</span><span class="p">)</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="n">_rank8_ifc3</span><span class="p">(</span><span class="n">source_value</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="p">),</span> <span class="n">support</span><span class="o">.</span><span class="n">size</span><span class="p">)</span>
+
+        <span class="n">cache_key</span> <span class="o">=</span> <span class="p">(</span><span class="n">mode</span><span class="p">,</span> <span class="n">_ifc3_source_digest</span><span class="p">(</span><span class="n">source_value</span><span class="p">),</span> <span class="n">support</span><span class="o">.</span><span class="n">digest</span><span class="p">)</span>
+        <span class="n">cache</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;_interpolation_cache&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">cache</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">cache</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_interpolation_cache</span> <span class="o">=</span> <span class="n">cache</span>
+        <span class="k">if</span> <span class="n">cache_key</span> <span class="ow">in</span> <span class="n">cache</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">cache</span><span class="p">[</span><span class="n">cache_key</span><span class="p">]</span>
+
+        <span class="n">hint</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;ifc_interpolation_hint&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;auto&quot;</span> <span class="ow">and</span> <span class="n">support</span><span class="o">.</span><span class="n">provenance</span> <span class="o">==</span> <span class="s2">&quot;file&quot;</span><span class="p">:</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="n">_ThirdOrderIFCInterpolation</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">support</span><span class="p">,</span> <span class="s2">&quot;file&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">resolved</span> <span class="o">=</span> <span class="p">(</span><span class="n">hint</span> <span class="ow">or</span> <span class="s2">&quot;wigner-seitz&quot;</span><span class="p">)</span> <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;auto&quot;</span> <span class="k">else</span> <span class="n">mode</span>
+            <span class="k">if</span> <span class="n">support</span><span class="o">.</span><span class="n">provenance</span> <span class="o">==</span> <span class="s2">&quot;file&quot;</span> <span class="ow">and</span> <span class="n">mode</span> <span class="o">!=</span> <span class="s2">&quot;auto&quot;</span><span class="p">:</span>
+                <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                    <span class="s2">&quot;ifc_interpolation=</span><span class="si">%r</span><span class="s2"> folds </span><span class="si">%d</span><span class="s2"> file-provided IFC3 &quot;</span>
+                    <span class="s2">&quot;translations into </span><span class="si">%d</span><span class="s2"> periodic classes by explicit &quot;</span>
+                    <span class="s2">&quot;user request.&quot;</span><span class="p">,</span>
+                    <span class="n">mode</span><span class="p">,</span>
+                    <span class="n">support</span><span class="o">.</span><span class="n">size</span><span class="p">,</span>
+                    <span class="n">support</span><span class="o">.</span><span class="n">supercell</span><span class="o">.</span><span class="n">size</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="n">folded</span><span class="p">,</span> <span class="n">periodic_support</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fold_periodic_classes</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">support</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">resolved</span> <span class="o">==</span> <span class="s2">&quot;periodic&quot;</span><span class="p">:</span>
+                <span class="n">result</span> <span class="o">=</span> <span class="n">_ThirdOrderIFCInterpolation</span><span class="p">(</span><span class="n">folded</span><span class="p">,</span> <span class="n">periodic_support</span><span class="p">,</span> <span class="n">resolved</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">compiled</span><span class="p">,</span> <span class="n">compiled_support</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compile_wigner_seitz</span><span class="p">(</span>
+                    <span class="n">folded</span><span class="p">,</span> <span class="n">periodic_support</span>
+                <span class="p">)</span>
+                <span class="n">result</span> <span class="o">=</span> <span class="n">_ThirdOrderIFCInterpolation</span><span class="p">(</span>
+                    <span class="n">compiled</span><span class="p">,</span> <span class="n">compiled_support</span><span class="p">,</span> <span class="n">resolved</span>
+                <span class="p">)</span>
+        <span class="n">cache</span><span class="p">[</span><span class="n">cache_key</span><span class="p">]</span> <span class="o">=</span> <span class="n">result</span>
+        <span class="k">return</span> <span class="n">result</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">gamma_contracted_value</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return IFC3 summed over both real-space translation axes.</span>
+
+<span class="sd">        At Gamma the two IFC3 Fourier phases are identically one. The exact</span>
+<span class="sd">        tensor consumed by a Gamma-only amorphous calculation is therefore</span>
+<span class="sd">        ``sum_Rj,Rk Phi(Rj,Rk)``. Performing that reduction on the canonical</span>
+<span class="sd">        rank-eight representation supports compact, literal, and expanded</span>
+<span class="sd">        translation supports without confusing their size with the physical</span>
+<span class="sd">        replica count.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        sparse.COO or numpy.ndarray</span>
+<span class="sd">            Tensor with shape ``(3*n_atoms, 3*n_atoms, 3*n_atoms)`` in the</span>
+<span class="sd">            historical ``(central, partner-j, partner-k)`` mode ordering.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">rank8</span> <span class="o">=</span> <span class="n">_rank8_ifc3</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_translations</span><span class="p">)</span>
+        <span class="n">n_modes</span> <span class="o">=</span> <span class="mi">3</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">rank8</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">5</span><span class="p">))</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="n">n_modes</span><span class="p">,</span> <span class="n">n_modes</span><span class="p">,</span> <span class="n">n_modes</span><span class="p">))</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_fold_periodic_classes</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">support</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Coalesce both IFC3 translation axes into exact quotient classes.&quot;&quot;&quot;</span>
+        <span class="n">source</span> <span class="o">=</span> <span class="n">_as_coo</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">source</span><span class="o">.</span><span class="n">coords</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">,</span> <span class="n">copy</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">coords</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">support</span><span class="o">.</span><span class="n">class_ids</span><span class="p">[</span><span class="n">coords</span><span class="p">[</span><span class="mi">2</span><span class="p">]]</span>
+        <span class="n">coords</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span> <span class="o">=</span> <span class="n">support</span><span class="o">.</span><span class="n">class_ids</span><span class="p">[</span><span class="n">coords</span><span class="p">[</span><span class="mi">5</span><span class="p">]]</span>
+        <span class="n">shape</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">source</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+        <span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">shape</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span> <span class="o">=</span> <span class="n">support</span><span class="o">.</span><span class="n">supercell</span><span class="o">.</span><span class="n">size</span>
+        <span class="n">folded</span> <span class="o">=</span> <span class="n">COO</span><span class="p">(</span>
+            <span class="n">coords</span><span class="p">,</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">source</span><span class="o">.</span><span class="n">data</span><span class="p">),</span>
+            <span class="n">shape</span><span class="o">=</span><span class="nb">tuple</span><span class="p">(</span><span class="n">shape</span><span class="p">),</span>
+            <span class="n">has_duplicates</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="nb">sorted</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">periodic_support</span> <span class="o">=</span> <span class="n">TranslationSupport</span><span class="o">.</span><span class="n">periodic</span><span class="p">(</span>
+            <span class="n">support</span><span class="o">.</span><span class="n">supercell</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="n">support</span><span class="o">.</span><span class="n">supercell</span><span class="o">.</span><span class="n">order</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">folded</span><span class="p">,</span> <span class="n">periodic_support</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_compile_wigner_seitz</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">folded</span><span class="p">,</span> <span class="n">support</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Partition nonzero IFC3 entries over pair-shortest images.</span>
+
+<span class="sd">        Pair geometry is evaluated once per distinct ``(R,i,j)`` leg, not</span>
+<span class="sd">        once per Cartesian tensor component.  Coordinate expansion is then</span>
+<span class="sd">        vectorized by tied-image index.  This keeps the cost proportional to</span>
+<span class="sd">        the sparse IFC support and avoids millions of Python list appends for</span>
+<span class="sd">        production IFC3 tensors.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">images</span> <span class="o">=</span> <span class="n">WignerSeitzImages</span><span class="o">.</span><span class="n">build</span><span class="p">(</span>
+            <span class="n">support</span><span class="p">,</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">positions</span><span class="p">),</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">cell</span><span class="p">),</span>
+            <span class="n">pbc</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">pbc</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">folded</span><span class="o">.</span><span class="n">coords</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">folded</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+
+        <span class="c1"># The first three columns identify a reusable IFC leg: stored</span>
+        <span class="c1"># translation, central atom i, and partner atom j/k.  np.unique also</span>
+        <span class="c1"># gives a vectorized map from every scalar COO entry to that geometry.</span>
+        <span class="n">pair_j</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">((</span><span class="n">coords</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">coords</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">coords</span><span class="p">[</span><span class="mi">3</span><span class="p">]))</span>
+        <span class="n">pair_k</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">((</span><span class="n">coords</span><span class="p">[</span><span class="mi">5</span><span class="p">],</span> <span class="n">coords</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">coords</span><span class="p">[</span><span class="mi">6</span><span class="p">]))</span>
+        <span class="n">pair_rows</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span><span class="n">pair_j</span><span class="p">,</span> <span class="n">pair_k</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">unique_pairs</span><span class="p">,</span> <span class="n">pair_inverse</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">pair_rows</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">return_inverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">pair_inverse</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">pair_inverse</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">pair_j_ids</span> <span class="o">=</span> <span class="n">pair_inverse</span><span class="p">[:</span> <span class="n">data</span><span class="o">.</span><span class="n">size</span><span class="p">]</span>
+        <span class="n">pair_k_ids</span> <span class="o">=</span> <span class="n">pair_inverse</span><span class="p">[</span><span class="n">data</span><span class="o">.</span><span class="n">size</span> <span class="p">:]</span>
+
+        <span class="n">pair_images</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">images</span><span class="o">.</span><span class="n">image</span><span class="p">(</span><span class="n">source_id</span><span class="p">,</span> <span class="n">atom_i</span><span class="p">,</span> <span class="n">atom_j</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">source_id</span><span class="p">,</span> <span class="n">atom_i</span><span class="p">,</span> <span class="n">atom_j</span> <span class="ow">in</span> <span class="n">unique_pairs</span>
+        <span class="p">]</span>
+
+        <span class="c1"># A shared, sorted axis is required because Rj and Rk occupy axes of</span>
+        <span class="c1"># one tensor. Build it from precisely the images used by nonzero IFCs.</span>
+        <span class="n">translations</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="nb">tuple</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">translation</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">image_translations</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">pair_images</span>
+            <span class="k">for</span> <span class="n">translation</span> <span class="ow">in</span> <span class="n">image_translations</span>
+        <span class="p">}</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">translations</span><span class="p">:</span>
+            <span class="n">translations</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="nb">tuple</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">r</span><span class="p">)</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">support</span><span class="o">.</span><span class="n">translations</span><span class="p">)</span>
+        <span class="n">ordered</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="n">translations</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+        <span class="n">compiled_support</span> <span class="o">=</span> <span class="n">TranslationSupport</span><span class="p">(</span>
+            <span class="n">ordered</span><span class="p">,</span> <span class="n">support</span><span class="o">.</span><span class="n">supercell</span><span class="p">,</span> <span class="n">provenance</span><span class="o">=</span><span class="s2">&quot;wigner-seitz&quot;</span>
+        <span class="p">)</span>
+        <span class="n">translation_ids</span> <span class="o">=</span> <span class="p">{</span><span class="nb">tuple</span><span class="p">(</span><span class="n">r</span><span class="p">):</span> <span class="n">index</span> <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="n">r</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">ordered</span><span class="p">)}</span>
+
+        <span class="n">max_multiplicity</span> <span class="o">=</span> <span class="nb">max</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">item</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">pair_images</span><span class="p">),</span> <span class="n">default</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">target_ids</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">pair_images</span><span class="p">),</span> <span class="n">max_multiplicity</span><span class="p">),</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+        <span class="n">pair_weights</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">pair_images</span><span class="p">),</span> <span class="n">max_multiplicity</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">pair_id</span><span class="p">,</span> <span class="p">(</span><span class="n">pair_translations</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">weights</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">pair_images</span><span class="p">):</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isclose</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">weights</span><span class="p">),</span> <span class="mf">1.0</span><span class="p">,</span> <span class="n">rtol</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="mf">1e-14</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;Wigner-Seitz weights for an IFC3 pair do not sum to one&quot;</span>
+                <span class="p">)</span>
+            <span class="n">multiplicity</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">weights</span><span class="p">)</span>
+            <span class="n">target_ids</span><span class="p">[</span><span class="n">pair_id</span><span class="p">,</span> <span class="p">:</span><span class="n">multiplicity</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">translation_ids</span><span class="p">[</span><span class="nb">tuple</span><span class="p">(</span><span class="n">r</span><span class="p">)]</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">pair_translations</span>
+            <span class="p">]</span>
+            <span class="n">pair_weights</span><span class="p">[</span><span class="n">pair_id</span><span class="p">,</span> <span class="p">:</span><span class="n">multiplicity</span><span class="p">]</span> <span class="o">=</span> <span class="n">weights</span>
+
+        <span class="c1"># At most ``max_multiplicity**2`` vector operations are needed.  Each</span>
+        <span class="c1"># selects every COO scalar with the same tied-image indices at once.</span>
+        <span class="n">output_coords</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">output_data</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">image_j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">max_multiplicity</span><span class="p">):</span>
+            <span class="n">targets_j</span> <span class="o">=</span> <span class="n">target_ids</span><span class="p">[</span><span class="n">pair_j_ids</span><span class="p">,</span> <span class="n">image_j</span><span class="p">]</span>
+            <span class="n">weights_j</span> <span class="o">=</span> <span class="n">pair_weights</span><span class="p">[</span><span class="n">pair_j_ids</span><span class="p">,</span> <span class="n">image_j</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">image_k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">max_multiplicity</span><span class="p">):</span>
+                <span class="n">targets_k</span> <span class="o">=</span> <span class="n">target_ids</span><span class="p">[</span><span class="n">pair_k_ids</span><span class="p">,</span> <span class="n">image_k</span><span class="p">]</span>
+                <span class="n">selected</span> <span class="o">=</span> <span class="p">(</span><span class="n">targets_j</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">targets_k</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">)</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">selected</span><span class="p">):</span>
+                    <span class="k">continue</span>
+                <span class="n">target</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">coords</span><span class="p">[:,</span> <span class="n">selected</span><span class="p">],</span> <span class="n">copy</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                <span class="n">target</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">targets_j</span><span class="p">[</span><span class="n">selected</span><span class="p">]</span>
+                <span class="n">target</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span> <span class="o">=</span> <span class="n">targets_k</span><span class="p">[</span><span class="n">selected</span><span class="p">]</span>
+                <span class="n">output_coords</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>
+                <span class="n">output_data</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="n">data</span><span class="p">[</span><span class="n">selected</span><span class="p">]</span>
+                    <span class="o">*</span> <span class="n">weights_j</span><span class="p">[</span><span class="n">selected</span><span class="p">]</span>
+                    <span class="o">*</span> <span class="n">pair_weights</span><span class="p">[</span><span class="n">pair_k_ids</span><span class="p">[</span><span class="n">selected</span><span class="p">],</span> <span class="n">image_k</span><span class="p">]</span>
+                <span class="p">)</span>
+
+        <span class="n">shape</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">folded</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+        <span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">shape</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span> <span class="o">=</span> <span class="n">compiled_support</span><span class="o">.</span><span class="n">size</span>
+        <span class="k">if</span> <span class="n">output_coords</span><span class="p">:</span>
+            <span class="n">output_coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">output_coords</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">output_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">output_data</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">output_coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">),</span> <span class="mi">0</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+            <span class="n">output_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">folded</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+        <span class="n">compiled</span> <span class="o">=</span> <span class="n">_coalesced_coo</span><span class="p">(</span>
+            <span class="n">output_coords</span><span class="p">,</span> <span class="n">output_data</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">shape</span><span class="p">),</span> <span class="n">folded</span><span class="o">.</span><span class="n">dtype</span>
+        <span class="p">)</span>
+        <span class="c1"># Redistribution must preserve the Gamma zeroth moment separately for</span>
+        <span class="c1"># every Cartesian (i,a,j,b,k,c) block.  A comparison of one global</span>
+        <span class="c1"># signed sum is ill-conditioned for physical IFC3 tensors because the</span>
+        <span class="c1"># acoustic sum rule makes that scalar nearly zero through cancellation.</span>
+        <span class="c1"># Reducing only the two translation axes tests the actual invariant</span>
+        <span class="c1"># without densifying the six remaining atom/Cartesian axes.</span>
+        <span class="n">source_gamma</span> <span class="o">=</span> <span class="n">folded</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">5</span><span class="p">))</span>
+        <span class="n">compiled_gamma</span> <span class="o">=</span> <span class="n">compiled</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">5</span><span class="p">))</span>
+        <span class="n">gamma_error</span> <span class="o">=</span> <span class="n">compiled_gamma</span> <span class="o">-</span> <span class="n">source_gamma</span>
+        <span class="n">error</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">gamma_error</span><span class="o">.</span><span class="n">data</span><span class="p">)))</span> <span class="k">if</span> <span class="n">gamma_error</span><span class="o">.</span><span class="n">nnz</span> <span class="k">else</span> <span class="mf">0.0</span>
+        <span class="n">scale</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span>
+            <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">source_gamma</span><span class="o">.</span><span class="n">data</span><span class="p">)))</span> <span class="k">if</span> <span class="n">source_gamma</span><span class="o">.</span><span class="n">nnz</span> <span class="k">else</span> <span class="mf">0.0</span><span class="p">,</span>
+            <span class="mf">1.0</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">error</span> <span class="o">&gt;</span> <span class="mf">5e-13</span> <span class="o">*</span> <span class="n">scale</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;Wigner-Seitz IFC3 compilation did not conserve the per-block &quot;</span>
+                <span class="s2">&quot;Gamma translation sum&quot;</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="n">compiled</span><span class="p">,</span> <span class="n">compiled_support</span>
 
 <div class="viewcode-block" id="ThirdOrder.load">
 <a class="viewcode-back" href="../../../docsource/api_forceconstants.html#kaldo.observables.thirdorder.ThirdOrder.load">[docs]</a>
     <span class="nd">@classmethod</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">load</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span>
-             <span class="n">folder</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-             <span class="n">supercell</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
-             <span class="nb">format</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;sparse&#39;</span><span class="p">,</span>
-             <span class="n">third_energy_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.</span><span class="p">,</span>
-             <span class="n">chunk_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100000</span><span class="p">,</span>
-             <span class="n">supercell_matrix</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="p">,</span>
+        <span class="n">folder</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">supercell</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+        <span class="nb">format</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;sparse&quot;</span><span class="p">,</span>
+        <span class="n">third_energy_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+        <span class="n">chunk_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100000</span><span class="p">,</span>
+        <span class="n">supercell_matrix</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">atoms_override</span><span class="p">:</span> <span class="n">Atoms</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Load third order force constants from a folder in the given format, used for library internally.</span>
 
@@ -874,8 +1212,11 @@
 <span class="sd">        ----------</span>
 <span class="sd">        folder : str</span>
 <span class="sd">            Specifies where to load the data files.</span>
-<span class="sd">        supercell : tuple[int, int, int]</span>
-<span class="sd">            The supercell for the third order force constant matrix.</span>
+<span class="sd">        supercell : tuple[int, int, int] or ndarray</span>
+<span class="sd">            Diagonal repetitions or an integer 3 by 3 supercell matrix for</span>
+<span class="sd">            the third-order force constants. TDEP and ShengBTE-style literal</span>
+<span class="sd">            IFC3 readers support matrices; compact legacy formats require a</span>
+<span class="sd">            diagonal three-vector.</span>
 <span class="sd">            Default: (1, 1, 1)</span>
 <span class="sd">        format : str</span>
 <span class="sd">            Format of the third order force constant information being loaded into ForceConstant object.</span>
@@ -889,10 +1230,14 @@
 <span class="sd">            Larger values use more memory but may be faster for very large files.</span>
 <span class="sd">            Default: 100000</span>
 <span class="sd">        supercell_matrix : np.ndarray, optional</span>
-<span class="sd">            3x3 integer supercell expansion matrix. Accepted for API symmetry</span>
-<span class="sd">            with ``ForceConstants.from_folder``; for ``format=&#39;tdep&#39;`` the</span>
-<span class="sd">            (possibly non-diagonal) supercell is inferred from</span>
-<span class="sd">            ``infile.ucposcar`` / ``infile.ssposcar`` instead.</span>
+<span class="sd">            Expected 3x3 integer supercell expansion matrix. For TDEP the</span>
+<span class="sd">            structure files remain authoritative, and a supplied matrix must</span>
+<span class="sd">            match their inferred (possibly non-diagonal) tiling.</span>
+<span class="sd">            Default: None</span>
+<span class="sd">        atoms_override : ase.Atoms, optional</span>
+<span class="sd">            Authoritative primitive structure supplied by an already loaded</span>
+<span class="sd">            IFC2 object. Used for QE q2r-backed formats so IFC3 cannot be</span>
+<span class="sd">            interpreted in a stale CONTROL/POSCAR atom order.</span>
 <span class="sd">            Default: None</span>
 
 <span class="sd">        Returns</span>
@@ -900,6 +1245,31 @@
 <span class="sd">        third_order : ThirdOrder object</span>
 <span class="sd">            A new instance of the ThirdOrder class</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">matrix_capable_formats</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;tdep&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;vasp-sheng&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;shengbte&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;qe-sheng&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;shengbte-qe&quot;</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="n">supplied_matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">supercell</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">supplied_matrix</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">format</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">matrix_capable_formats</span><span class="p">:</span>
+            <span class="n">diagonal</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">supplied_matrix</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">array_equal</span><span class="p">(</span><span class="n">supplied_matrix</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">diagonal</span><span class="p">)):</span>
+                <span class="n">rounded</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">rint</span><span class="p">(</span><span class="n">diagonal</span><span class="p">)</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">diagonal</span><span class="p">,</span> <span class="n">rounded</span><span class="p">,</span> <span class="n">rtol</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="mf">1e-12</span><span class="p">)</span> <span class="ow">or</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span>
+                    <span class="n">rounded</span> <span class="o">&lt;=</span> <span class="mi">0</span>
+                <span class="p">):</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                        <span class="s2">&quot;diagonal supercell matrix entries must be positive integers&quot;</span>
+                    <span class="p">)</span>
+                <span class="n">supercell</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">rounded</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;format=</span><span class="si">{</span><span class="nb">format</span><span class="si">!r}</span><span class="s2"> does not encode a non-diagonal IFC3 &quot;</span>
+                    <span class="s2">&quot;topology; use TDEP/ShengBTE input or a diagonal supercell&quot;</span>
+                <span class="p">)</span>
 
         <span class="k">match</span> <span class="nb">format</span><span class="p">:</span>
             <span class="k">case</span> <span class="s1">&#39;sparse&#39;</span> <span class="o">|</span> <span class="s1">&#39;numpy&#39;</span><span class="p">:</span>
@@ -921,14 +1291,26 @@
                               <span class="n">cell</span><span class="o">=</span><span class="n">unit_cell</span><span class="p">,</span>
                               <span class="n">pbc</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
 
-                <span class="n">_third_order</span> <span class="o">=</span> <span class="n">COO</span><span class="o">.</span><span class="n">from_scipy_sparse</span><span class="p">(</span><span class="n">load_npz</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="n">THIRD_ORDER_FILE_SPARSE</span><span class="p">)))</span> \
-                    <span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="n">n_unit_atoms</span> <span class="o">*</span> <span class="mi">3</span><span class="p">,</span> <span class="n">n_replicas</span> <span class="o">*</span> <span class="n">n_unit_atoms</span> <span class="o">*</span> <span class="mi">3</span><span class="p">,</span> <span class="n">n_replicas</span> <span class="o">*</span> <span class="n">n_unit_atoms</span> <span class="o">*</span> <span class="mi">3</span><span class="p">))</span> \
+                <span class="n">_third_order</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="n">COO</span><span class="o">.</span><span class="n">from_scipy_sparse</span><span class="p">(</span>
+                        <span class="n">load_npz</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="n">THIRD_ORDER_FILE_SPARSE</span><span class="p">))</span>
+                    <span class="p">)</span>
+                    <span class="o">.</span><span class="n">reshape</span><span class="p">(</span>
+                        <span class="p">(</span>
+                            <span class="n">n_unit_atoms</span> <span class="o">*</span> <span class="mi">3</span><span class="p">,</span>
+                            <span class="n">n_replicas</span> <span class="o">*</span> <span class="n">n_unit_atoms</span> <span class="o">*</span> <span class="mi">3</span><span class="p">,</span>
+                            <span class="n">n_replicas</span> <span class="o">*</span> <span class="n">n_unit_atoms</span> <span class="o">*</span> <span class="mi">3</span><span class="p">,</span>
+                        <span class="p">)</span>
+                    <span class="p">)</span>
                     <span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
-                <span class="n">third_order</span> <span class="o">=</span> <span class="n">ThirdOrder</span><span class="p">(</span><span class="n">atoms</span><span class="o">=</span><span class="n">atoms</span><span class="p">,</span>
-                                         <span class="n">replicated_positions</span><span class="o">=</span><span class="n">replicated_atoms</span><span class="o">.</span><span class="n">positions</span><span class="p">,</span>
-                                         <span class="n">supercell</span><span class="o">=</span><span class="n">supercell</span><span class="p">,</span>
-                                         <span class="n">value</span><span class="o">=</span><span class="n">_third_order</span><span class="p">,</span>
-                                         <span class="n">folder</span><span class="o">=</span><span class="n">folder</span><span class="p">)</span>
+                <span class="p">)</span>
+                <span class="n">third_order</span> <span class="o">=</span> <span class="n">ThirdOrder</span><span class="p">(</span>
+                    <span class="n">atoms</span><span class="o">=</span><span class="n">atoms</span><span class="p">,</span>
+                    <span class="n">replicated_positions</span><span class="o">=</span><span class="n">replicated_atoms</span><span class="o">.</span><span class="n">positions</span><span class="p">,</span>
+                    <span class="n">supercell</span><span class="o">=</span><span class="n">supercell</span><span class="p">,</span>
+                    <span class="n">value</span><span class="o">=</span><span class="n">_third_order</span><span class="p">,</span>
+                    <span class="n">folder</span><span class="o">=</span><span class="n">folder</span><span class="p">,</span>
+                <span class="p">)</span>
 
             <span class="k">case</span> <span class="s1">&#39;eskm&#39;</span> <span class="o">|</span> <span class="s1">&#39;lammps&#39;</span><span class="p">:</span>
                 <span class="k">if</span> <span class="nb">format</span> <span class="o">==</span> <span class="s1">&#39;eskm&#39;</span><span class="p">:</span>
@@ -977,20 +1359,77 @@
                         <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Trying to open POSCAR&#39;</span><span class="p">)</span>
                         <span class="n">atoms</span> <span class="o">=</span> <span class="n">ase</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">config_path</span><span class="p">)</span>
 
+                <span class="k">if</span> <span class="n">atoms_override</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="nb">format</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span>
+                        <span class="s2">&quot;qe-sheng&quot;</span><span class="p">,</span>
+                        <span class="s2">&quot;shengbte-qe&quot;</span><span class="p">,</span>
+                        <span class="s2">&quot;qe-d3q&quot;</span><span class="p">,</span>
+                        <span class="s2">&quot;shengbte-d3q&quot;</span><span class="p">,</span>
+                    <span class="p">):</span>
+                        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                            <span class="s2">&quot;atoms_override is only valid for QE q2r-backed IFC3 formats&quot;</span>
+                        <span class="p">)</span>
+                    <span class="n">header</span> <span class="o">=</span> <span class="n">qe_io</span><span class="o">.</span><span class="n">read_q2r_header</span><span class="p">(</span>
+                        <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="s2">&quot;espresso.ifc2&quot;</span><span class="p">)</span>
+                    <span class="p">)</span>
+                    <span class="c1"># IFC2-only loading may diagnose and ignore an unrelated</span>
+                    <span class="c1"># auxiliary structure. IFC2+IFC3 cannot: the third-order</span>
+                    <span class="c1"># tensor has the same atom labels, so a mismatch would</span>
+                    <span class="c1"># silently combine two different crystals.</span>
+                    <span class="n">qe_io</span><span class="o">.</span><span class="n">validate_q2r_auxiliary_structure</span><span class="p">(</span><span class="n">header</span><span class="p">,</span> <span class="n">atoms</span><span class="p">,</span> <span class="n">strict</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                    <span class="n">qe_io</span><span class="o">.</span><span class="n">validate_q2r_auxiliary_structure</span><span class="p">(</span>
+                        <span class="n">header</span><span class="p">,</span> <span class="n">atoms_override</span><span class="p">,</span> <span class="n">strict</span><span class="o">=</span><span class="kc">True</span>
+                    <span class="p">)</span>
+                    <span class="c1"># IFC2 supplies the authoritative q2r geometry and atom</span>
+                    <span class="c1"># order, but IFC2 and IFC3 must not share one mutable</span>
+                    <span class="c1"># Atoms instance. Otherwise wrapping or translating one</span>
+                    <span class="c1"># observable silently changes the other&#39;s Fourier gauge.</span>
+                    <span class="n">atoms</span> <span class="o">=</span> <span class="n">atoms_override</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
                 <span class="k">match</span> <span class="nb">format</span><span class="p">:</span>
                     <span class="k">case</span> <span class="p">(</span><span class="s2">&quot;vasp-sheng&quot;</span> <span class="o">|</span> <span class="s2">&quot;shengbte&quot;</span><span class="p">)</span> <span class="o">|</span> <span class="p">(</span><span class="s2">&quot;qe-sheng&quot;</span> <span class="o">|</span> <span class="s2">&quot;shengbte-qe&quot;</span><span class="p">):</span>
                         <span class="c1"># load VASP third order force constant</span>
                         <span class="n">third_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="s1">&#39;FORCE_CONSTANTS_3RD&#39;</span><span class="p">)</span>
-                        <span class="n">third_order</span> <span class="o">=</span> <span class="n">shengbte_io</span><span class="o">.</span><span class="n">read_third_order_matrix</span><span class="p">(</span><span class="n">third_file</span><span class="p">,</span> <span class="n">atoms</span><span class="p">,</span> <span class="n">supercell</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="s1">&#39;C&#39;</span><span class="p">)</span>
+                        <span class="n">third_order</span><span class="p">,</span> <span class="n">translation_support</span> <span class="o">=</span> <span class="p">(</span>
+                            <span class="n">shengbte_io</span><span class="o">.</span><span class="n">read_third_order_matrix</span><span class="p">(</span>
+                                <span class="n">third_file</span><span class="p">,</span>
+                                <span class="n">atoms</span><span class="p">,</span>
+                                <span class="n">supercell</span><span class="p">,</span>
+                                <span class="n">order</span><span class="o">=</span><span class="s2">&quot;C&quot;</span><span class="p">,</span>
+                                <span class="n">return_support</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                            <span class="p">)</span>
+                        <span class="p">)</span>
                     <span class="k">case</span><span class="w"> </span><span class="k">_</span><span class="p">:</span>
                         <span class="c1"># load d3q third order force constant</span>
                         <span class="n">third_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="s1">&#39;FORCE_CONSTANTS_3RD_D3Q&#39;</span><span class="p">)</span>
-                        <span class="n">third_order</span> <span class="o">=</span> <span class="n">shengbte_io</span><span class="o">.</span><span class="n">read_third_d3q</span><span class="p">(</span><span class="n">third_file</span><span class="p">,</span> <span class="n">atoms</span><span class="p">,</span> <span class="n">supercell</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="s1">&#39;C&#39;</span><span class="p">)</span>
-                <span class="n">third_order</span> <span class="o">=</span> <span class="n">ThirdOrder</span><span class="o">.</span><span class="n">from_supercell</span><span class="p">(</span><span class="n">atoms</span><span class="o">=</span><span class="n">atoms</span><span class="p">,</span>
-                                                        <span class="n">grid_type</span><span class="o">=</span><span class="n">grid_type</span><span class="p">,</span>
-                                                        <span class="n">supercell</span><span class="o">=</span><span class="n">supercell</span><span class="p">,</span>
-                                                        <span class="n">value</span><span class="o">=</span><span class="n">third_order</span><span class="p">,</span>
-                                                        <span class="n">folder</span><span class="o">=</span><span class="n">folder</span><span class="p">)</span>
+                        <span class="n">third_order</span> <span class="o">=</span> <span class="n">qe_io</span><span class="o">.</span><span class="n">read_third_d3q</span><span class="p">(</span>
+                            <span class="n">third_file</span><span class="p">,</span> <span class="n">atoms</span><span class="p">,</span> <span class="n">supercell</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="s2">&quot;C&quot;</span>
+                        <span class="p">)</span>
+                        <span class="n">translation_support</span> <span class="o">=</span> <span class="kc">None</span>
+                <span class="n">third_order</span> <span class="o">=</span> <span class="n">ThirdOrder</span><span class="o">.</span><span class="n">from_supercell</span><span class="p">(</span>
+                    <span class="n">atoms</span><span class="o">=</span><span class="n">atoms</span><span class="p">,</span>
+                    <span class="n">grid_type</span><span class="o">=</span><span class="n">grid_type</span><span class="p">,</span>
+                    <span class="n">supercell</span><span class="o">=</span><span class="n">supercell</span><span class="p">,</span>
+                    <span class="n">value</span><span class="o">=</span><span class="n">third_order</span><span class="p">,</span>
+                    <span class="c1"># d3q writes explicit unrecentered cell indices; retain</span>
+                    <span class="c1"># that native direct Fourier gauge.</span>
+                    <span class="n">ifc_interpolation_hint</span><span class="o">=</span><span class="p">(</span>
+                        <span class="s2">&quot;periodic&quot;</span>
+                        <span class="k">if</span> <span class="nb">format</span>
+                        <span class="ow">in</span> <span class="p">(</span>
+                            <span class="s2">&quot;qe-d3q&quot;</span><span class="p">,</span>
+                            <span class="s2">&quot;shengbte-d3q&quot;</span><span class="p">,</span>
+                            <span class="s2">&quot;vasp-d3q&quot;</span><span class="p">,</span>
+                        <span class="p">)</span>
+                        <span class="k">else</span> <span class="kc">None</span>
+                    <span class="p">),</span>
+                    <span class="n">folder</span><span class="o">=</span><span class="n">folder</span><span class="p">,</span>
+                    <span class="o">**</span><span class="p">(</span>
+                        <span class="p">{</span><span class="s2">&quot;translation_support&quot;</span><span class="p">:</span> <span class="n">translation_support</span><span class="p">}</span>
+                        <span class="k">if</span> <span class="n">translation_support</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+                        <span class="k">else</span> <span class="p">{}</span>
+                    <span class="p">),</span>
+                <span class="p">)</span>
 
             <span class="k">case</span> <span class="s1">&#39;hiphive&#39;</span><span class="p">:</span>
                 <span class="n">filename</span> <span class="o">=</span> <span class="s1">&#39;atom_prim.xyz&#39;</span>
@@ -999,9 +1438,11 @@
                 <span class="k">try</span><span class="p">:</span>
                     <span class="kn">import</span><span class="w"> </span><span class="nn">kaldo.interfaces.hiphive_io</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">hiphive_io</span>
                 <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
-                    <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;In order to use hiphive along with kaldo, hiphive is required. </span><span class="se">\</span>
-<span class="s1">                        Please consider installing hihphive. More info can be found at: </span><span class="se">\</span>
-<span class="s1">                        https://hiphive.materialsmodeling.org/&#39;</span><span class="p">)</span>
+                    <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                        <span class="s2">&quot;In order to use hiphive along with kaldo, hiphive is required. </span><span class="se">\</span>
+<span class="s2">                        Please consider installing hihphive. More info can be found at: </span><span class="se">\</span>
+<span class="s2">                        https://hiphive.materialsmodeling.org/&quot;</span>
+                    <span class="p">)</span>
 
                 <span class="n">atom_prime_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span>
                 <span class="n">replicated_atom_prime_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="n">replicated_filename</span><span class="p">)</span>
@@ -1035,10 +1476,21 @@
                     <span class="n">attach_snf_metadata</span><span class="p">,</span>
                     <span class="n">resolve_tdep_supercell</span><span class="p">,</span>
                 <span class="p">)</span>
+                <span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.grid</span><span class="w"> </span><span class="kn">import</span> <span class="n">SupercellGrid</span>
 
                 <span class="n">uc</span><span class="p">,</span> <span class="n">sc</span><span class="p">,</span> <span class="n">diagonal_supercell</span> <span class="o">=</span> <span class="n">resolve_tdep_supercell</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="n">supercell</span><span class="p">,</span> <span class="n">supercell_matrix</span><span class="p">)</span>
                 <span class="n">fc_filename</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="s1">&#39;infile.forceconstant_thirdorder&#39;</span><span class="p">)</span>
 
+                <span class="n">matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">rint</span><span class="p">(</span>
+                    <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">sc</span><span class="o">.</span><span class="n">cell</span><span class="p">)</span> <span class="o">@</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">uc</span><span class="o">.</span><span class="n">cell</span><span class="p">))</span>
+                <span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+                <span class="n">physical_grid</span> <span class="o">=</span> <span class="n">SupercellGrid</span><span class="p">(</span><span class="n">matrix</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="s2">&quot;C&quot;</span><span class="p">)</span>
+                <span class="n">third_ifcs</span><span class="p">,</span> <span class="n">support</span> <span class="o">=</span> <span class="n">parse_tdep_third_forceconstant</span><span class="p">(</span>
+                    <span class="n">fc_filename</span><span class="o">=</span><span class="n">fc_filename</span><span class="p">,</span>
+                    <span class="n">primitive</span><span class="o">=</span><span class="n">uc</span><span class="p">,</span>
+                    <span class="n">supercell_grid</span><span class="o">=</span><span class="n">physical_grid</span><span class="p">,</span>
+                    <span class="n">return_support</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                <span class="p">)</span>
                 <span class="k">if</span> <span class="n">diagonal_supercell</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                     <span class="c1"># Deliberately the det(M) class table, not the per-pair</span>
                     <span class="c1"># table SecondOrder uses since issue #297: nothing pins</span>
@@ -1046,20 +1498,23 @@
                     <span class="c1"># independent.</span>
                     <span class="n">kw</span> <span class="o">=</span> <span class="n">build_nondiag_observable_kwargs</span><span class="p">(</span><span class="n">uc</span><span class="p">,</span> <span class="n">sc</span><span class="p">)</span>
                     <span class="n">mapping</span> <span class="o">=</span> <span class="n">kw</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;_mapping&quot;</span><span class="p">)</span>
-                    <span class="n">third_ifcs</span> <span class="o">=</span> <span class="n">parse_tdep_third_forceconstant</span><span class="p">(</span><span class="n">fc_filename</span><span class="o">=</span><span class="n">fc_filename</span><span class="p">,</span> <span class="n">primitive</span><span class="o">=</span><span class="n">uc</span><span class="p">,</span>
-                                                                <span class="n">grid</span><span class="o">=</span><span class="n">kw</span><span class="p">[</span><span class="s2">&quot;grid&quot;</span><span class="p">])</span>
-                    <span class="n">third_order</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="n">third_ifcs</span><span class="p">,</span> <span class="n">folder</span><span class="o">=</span><span class="n">folder</span><span class="p">,</span> <span class="o">**</span><span class="n">kw</span><span class="p">)</span>
+                    <span class="n">third_order</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span>
+                        <span class="n">value</span><span class="o">=</span><span class="n">third_ifcs</span><span class="p">,</span>
+                        <span class="n">folder</span><span class="o">=</span><span class="n">folder</span><span class="p">,</span>
+                        <span class="n">translation_support</span><span class="o">=</span><span class="n">support</span><span class="p">,</span>
+                        <span class="o">**</span><span class="n">kw</span><span class="p">,</span>
+                    <span class="p">)</span>
                     <span class="k">return</span> <span class="n">attach_snf_metadata</span><span class="p">(</span><span class="n">third_order</span><span class="p">,</span> <span class="n">mapping</span><span class="p">)</span>
 
                 <span class="n">supercell</span> <span class="o">=</span> <span class="n">diagonal_supercell</span>
-                <span class="n">third_ifcs</span> <span class="o">=</span> <span class="n">parse_tdep_third_forceconstant</span><span class="p">(</span><span class="n">fc_filename</span><span class="o">=</span><span class="n">fc_filename</span><span class="p">,</span> <span class="n">primitive</span><span class="o">=</span><span class="n">uc</span><span class="p">,</span>
-                                                            <span class="n">supercell</span><span class="o">=</span><span class="n">supercell</span><span class="p">)</span>
-
-                <span class="n">third_order</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span><span class="n">atoms</span><span class="o">=</span><span class="n">uc</span><span class="p">,</span>
-                                  <span class="n">replicated_positions</span><span class="o">=</span><span class="n">sc</span><span class="o">.</span><span class="n">positions</span><span class="p">,</span>
-                                  <span class="n">supercell</span><span class="o">=</span><span class="n">supercell</span><span class="p">,</span>
-                                  <span class="n">value</span><span class="o">=</span><span class="n">third_ifcs</span><span class="p">,</span>
-                                  <span class="n">folder</span><span class="o">=</span><span class="n">folder</span><span class="p">)</span>
+                <span class="n">third_order</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">from_supercell</span><span class="p">(</span>
+                    <span class="n">atoms</span><span class="o">=</span><span class="n">uc</span><span class="p">,</span>
+                    <span class="n">supercell</span><span class="o">=</span><span class="n">supercell</span><span class="p">,</span>
+                    <span class="n">grid_type</span><span class="o">=</span><span class="s2">&quot;C&quot;</span><span class="p">,</span>
+                    <span class="n">value</span><span class="o">=</span><span class="n">third_ifcs</span><span class="p">,</span>
+                    <span class="n">folder</span><span class="o">=</span><span class="n">folder</span><span class="p">,</span>
+                    <span class="n">translation_support</span><span class="o">=</span><span class="n">support</span><span class="p">,</span>
+                <span class="p">)</span>
 
             <span class="k">case</span> <span class="s1">&#39;gpumd&#39;</span><span class="p">:</span>
                 <span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.interfaces</span><span class="w"> </span><span class="kn">import</span> <span class="n">gpumd_io</span>
@@ -1083,16 +1538,42 @@
         <span class="k">return</span> <span class="n">third_order</span></div>
 
 
-
     <span class="k">def</span><span class="w"> </span><span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="s1">&#39;THIRD&#39;</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s1">&#39;sparse&#39;</span><span class="p">,</span> <span class="n">min_force</span><span class="o">=</span><span class="mf">1e-6</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Export a compact periodic IFC3 tensor in a legacy file format.</span>
+
+<span class="sd">        The existing ESKM and sparse/numpy formats do not serialize an</span>
+<span class="sd">        arbitrary ``TranslationSupport``. Export is therefore permitted only</span>
+<span class="sd">        when the tensor axes exactly match the physical compact support;</span>
+<span class="sd">        literal file translations or Wigner--Seitz-expanded tensors would be</span>
+<span class="sd">        irreversibly mislabelled and are rejected.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        filename : str</span>
+<span class="sd">            ESKM output name. Sparse/numpy output retains the historical</span>
+<span class="sd">            fixed filenames in ``self.folder``.</span>
+<span class="sd">        format : {&quot;eskm&quot;, &quot;sparse&quot;, &quot;numpy&quot;}</span>
+<span class="sd">            Legacy target representation.</span>
+<span class="sd">        min_force : float</span>
+<span class="sd">            Norm threshold used when writing ESKM text blocks.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">format</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;eskm&quot;</span><span class="p">,</span> <span class="s2">&quot;sparse&quot;</span><span class="p">,</span> <span class="s2">&quot;numpy&quot;</span><span class="p">):</span>
+            <span class="n">compact_support</span> <span class="o">=</span> <span class="n">TranslationSupport</span><span class="o">.</span><span class="n">periodic</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">supercell_grid</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">translation_support</span><span class="o">.</span><span class="n">provenance</span> <span class="o">!=</span> <span class="s2">&quot;periodic&quot;</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">array_equal</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">translation_support</span><span class="o">.</span><span class="n">translations</span><span class="p">,</span>
+                <span class="n">compact_support</span><span class="o">.</span><span class="n">translations</span><span class="p">,</span>
+            <span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;format=</span><span class="si">{</span><span class="nb">format</span><span class="si">!r}</span><span class="s2"> cannot preserve this IFC3 translation &quot;</span>
+                    <span class="s2">&quot;support; export requires compact periodic axes&quot;</span>
+                <span class="p">)</span>
         <span class="n">folder</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">folder</span>
         <span class="n">filename</span> <span class="o">=</span> <span class="n">folder</span> <span class="o">+</span> <span class="s1">&#39;/&#39;</span> <span class="o">+</span> <span class="n">filename</span>
         <span class="n">n_atoms</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">positions</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
         <span class="k">match</span> <span class="nb">format</span><span class="p">:</span>
             <span class="k">case</span> <span class="s1">&#39;eskm&#39;</span><span class="p">:</span>
                 <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Exporting third in eskm format&#39;</span><span class="p">)</span>
-                <span class="n">n_replicas</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_replicas</span>
-                <span class="n">n_replicated_atoms</span> <span class="o">=</span> <span class="n">n_atoms</span> <span class="o">*</span> <span class="n">n_replicas</span>
+                <span class="n">n_replicated_atoms</span> <span class="o">=</span> <span class="n">n_atoms</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_translations</span>
                 <span class="n">tenjovermoltoev</span> <span class="o">=</span> <span class="mi">10</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">J</span> <span class="o">/</span> <span class="n">units</span><span class="o">.</span><span class="n">mol</span>
                 <span class="n">third</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="n">n_atoms</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">n_replicated_atoms</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">n_replicated_atoms</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span> <span class="o">/</span> <span class="n">tenjovermoltoev</span>
                 <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">out_file</span><span class="p">:</span>
@@ -1115,12 +1596,18 @@
                                             <span class="n">out_file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
                 <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Done exporting third.&#39;</span><span class="p">)</span>
             <span class="k">case</span> <span class="s1">&#39;sparse&#39;</span> <span class="o">|</span> <span class="s1">&#39;numpy&#39;</span><span class="p">:</span>
-                <span class="n">config_file</span> <span class="o">=</span> <span class="n">folder</span> <span class="o">+</span> <span class="n">REPLICATED_ATOMS_THIRD_FILE</span>
+                <span class="n">config_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="n">REPLICATED_ATOMS_THIRD_FILE</span><span class="p">)</span>
                 <span class="n">ase</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">config_file</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">replicated_atoms</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s1">&#39;extxyz&#39;</span><span class="p">)</span>
 
-                <span class="n">save_npz</span><span class="p">(</span><span class="n">folder</span> <span class="o">+</span> <span class="s1">&#39;/&#39;</span> <span class="o">+</span> <span class="n">THIRD_ORDER_FILE_SPARSE</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="n">n_atoms</span> <span class="o">*</span> <span class="mi">3</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_replicas</span> <span class="o">*</span>
-                                                                            <span class="n">n_atoms</span> <span class="o">*</span> <span class="mi">3</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_replicas</span> <span class="o">*</span>
-                                                                            <span class="n">n_atoms</span> <span class="o">*</span> <span class="mi">3</span><span class="p">))</span><span class="o">.</span><span class="n">to_scipy_sparse</span><span class="p">())</span>
+                <span class="n">save_npz</span><span class="p">(</span>
+                    <span class="n">folder</span> <span class="o">+</span> <span class="s2">&quot;/&quot;</span> <span class="o">+</span> <span class="n">THIRD_ORDER_FILE_SPARSE</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span>
+                        <span class="p">(</span>
+                            <span class="n">n_atoms</span> <span class="o">*</span> <span class="mi">3</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_translations</span> <span class="o">*</span> <span class="n">n_atoms</span> <span class="o">*</span> <span class="mi">3</span><span class="p">,</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">n_translations</span> <span class="o">*</span> <span class="n">n_atoms</span> <span class="o">*</span> <span class="mi">3</span><span class="p">,</span>
+                        <span class="p">)</span>
+                    <span class="p">)</span><span class="o">.</span><span class="n">to_scipy_sparse</span><span class="p">(),</span>
+                <span class="p">)</span>
             <span class="k">case</span><span class="w"> </span><span class="k">_</span><span class="p">:</span>
                 <span class="nb">super</span><span class="p">(</span><span class="n">ThirdOrder</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="nb">format</span><span class="p">)</span>
 

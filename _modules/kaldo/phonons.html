@@ -823,15 +823,20 @@
 <span class="sd">Anharmonic Lattice Dynamics</span>
 
 <span class="sd">&quot;&quot;&quot;</span>
+
 <span class="kn">import</span><span class="w"> </span><span class="nn">functools</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">hashlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">sha256</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.storable</span><span class="w"> </span><span class="kn">import</span> <span class="n">is_calculated</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.storable</span><span class="w"> </span><span class="kn">import</span> <span class="n">lazy_property</span><span class="p">,</span> <span class="n">Storable</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.helpers.logger</span><span class="w"> </span><span class="kn">import</span> <span class="n">log_size</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.storable</span><span class="w"> </span><span class="kn">import</span> <span class="n">FOLDER_NAME</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.grid</span><span class="w"> </span><span class="kn">import</span> <span class="n">Grid</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.observables.harmonic_with_q</span><span class="w"> </span><span class="kn">import</span> <span class="n">HarmonicWithQ</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.grid</span><span class="w"> </span><span class="kn">import</span> <span class="n">QGrid</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.observables.harmonic_with_q</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">HarmonicWithQ</span><span class="p">,</span>
+    <span class="n">resolve_ifc_interpolation</span><span class="p">,</span>
+<span class="p">)</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.observables.harmonic_with_q_temp</span><span class="w"> </span><span class="kn">import</span> <span class="n">HarmonicWithQTemp</span><span class="p">,</span> <span class="n">CLASSICAL_HBAR_SCALE</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.forceconstants</span><span class="w"> </span><span class="kn">import</span> <span class="n">ForceConstants</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">kaldo.controllers.anharmonic</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">aha</span>
@@ -894,10 +899,10 @@
 
     <span class="n">kpts_arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">kpts</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
     <span class="n">n_k_points</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">(</span><span class="n">kpts_arr</span><span class="p">))</span>
-    <span class="n">grid</span> <span class="o">=</span> <span class="n">Grid</span><span class="p">(</span><span class="n">kpts_arr</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="n">grid_type</span><span class="p">)</span>
+    <span class="n">grid</span> <span class="o">=</span> <span class="n">QGrid</span><span class="p">(</span><span class="nb">tuple</span><span class="p">(</span><span class="n">kpts_arr</span><span class="p">),</span> <span class="n">order</span><span class="o">=</span><span class="n">grid_type</span><span class="p">)</span>
 
     <span class="c1"># Integer grid coordinates (0..Ni-1) and fractional equivalents.</span>
-    <span class="n">k_indices</span> <span class="o">=</span> <span class="n">grid</span><span class="o">.</span><span class="n">generate_index_grid</span><span class="p">()</span>   <span class="c1"># (n_k_points, 3) int</span>
+    <span class="n">k_indices</span> <span class="o">=</span> <span class="n">grid</span><span class="o">.</span><span class="n">addresses</span>  <span class="c1"># (n_k_points, 3) int</span>
     <span class="n">q_fracs</span> <span class="o">=</span> <span class="n">k_indices</span> <span class="o">/</span> <span class="n">kpts_arr</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>  <span class="c1"># (n_k_points, 3) in [0,1)</span>
 
     <span class="c1"># Build spglib structure tuple.</span>
@@ -1012,33 +1017,43 @@
 
     <span class="k">return</span> <span class="n">ir_mapping</span><span class="p">,</span> <span class="n">krot_perm</span><span class="p">,</span> <span class="n">ibz_indices</span><span class="p">,</span> <span class="n">krot_cart</span>
 
-<span class="k">def</span><span class="w"> </span><span class="nf">_sparse_tensor_to_numpy</span><span class="p">(</span><span class="n">st</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert a tf.SparseTensor to a picklable (indices, values, dense_shape) tuple.&quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="n">st</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">return</span> <span class="kc">None</span>
-    <span class="k">return</span> <span class="p">(</span><span class="n">st</span><span class="o">.</span><span class="n">indices</span><span class="o">.</span><span class="n">numpy</span><span class="p">(),</span> <span class="n">st</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">numpy</span><span class="p">(),</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">st</span><span class="o">.</span><span class="n">dense_shape</span><span class="o">.</span><span class="n">numpy</span><span class="p">()))</span>
 
+<span class="k">def</span><span class="w"> </span><span class="nf">_compute_kpoint_projection</span><span class="p">(</span>
+    <span class="n">index_k</span><span class="p">,</span>
+    <span class="n">n_modes</span><span class="p">,</span>
+    <span class="n">n_k_points</span><span class="p">,</span>
+    <span class="n">omega</span><span class="p">,</span>
+    <span class="n">physical_mode</span><span class="p">,</span>
+    <span class="n">evect_np</span><span class="p">,</span>
+    <span class="n">third_sparse_data</span><span class="p">,</span>
+    <span class="n">chi_k_np</span><span class="p">,</span>
+    <span class="n">velocity_np</span><span class="p">,</span>
+    <span class="n">cell_inv</span><span class="p">,</span>
+    <span class="n">kpts</span><span class="p">,</span>
+    <span class="n">broadening_shape</span><span class="p">,</span>
+    <span class="n">broadening_kernel</span><span class="p">,</span>
+    <span class="n">sigma_mode_np</span><span class="p">,</span>
+    <span class="n">third_bandwidth</span><span class="p">,</span>
+    <span class="n">hbar</span><span class="p">,</span>
+    <span class="n">n_translations</span><span class="p">,</span>
+    <span class="n">is_sparse</span><span class="p">,</span>
+    <span class="n">kpoint_maps</span><span class="p">,</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Project both three-phonon channels for every mode at one q point.</span>
 
-<span class="k">def</span><span class="w"> </span><span class="nf">_numpy_to_sparse_tensor</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Reconstruct a tf.SparseTensor from a (indices, values, dense_shape) tuple.&quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="n">data</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">return</span> <span class="kc">None</span>
-    <span class="n">indices</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span> <span class="n">dense_shape</span> <span class="o">=</span> <span class="n">data</span>
-    <span class="k">return</span> <span class="n">tf</span><span class="o">.</span><span class="n">SparseTensor</span><span class="p">(</span><span class="n">indices</span><span class="o">=</span><span class="n">indices</span><span class="p">,</span> <span class="n">values</span><span class="o">=</span><span class="n">values</span><span class="p">,</span> <span class="n">dense_shape</span><span class="o">=</span><span class="n">dense_shape</span><span class="p">)</span>
+<span class="sd">    ``third_sparse_data`` and ``chi_k_np`` already share the selected IFC3</span>
+<span class="sd">    translation support of length ``n_translations``. For each initial branch,</span>
+<span class="sd">    exact reciprocal-grid arithmetic supplies the momentum partner q&#39;&#39;, the</span>
+<span class="sd">    broadening kernel selects energy-conserving ``(q&#39;,mu&#39;,mu&#39;&#39;)`` triplets,</span>
+<span class="sd">    and :func:`kaldo.controllers.anharmonic.sparse_potential_mu` contracts the</span>
+<span class="sd">    corresponding IFC3 matrix elements.</span>
 
-
-<span class="k">def</span><span class="w"> </span><span class="nf">_compute_kpoint_projection</span><span class="p">(</span><span class="n">index_k</span><span class="p">,</span> <span class="n">n_modes</span><span class="p">,</span> <span class="n">n_k_points</span><span class="p">,</span> <span class="n">omega</span><span class="p">,</span> <span class="n">physical_mode</span><span class="p">,</span>
-                                <span class="n">evect_np</span><span class="p">,</span> <span class="n">third_sparse_data</span><span class="p">,</span> <span class="n">chi_k_np</span><span class="p">,</span> <span class="n">velocity_np</span><span class="p">,</span>
-                                <span class="n">cell_inv</span><span class="p">,</span> <span class="n">kpts</span><span class="p">,</span> <span class="n">broadening_shape</span><span class="p">,</span> <span class="n">broadening_kernel</span><span class="p">,</span>
-                                <span class="n">sigma_mode_np</span><span class="p">,</span> <span class="n">third_bandwidth</span><span class="p">,</span>
-                                <span class="n">hbar</span><span class="p">,</span> <span class="n">n_replicas</span><span class="p">,</span> <span class="n">is_sparse</span><span class="p">,</span> <span class="n">kpoint_maps</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute sparse_phase and sparse_potential for all modes at one k-point.</span>
-
-<span class="sd">    All inputs are numpy arrays (picklable). TF tensors are created internally.</span>
-<span class="sd">    Returns a list of n_modes entries, each being:</span>
-<span class="sd">        (phase_data_list, potential_data_list)</span>
-<span class="sd">    where each *_data_list is [is_plus_0, is_plus_1] with entries as</span>
-<span class="sd">    (indices, values, dense_shape) numpy tuples or None.</span>
+<span class="sd">    All arguments are NumPy objects or scalars so this function can run in a</span>
+<span class="sd">    process worker. TensorFlow tensors are local to the worker and are</span>
+<span class="sd">    converted back to ``(indices, values, dense_shape)`` payloads before the</span>
+<span class="sd">    process boundary. The result contains one ``(phase, potential)`` pair per</span>
+<span class="sd">    initial branch, each with decay and absorption entries (or ``None`` when</span>
+<span class="sd">    no physical triplet survives the energy window).</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="c1"># Reconstruct TF tensors from numpy</span>
     <span class="n">evect_tf</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">convert_to_tensor</span><span class="p">(</span><span class="n">evect_np</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">complex128</span><span class="p">)</span>
@@ -1056,6 +1071,9 @@
         <span class="n">third_tf</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">SparseTensor</span><span class="p">(</span>
             <span class="n">tf</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">coords</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">int64</span><span class="p">),</span> <span class="n">data</span><span class="p">,</span> <span class="n">shape</span>
         <span class="p">)</span>
+        <span class="c1"># The coordinate rows were permuted from the source COO axis order;</span>
+        <span class="c1"># TensorFlow sparse ops require canonical row-major index ordering.</span>
+        <span class="n">third_tf</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">sparse</span><span class="o">.</span><span class="n">reorder</span><span class="p">(</span><span class="n">third_tf</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="n">third_tf</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">convert_to_tensor</span><span class="p">(</span><span class="n">third_sparse_data</span><span class="p">)</span>
     <span class="n">third_tf</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">third_tf</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">complex128</span><span class="p">)</span>
@@ -1092,13 +1110,29 @@
                 <span class="k">continue</span>
 
             <span class="n">potential_result</span> <span class="o">=</span> <span class="n">aha</span><span class="o">.</span><span class="n">sparse_potential_mu</span><span class="p">(</span>
-                <span class="n">nu_single</span><span class="p">,</span> <span class="n">evect_tf</span><span class="p">,</span> <span class="n">dirac_delta_result</span><span class="p">,</span> <span class="n">index_k</span><span class="p">,</span> <span class="n">mu</span><span class="p">,</span>
-                <span class="n">n_k_points</span><span class="p">,</span> <span class="n">n_modes</span><span class="p">,</span> <span class="n">is_plus</span><span class="p">,</span> <span class="n">is_sparse</span><span class="p">,</span> <span class="n">index_kpp_full</span><span class="p">,</span>
-                <span class="n">_chi_k</span><span class="p">,</span> <span class="n">second_minus</span><span class="p">,</span> <span class="n">second_minus_chi</span><span class="p">,</span> <span class="n">third_tf</span><span class="p">,</span>
-                <span class="n">n_replicas</span><span class="p">,</span> <span class="n">omega</span><span class="p">,</span> <span class="n">hbar</span><span class="p">,</span>
+                <span class="n">nu_single</span><span class="p">,</span>
+                <span class="n">evect_tf</span><span class="p">,</span>
+                <span class="n">dirac_delta_result</span><span class="p">,</span>
+                <span class="n">index_k</span><span class="p">,</span>
+                <span class="n">mu</span><span class="p">,</span>
+                <span class="n">n_k_points</span><span class="p">,</span>
+                <span class="n">n_modes</span><span class="p">,</span>
+                <span class="n">is_plus</span><span class="p">,</span>
+                <span class="n">is_sparse</span><span class="p">,</span>
+                <span class="n">index_kpp_full</span><span class="p">,</span>
+                <span class="n">_chi_k</span><span class="p">,</span>
+                <span class="n">second_minus</span><span class="p">,</span>
+                <span class="n">second_minus_chi</span><span class="p">,</span>
+                <span class="n">third_tf</span><span class="p">,</span>
+                <span class="n">n_translations</span><span class="p">,</span>
+                <span class="n">omega</span><span class="p">,</span>
+                <span class="n">hbar</span><span class="p">,</span>
             <span class="p">)</span>
-            <span class="n">phase_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_sparse_tensor_to_numpy</span><span class="p">(</span><span class="n">dirac_delta_result</span><span class="p">))</span>
-            <span class="n">potential_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_sparse_tensor_to_numpy</span><span class="p">(</span><span class="n">potential_result</span><span class="p">))</span>
+            <span class="c1"># TensorFlow objects do not cross the process boundary. Reuse</span>
+            <span class="c1"># Phonons&#39; persistence payload so workers and storage agree on one</span>
+            <span class="c1"># sparse representation.</span>
+            <span class="n">phase_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Phonons</span><span class="o">.</span><span class="n">_sparse_tensor_to_numpy</span><span class="p">(</span><span class="n">dirac_delta_result</span><span class="p">))</span>
+            <span class="n">potential_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Phonons</span><span class="o">.</span><span class="n">_sparse_tensor_to_numpy</span><span class="p">(</span><span class="n">potential_result</span><span class="p">))</span>
 
         <span class="n">results</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">phase_list</span><span class="p">,</span> <span class="n">potential_list</span><span class="p">))</span>
     <span class="k">return</span> <span class="n">results</span>
@@ -1190,7 +1224,7 @@
 <span class="sd">    min_frequency : float</span>
 <span class="sd">        Ignores all phonons with frequency below ``min_frequency``</span>
 <span class="sd">        Units: Thz</span>
-<span class="sd">        Default: None</span>
+<span class="sd">        Default: 0.</span>
 <span class="sd">    max_frequency : float</span>
 <span class="sd">        Ignores all phonons with frequency above ``max_frequency``</span>
 <span class="sd">        Units: THz</span>
@@ -1251,7 +1285,9 @@
 <span class="sd">        Default: False</span>
 <span class="sd">    is_unfolding : bool</span>
 <span class="sd">        If the second order force constants need to be unfolded like in P. B. Allen</span>
-<span class="sd">        et al., Phys. Rev. B 87, 085322 (2013) set this to True.</span>
+<span class="sd">        et al., Phys. Rev. B 87, 085322 (2013) set this to True. Folding and</span>
+<span class="sd">        unfolding now use pair-dependent Wigner--Seitz images of each atom</span>
+<span class="sd">        pair, and sources that provide literal translations keep them.</span>
 <span class="sd">        Default: False</span>
 <span class="sd">    g_factor : (n_atoms) array , optional</span>
 <span class="sd">        It contains the isotopic g factor for each atom of the unit cell. </span>
@@ -1259,10 +1295,12 @@
 <span class="sd">        More reference can be found: M. Berglund, M.E. Wieser, Isotopic compositions of the elements 2009 (IUPAC technical report), Pure Appl. Chem. 83 (2011) 397–410.</span>
 <span class="sd">        Default: None</span>
 <span class="sd">    is_symmetrizing_frequency : bool, optional</span>
-<span class="sd">        TODO: add more doc here</span>
+<span class="sd">        Reserved compatibility option. It is retained in the public</span>
+<span class="sd">        constructor but is not currently applied to computed frequencies.</span>
 <span class="sd">        Default: False</span>
 <span class="sd">    is_antisymmetrizing_velocity : bool, optional</span>
-<span class="sd">        TODO: add more doc here</span>
+<span class="sd">        Reserved compatibility option. It is retained in the public</span>
+<span class="sd">        constructor but is not currently applied to computed velocities.</span>
 <span class="sd">        Default: False</span>
 <span class="sd">    include_isotopes: bool, optional.</span>
 <span class="sd">        Defines if you want to include isotopic scattering bandwidths.</span>
@@ -1271,8 +1309,21 @@
 <span class="sd">        Defines if you want to truncate the energy-conservation delta</span>
 <span class="sd">        in the isotopic scattering computation. Default is True.</span>
 <span class="sd">    is_nw: bool, optional</span>
-<span class="sd">        Defines if you would like to assume the system is a nanowire.</span>
+<span class="sd">        Treat the four lowest Gamma modes as the acoustic subspace of a</span>
+<span class="sd">        nanowire (one longitudinal, one torsional, and two flexural modes).</span>
+<span class="sd">        This flag does not define partial periodic boundary conditions,</span>
+<span class="sd">        restrict IFC image searches to a wire axis, select a conductivity</span>
+<span class="sd">        component, or assign an effective cross-sectional area. True</span>
+<span class="sd">        partially periodic IFC interpolation is not currently implemented.</span>
 <span class="sd">        Default: False</span>
+<span class="sd">    n_workers : int, optional</span>
+<span class="sd">        Number of worker processes used for per-q projection calculations.</span>
+<span class="sd">        Set to 1 for serial execution.</span>
+<span class="sd">        Default: 1</span>
+<span class="sd">    projection_output_dir : str, optional</span>
+<span class="sd">        Directory used for restartable per-q projection checkpoints. If it is</span>
+<span class="sd">        omitted, completed per-q results are retained in memory instead.</span>
+<span class="sd">        Default: None</span>
 <span class="sd">    use_q_symmetry : bool, optional</span>
 <span class="sd">        Reduce the per-k-point projection cost by computing only the</span>
 <span class="sd">        irreducible Brillouin zone (IBZ) representatives via spglib and</span>
@@ -1321,6 +1372,7 @@
         <span class="s1">&#39;_ps_gamma_and_gamma_tensor&#39;</span><span class="p">:</span> <span class="s1">&#39;numpy&#39;</span><span class="p">,</span>
         <span class="s1">&#39;_generalized_diffusivity&#39;</span><span class="p">:</span> <span class="s1">&#39;numpy&#39;</span>
     <span class="p">}</span>
+
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                  <span class="n">forceconstants</span><span class="p">:</span> <span class="n">ForceConstants</span><span class="p">,</span>
                  <span class="n">temperature</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -1347,6 +1399,7 @@
                  <span class="n">n_workers</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
                  <span class="n">projection_output_dir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                  <span class="n">use_q_symmetry</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                 <span class="n">_ifc_interpolation</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                  <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span> <span class="o">=</span> <span class="n">forceconstants</span>
         <span class="k">if</span> <span class="n">n_workers</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">n_workers</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
@@ -1359,10 +1412,19 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">folder</span> <span class="o">=</span> <span class="n">folder</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">kpts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">kpts</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_grid_type</span> <span class="o">=</span> <span class="n">grid_type</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_reciprocal_grid</span> <span class="o">=</span> <span class="n">Grid</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kpts</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_grid_type</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">is_unfolding</span> <span class="o">=</span> <span class="n">is_unfolding</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_unfolding</span><span class="p">:</span>
-            <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Using unfolding.&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_reciprocal_grid</span> <span class="o">=</span> <span class="n">QGrid</span><span class="p">(</span><span class="nb">tuple</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kpts</span><span class="p">),</span> <span class="n">order</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_grid_type</span><span class="p">)</span>
+        <span class="c1"># _ifc_interpolation is an internal diagnostic override used by the</span>
+        <span class="c1"># test suite; the public control is the boolean above.</span>
+        <span class="k">if</span> <span class="n">_ifc_interpolation</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">_ifc_interpolation</span> <span class="o">=</span> <span class="s2">&quot;wigner-seitz&quot;</span> <span class="k">if</span> <span class="n">is_unfolding</span> <span class="k">else</span> <span class="s2">&quot;auto&quot;</span>
+        <span class="k">elif</span> <span class="n">_ifc_interpolation</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;auto&quot;</span><span class="p">,</span> <span class="s2">&quot;wigner-seitz&quot;</span><span class="p">,</span> <span class="s2">&quot;periodic&quot;</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;_ifc_interpolation must be &#39;auto&#39;, &#39;wigner-seitz&#39;, or &#39;periodic&#39;&quot;</span>
+            <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">is_unfolding</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="n">is_unfolding</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ifc_interpolation</span> <span class="o">=</span> <span class="n">_ifc_interpolation</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">ifc_interpolation</span> <span class="o">!=</span> <span class="s2">&quot;auto&quot;</span><span class="p">:</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Using IFC interpolation mode </span><span class="si">%s</span><span class="s2">.&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ifc_interpolation</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">min_frequency</span> <span class="o">=</span> <span class="n">min_frequency</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">max_frequency</span> <span class="o">=</span> <span class="n">max_frequency</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">broadening_shape</span> <span class="o">=</span> <span class="n">broadening_shape</span>
@@ -1380,6 +1442,33 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">is_antisymmetrizing_velocity</span> <span class="o">=</span> <span class="n">is_antisymmetrizing_velocity</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">is_balanced</span> <span class="o">=</span> <span class="n">is_balanced</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">atoms</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">atoms</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">ifc_interpolation</span> <span class="o">==</span> <span class="s2">&quot;auto&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ifc_interpolation_resolved</span> <span class="o">=</span> <span class="n">resolve_ifc_interpolation</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ifc_interpolation</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ifc_interpolation_resolved</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ifc_interpolation</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_second_support_digest</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second</span><span class="o">.</span><span class="n">translation_support</span><span class="o">.</span><span class="n">digest</span>
+        <span class="p">)</span>
+        <span class="c1"># Third-order IFCs are commonly constructed lazily.  Include their</span>
+        <span class="c1"># declared lattice topology without forcing that construction, so two</span>
+        <span class="c1"># calculations with different IFC3 supercells cannot share a cache</span>
+        <span class="c1"># namespace merely because ``forceconstants._third`` is still None.</span>
+        <span class="n">third_supercell</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span>
+            <span class="nb">getattr</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="p">,</span>
+                <span class="s2">&quot;third_supercell&quot;</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">supercell</span><span class="p">,</span>
+            <span class="p">),</span>
+            <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">third_supercell</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="p">(</span><span class="mi">3</span><span class="p">,):</span>
+            <span class="n">third_supercell</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">third_supercell</span><span class="p">)</span>
+        <span class="n">third_topology_digest</span> <span class="o">=</span> <span class="n">sha256</span><span class="p">(</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">third_supercell</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="s2">&quot;&lt;i8&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">tobytes</span><span class="p">()</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_third_topology_digest</span> <span class="o">=</span> <span class="n">third_topology_digest</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">supercell</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">supercell</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kpts</span><span class="p">))</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">n_atoms</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">n_atoms</span>
@@ -1398,7 +1487,7 @@
         <span class="c1"># Marginal sums (Γ_total[k, μ], Σ_μ phase_space[k, μ]) are still</span>
         <span class="c1"># correct; the TDEP kernel (broadening_kernel=&#39;tdep&#39;) gives per-mode</span>
         <span class="c1"># invariance to machine precision.</span>
-        <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">use_q_symmetry</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">broadening_kernel</span> <span class="o">==</span> <span class="s2">&quot;shengbte&quot;</span>
+        <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_use_q_symmetry</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">broadening_kernel</span> <span class="o">==</span> <span class="s2">&quot;shengbte&quot;</span>
                 <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">third_bandwidth</span><span class="p">):</span>
             <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
                 <span class="s2">&quot;use_q_symmetry=True with broadening_kernel=&#39;shengbte&#39; &quot;</span>
@@ -1408,6 +1497,63 @@
                 <span class="s2">&quot;subspaces). Marginal sums remain correct. For strict &quot;</span>
                 <span class="s2">&quot;per-mode invariance use broadening_kernel=&#39;tdep&#39;.&quot;</span>
             <span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">use_q_symmetry</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Whether symmetry replication is active for the anharmonic projection.</span>
+
+<span class="sd">        The reduction is not yet validated when the IFC3 translation support</span>
+<span class="sd">        leaves the |det(M)| periodic classes, so the flag downgrades to the</span>
+<span class="sd">        full q-point grid as soon as that support is known. Resolving it here</span>
+<span class="sd">        keeps stored-artifact labels consistent with what is computed.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_use_q_symmetry</span><span class="p">:</span>
+            <span class="n">third</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="p">,</span> <span class="s2">&quot;_third&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">third</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">third</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="c1"># Nothing to assess yet; anharmonic labels resolve the IFC3</span>
+                <span class="c1"># object before reading this flag.</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_use_q_symmetry</span>
+            <span class="n">interpolation</span> <span class="o">=</span> <span class="n">third</span><span class="o">.</span><span class="n">get_interpolation</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ifc_interpolation</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">interpolation</span><span class="o">.</span><span class="n">support</span><span class="o">.</span><span class="n">size</span> <span class="o">!=</span> <span class="n">third</span><span class="o">.</span><span class="n">n_replicas</span><span class="p">:</span>
+                <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                    <span class="s2">&quot;use_q_symmetry is not yet validated for an IFC3 &quot;</span>
+                    <span class="s2">&quot;translation support expanded beyond the physical &quot;</span>
+                    <span class="s2">&quot;supercell classes (</span><span class="si">%d</span><span class="s2"> translations, </span><span class="si">%d</span><span class="s2"> classes): &quot;</span>
+                    <span class="s2">&quot;falling back to the full q-point grid for the &quot;</span>
+                    <span class="s2">&quot;anharmonic projection.&quot;</span><span class="p">,</span>
+                    <span class="n">interpolation</span><span class="o">.</span><span class="n">support</span><span class="o">.</span><span class="n">size</span><span class="p">,</span>
+                    <span class="n">third</span><span class="o">.</span><span class="n">n_replicas</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_use_q_symmetry</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_use_q_symmetry</span>
+
+    <span class="nd">@use_q_symmetry</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">use_q_symmetry</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_use_q_symmetry</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">ifc_cache_key</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the current IFC topology/interpolation cache identity.</span>
+
+<span class="sd">        The third-order object may be loaded after ``Phonons`` construction.</span>
+<span class="sd">        Reading this property at storage time incorporates that object&#39;s</span>
+<span class="sd">        literal translation support without eagerly constructing it.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">digests</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_second_support_digest</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_third_topology_digest</span><span class="p">]</span>
+        <span class="n">loaded_third</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="p">,</span> <span class="s2">&quot;_third&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">loaded_third</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">digests</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">loaded_third</span><span class="o">.</span><span class="n">translation_support</span><span class="o">.</span><span class="n">digest</span><span class="p">)</span>
+        <span class="n">third_hint</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">loaded_third</span><span class="p">,</span> <span class="s2">&quot;ifc_interpolation_hint&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">(</span>
+            <span class="s2">&quot;v4_req-&quot;</span>
+            <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">ifc_interpolation</span>
+            <span class="o">+</span> <span class="s2">&quot;_harm-&quot;</span>
+            <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">ifc_interpolation_resolved</span>
+            <span class="o">+</span> <span class="s2">&quot;_third-&quot;</span>
+            <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">third_hint</span> <span class="ow">or</span> <span class="s2">&quot;source&quot;</span><span class="p">)</span>
+            <span class="o">+</span> <span class="s2">&quot;_&quot;</span>
+            <span class="o">+</span> <span class="s2">&quot;_&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">digest</span><span class="p">[:</span><span class="mi">16</span><span class="p">]</span> <span class="k">for</span> <span class="n">digest</span> <span class="ow">in</span> <span class="n">digests</span><span class="p">)</span>
+        <span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_get_folder_path_components</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">label</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Get folder path components for Phonons-specific attributes.&quot;&quot;&quot;</span>
@@ -1428,6 +1574,11 @@
         <span class="k">if</span> <span class="s1">&#39;&lt;include_isotopes&gt;&#39;</span> <span class="ow">in</span> <span class="n">label</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">include_isotopes</span><span class="p">:</span>
             <span class="n">components</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;isotopes&#39;</span><span class="p">)</span>
 
+        <span class="k">if</span> <span class="s1">&#39;&lt;use_q_symmetry&gt;&#39;</span> <span class="ow">in</span> <span class="n">label</span><span class="p">:</span>
+            <span class="c1"># An anharmonic label implies IFC3 work; resolving the object here</span>
+            <span class="c1"># lets the supported-topology downgrade settle before the storage</span>
+            <span class="c1"># path is fixed.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">third</span>
         <span class="k">if</span> <span class="s1">&#39;&lt;use_q_symmetry&gt;&#39;</span> <span class="ow">in</span> <span class="n">label</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_q_symmetry</span><span class="p">:</span>
             <span class="n">components</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;qsym&#39;</span><span class="p">)</span>
 
@@ -1487,19 +1638,21 @@
 <span class="sd">        physical_mode : np array(n_k_points, n_modes)</span>
 <span class="sd">            bool</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">q_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reciprocal_grid</span><span class="o">.</span><span class="n">unitary_grid</span><span class="p">(</span><span class="n">is_wrapping</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">q_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reciprocal_grid</span><span class="o">.</span><span class="n">fractional_points</span>
         <span class="n">physical_mode</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">)</span>
 
         <span class="k">for</span> <span class="n">ik</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">q_points</span><span class="p">)):</span>
             <span class="n">q_point</span> <span class="o">=</span> <span class="n">q_points</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span>
-            <span class="n">phonon</span> <span class="o">=</span> <span class="n">HarmonicWithQ</span><span class="p">(</span><span class="n">q_point</span><span class="o">=</span><span class="n">q_point</span><span class="p">,</span>
-                                   <span class="n">second</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second</span><span class="p">,</span>
-                                   <span class="n">distance_threshold</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">distance_threshold</span><span class="p">,</span>
-                                   <span class="n">folder</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">folder</span><span class="p">,</span>
-                                   <span class="n">storage</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="p">,</span>
-                                   <span class="n">is_nw</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_nw</span><span class="p">,</span>
-                                   <span class="n">is_unfolding</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_unfolding</span><span class="p">,</span>
-                                   <span class="n">is_amorphous</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_is_amorphous</span><span class="p">)</span>
+            <span class="n">phonon</span> <span class="o">=</span> <span class="n">HarmonicWithQ</span><span class="p">(</span>
+                <span class="n">q_point</span><span class="o">=</span><span class="n">q_point</span><span class="p">,</span>
+                <span class="n">second</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second</span><span class="p">,</span>
+                <span class="n">distance_threshold</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">distance_threshold</span><span class="p">,</span>
+                <span class="n">folder</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">folder</span><span class="p">,</span>
+                <span class="n">storage</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="p">,</span>
+                <span class="n">is_nw</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_nw</span><span class="p">,</span>
+                <span class="n">ifc_interpolation</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ifc_interpolation</span><span class="p">,</span>
+                <span class="n">is_amorphous</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_is_amorphous</span><span class="p">,</span>
+            <span class="p">)</span>
 
             <span class="n">physical_mode</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span> <span class="o">=</span> <span class="n">phonon</span><span class="o">.</span><span class="n">physical_mode</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_frequency</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -1518,19 +1671,22 @@
 <span class="sd">        frequency : np array(n_k_points, n_modes)</span>
 <span class="sd">             frequency in THz</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">q_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reciprocal_grid</span><span class="o">.</span><span class="n">unitary_grid</span><span class="p">(</span><span class="n">is_wrapping</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">q_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reciprocal_grid</span><span class="o">.</span><span class="n">fractional_points</span>
         <span class="n">frequency</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">))</span>
 
         <span class="k">for</span> <span class="n">ik</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">q_points</span><span class="p">)):</span>
             <span class="n">q_point</span> <span class="o">=</span> <span class="n">q_points</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span>
-            <span class="n">phonon</span> <span class="o">=</span> <span class="n">HarmonicWithQ</span><span class="p">(</span><span class="n">q_point</span><span class="o">=</span><span class="n">q_point</span><span class="p">,</span>
-                                   <span class="n">second</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second</span><span class="p">,</span>
-                                   <span class="n">distance_threshold</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">distance_threshold</span><span class="p">,</span>
-                                   <span class="n">folder</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">folder</span><span class="p">,</span>
-                                   <span class="n">storage</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="p">,</span>
-                                   <span class="n">is_nw</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_nw</span><span class="p">,</span>
-                                   <span class="n">is_unfolding</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_unfolding</span><span class="p">,</span>
-                                   <span class="n">is_amorphous</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_is_amorphous</span><span class="p">)</span>
+            <span class="n">phonon</span> <span class="o">=</span> <span class="n">HarmonicWithQ</span><span class="p">(</span>
+                <span class="n">q_point</span><span class="o">=</span><span class="n">q_point</span><span class="p">,</span>
+                <span class="n">second</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second</span><span class="p">,</span>
+                <span class="n">distance_threshold</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">distance_threshold</span><span class="p">,</span>
+                <span class="n">folder</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">folder</span><span class="p">,</span>
+                <span class="n">storage</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="p">,</span>
+                <span class="n">is_nw</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_nw</span><span class="p">,</span>
+                <span class="n">ifc_interpolation</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ifc_interpolation</span><span class="p">,</span>
+                <span class="n">is_amorphous</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_is_amorphous</span><span class="p">,</span>
+            <span class="p">)</span>
+
             <span class="n">frequency</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span> <span class="o">=</span> <span class="n">phonon</span><span class="o">.</span><span class="n">frequency</span>
 
         <span class="k">return</span> <span class="n">frequency</span>
@@ -1548,18 +1704,20 @@
 <span class="sd">        participation_ratio : np array(n_k_points, n_modes)</span>
 <span class="sd">             atomic participation</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">q_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reciprocal_grid</span><span class="o">.</span><span class="n">unitary_grid</span><span class="p">(</span><span class="n">is_wrapping</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">q_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reciprocal_grid</span><span class="o">.</span><span class="n">fractional_points</span>
         <span class="n">participation_ratio</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">))</span>
         <span class="k">for</span> <span class="n">ik</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">q_points</span><span class="p">)):</span>
             <span class="n">q_point</span> <span class="o">=</span> <span class="n">q_points</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span>
-            <span class="n">phonon</span> <span class="o">=</span> <span class="n">HarmonicWithQ</span><span class="p">(</span><span class="n">q_point</span><span class="o">=</span><span class="n">q_point</span><span class="p">,</span>
-                                   <span class="n">second</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second</span><span class="p">,</span>
-                                   <span class="n">distance_threshold</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">distance_threshold</span><span class="p">,</span>
-                                   <span class="n">folder</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">folder</span><span class="p">,</span>
-                                   <span class="n">storage</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="p">,</span>
-                                   <span class="n">is_nw</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_nw</span><span class="p">,</span>
-                                   <span class="n">is_unfolding</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_unfolding</span><span class="p">,</span>
-                                   <span class="n">is_amorphous</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_is_amorphous</span><span class="p">)</span>
+            <span class="n">phonon</span> <span class="o">=</span> <span class="n">HarmonicWithQ</span><span class="p">(</span>
+                <span class="n">q_point</span><span class="o">=</span><span class="n">q_point</span><span class="p">,</span>
+                <span class="n">second</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second</span><span class="p">,</span>
+                <span class="n">distance_threshold</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">distance_threshold</span><span class="p">,</span>
+                <span class="n">folder</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">folder</span><span class="p">,</span>
+                <span class="n">storage</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="p">,</span>
+                <span class="n">is_nw</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_nw</span><span class="p">,</span>
+                <span class="n">ifc_interpolation</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ifc_interpolation</span><span class="p">,</span>
+                <span class="n">is_amorphous</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_is_amorphous</span><span class="p">,</span>
+            <span class="p">)</span>
 
             <span class="n">participation_ratio</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span> <span class="o">=</span> <span class="n">phonon</span><span class="o">.</span><span class="n">participation_ratio</span>
 
@@ -1577,19 +1735,22 @@
 <span class="sd">             velocity in 100m/s or A/ps</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
-        <span class="n">q_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reciprocal_grid</span><span class="o">.</span><span class="n">unitary_grid</span><span class="p">(</span><span class="n">is_wrapping</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">q_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reciprocal_grid</span><span class="o">.</span><span class="n">fractional_points</span>
         <span class="n">velocity</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
 
         <span class="k">for</span> <span class="n">ik</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">q_points</span><span class="p">)):</span>
             <span class="n">q_point</span> <span class="o">=</span> <span class="n">q_points</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span>
-            <span class="n">phonon</span> <span class="o">=</span> <span class="n">HarmonicWithQ</span><span class="p">(</span><span class="n">q_point</span><span class="o">=</span><span class="n">q_point</span><span class="p">,</span>
-                                   <span class="n">second</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second</span><span class="p">,</span>
-                                   <span class="n">distance_threshold</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">distance_threshold</span><span class="p">,</span>
-                                   <span class="n">folder</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">folder</span><span class="p">,</span>
-                                   <span class="n">storage</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="p">,</span>
-                                   <span class="n">is_nw</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_nw</span><span class="p">,</span>
-                                   <span class="n">is_unfolding</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_unfolding</span><span class="p">,</span>
-                                   <span class="n">is_amorphous</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_is_amorphous</span><span class="p">)</span>
+            <span class="n">phonon</span> <span class="o">=</span> <span class="n">HarmonicWithQ</span><span class="p">(</span>
+                <span class="n">q_point</span><span class="o">=</span><span class="n">q_point</span><span class="p">,</span>
+                <span class="n">second</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second</span><span class="p">,</span>
+                <span class="n">distance_threshold</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">distance_threshold</span><span class="p">,</span>
+                <span class="n">folder</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">folder</span><span class="p">,</span>
+                <span class="n">storage</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="p">,</span>
+                <span class="n">is_nw</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_nw</span><span class="p">,</span>
+                <span class="n">ifc_interpolation</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ifc_interpolation</span><span class="p">,</span>
+                <span class="n">is_amorphous</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_is_amorphous</span><span class="p">,</span>
+            <span class="p">)</span>
+
             <span class="n">velocity</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span> <span class="o">=</span> <span class="n">phonon</span><span class="o">.</span><span class="n">velocity</span>
 
         <span class="k">return</span> <span class="n">velocity</span>
@@ -1609,20 +1770,22 @@
 <span class="sd">            If the system is not amorphous, these values are stored as complex numbers.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="nb">type</span> <span class="o">=</span> <span class="nb">complex</span> <span class="k">if</span> <span class="p">(</span><span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_amorphous</span><span class="p">)</span> <span class="k">else</span> <span class="nb">float</span>
-        <span class="n">q_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reciprocal_grid</span><span class="o">.</span><span class="n">unitary_grid</span><span class="p">(</span><span class="n">is_wrapping</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">q_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reciprocal_grid</span><span class="o">.</span><span class="n">fractional_points</span>
         <span class="n">shape</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">)</span>
         <span class="n">log_size</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;eigensystem&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">type</span><span class="p">)</span>
         <span class="n">eigensystem</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">type</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">ik</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">q_points</span><span class="p">)):</span>
             <span class="n">q_point</span> <span class="o">=</span> <span class="n">q_points</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span>
-            <span class="n">phonon</span> <span class="o">=</span> <span class="n">HarmonicWithQ</span><span class="p">(</span><span class="n">q_point</span><span class="o">=</span><span class="n">q_point</span><span class="p">,</span>
-                                   <span class="n">second</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second</span><span class="p">,</span>
-                                   <span class="n">distance_threshold</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">distance_threshold</span><span class="p">,</span>
-                                   <span class="n">folder</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">folder</span><span class="p">,</span>
-                                   <span class="n">storage</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="p">,</span>
-                                   <span class="n">is_nw</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_nw</span><span class="p">,</span>
-                                   <span class="n">is_unfolding</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_unfolding</span><span class="p">,</span>
-                                   <span class="n">is_amorphous</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_is_amorphous</span><span class="p">)</span>
+            <span class="n">phonon</span> <span class="o">=</span> <span class="n">HarmonicWithQ</span><span class="p">(</span>
+                <span class="n">q_point</span><span class="o">=</span><span class="n">q_point</span><span class="p">,</span>
+                <span class="n">second</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second</span><span class="p">,</span>
+                <span class="n">distance_threshold</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">distance_threshold</span><span class="p">,</span>
+                <span class="n">folder</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">folder</span><span class="p">,</span>
+                <span class="n">storage</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="p">,</span>
+                <span class="n">is_nw</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_nw</span><span class="p">,</span>
+                <span class="n">ifc_interpolation</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ifc_interpolation</span><span class="p">,</span>
+                <span class="n">is_amorphous</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_is_amorphous</span><span class="p">,</span>
+            <span class="p">)</span>
 
             <span class="n">eigensystem</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span> <span class="o">=</span> <span class="n">phonon</span><span class="o">.</span><span class="n">_eigensystem</span>
 
@@ -1643,20 +1806,22 @@
 <span class="sd">        c_v : np.array(n_k_points, n_modes)</span>
 <span class="sd">            heat capacity in J/K for each k point and each mode</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">q_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reciprocal_grid</span><span class="o">.</span><span class="n">unitary_grid</span><span class="p">(</span><span class="n">is_wrapping</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">q_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reciprocal_grid</span><span class="o">.</span><span class="n">fractional_points</span>
         <span class="n">c_v</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">))</span>
         <span class="k">for</span> <span class="n">ik</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">q_points</span><span class="p">)):</span>
             <span class="n">q_point</span> <span class="o">=</span> <span class="n">q_points</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span>
-            <span class="n">phonon</span> <span class="o">=</span> <span class="n">HarmonicWithQTemp</span><span class="p">(</span><span class="n">q_point</span><span class="o">=</span><span class="n">q_point</span><span class="p">,</span>
-                                       <span class="n">second</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second</span><span class="p">,</span>
-                                       <span class="n">distance_threshold</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">distance_threshold</span><span class="p">,</span>
-                                       <span class="n">folder</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">folder</span><span class="p">,</span>
-                                       <span class="n">storage</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="p">,</span>
-                                       <span class="n">temperature</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">temperature</span><span class="p">,</span>
-                                       <span class="n">is_classic</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_classic</span><span class="p">,</span>
-                                       <span class="n">is_nw</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_nw</span><span class="p">,</span>
-                                       <span class="n">is_unfolding</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_unfolding</span><span class="p">,</span>
-                                       <span class="n">is_amorphous</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_is_amorphous</span><span class="p">)</span>
+            <span class="n">phonon</span> <span class="o">=</span> <span class="n">HarmonicWithQTemp</span><span class="p">(</span>
+                <span class="n">q_point</span><span class="o">=</span><span class="n">q_point</span><span class="p">,</span>
+                <span class="n">second</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second</span><span class="p">,</span>
+                <span class="n">distance_threshold</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">distance_threshold</span><span class="p">,</span>
+                <span class="n">folder</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">folder</span><span class="p">,</span>
+                <span class="n">storage</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="p">,</span>
+                <span class="n">temperature</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">temperature</span><span class="p">,</span>
+                <span class="n">is_classic</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_classic</span><span class="p">,</span>
+                <span class="n">is_nw</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_nw</span><span class="p">,</span>
+                <span class="n">ifc_interpolation</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ifc_interpolation</span><span class="p">,</span>
+                <span class="n">is_amorphous</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_is_amorphous</span><span class="p">,</span>
+            <span class="p">)</span>
             <span class="n">c_v</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span> <span class="o">=</span> <span class="n">phonon</span><span class="o">.</span><span class="n">heat_capacity</span>
         <span class="k">return</span> <span class="n">c_v</span>
 
@@ -1672,22 +1837,24 @@
 <span class="sd">        heat_capacity_2d : np.array(n_k_points, n_modes, n_modes)</span>
 <span class="sd">            heat capacity in W/m/K for each k point and each modes couple.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">q_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reciprocal_grid</span><span class="o">.</span><span class="n">unitary_grid</span><span class="p">(</span><span class="n">is_wrapping</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">q_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reciprocal_grid</span><span class="o">.</span><span class="n">fractional_points</span>
         <span class="n">shape</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">)</span>
         <span class="n">log_size</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;heat_capacity_2d&#39;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
         <span class="n">heat_capacity_2d</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">ik</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">q_points</span><span class="p">)):</span>
             <span class="n">q_point</span> <span class="o">=</span> <span class="n">q_points</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span>
-            <span class="n">phonon</span> <span class="o">=</span> <span class="n">HarmonicWithQTemp</span><span class="p">(</span><span class="n">q_point</span><span class="o">=</span><span class="n">q_point</span><span class="p">,</span>
-                                       <span class="n">second</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second</span><span class="p">,</span>
-                                       <span class="n">distance_threshold</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">distance_threshold</span><span class="p">,</span>
-                                       <span class="n">folder</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">folder</span><span class="p">,</span>
-                                       <span class="n">storage</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="p">,</span>
-                                       <span class="n">temperature</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">temperature</span><span class="p">,</span>
-                                       <span class="n">is_classic</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_classic</span><span class="p">,</span>
-                                       <span class="n">is_nw</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_nw</span><span class="p">,</span>
-                                       <span class="n">is_unfolding</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_unfolding</span><span class="p">,</span>
-                                       <span class="n">is_amorphous</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_is_amorphous</span><span class="p">)</span>
+            <span class="n">phonon</span> <span class="o">=</span> <span class="n">HarmonicWithQTemp</span><span class="p">(</span>
+                <span class="n">q_point</span><span class="o">=</span><span class="n">q_point</span><span class="p">,</span>
+                <span class="n">second</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second</span><span class="p">,</span>
+                <span class="n">distance_threshold</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">distance_threshold</span><span class="p">,</span>
+                <span class="n">folder</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">folder</span><span class="p">,</span>
+                <span class="n">storage</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="p">,</span>
+                <span class="n">temperature</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">temperature</span><span class="p">,</span>
+                <span class="n">is_classic</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_classic</span><span class="p">,</span>
+                <span class="n">is_nw</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_nw</span><span class="p">,</span>
+                <span class="n">ifc_interpolation</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ifc_interpolation</span><span class="p">,</span>
+                <span class="n">is_amorphous</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_is_amorphous</span><span class="p">,</span>
+            <span class="p">)</span>
 
             <span class="n">heat_capacity_2d</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span> <span class="o">=</span> <span class="n">phonon</span><span class="o">.</span><span class="n">heat_capacity_2d</span>
         <span class="k">return</span> <span class="n">heat_capacity_2d</span>
@@ -1709,20 +1876,22 @@
 <span class="sd">        population : np.array(n_k_points, n_modes)</span>
 <span class="sd">            population for each k point and each mode</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">q_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reciprocal_grid</span><span class="o">.</span><span class="n">unitary_grid</span><span class="p">(</span><span class="n">is_wrapping</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">q_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reciprocal_grid</span><span class="o">.</span><span class="n">fractional_points</span>
         <span class="n">population</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">))</span>
         <span class="k">for</span> <span class="n">ik</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">q_points</span><span class="p">)):</span>
             <span class="n">q_point</span> <span class="o">=</span> <span class="n">q_points</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span>
-            <span class="n">phonon</span> <span class="o">=</span> <span class="n">HarmonicWithQTemp</span><span class="p">(</span><span class="n">q_point</span><span class="o">=</span><span class="n">q_point</span><span class="p">,</span>
-                                       <span class="n">second</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second</span><span class="p">,</span>
-                                       <span class="n">distance_threshold</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">distance_threshold</span><span class="p">,</span>
-                                       <span class="n">folder</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">folder</span><span class="p">,</span>
-                                       <span class="n">storage</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="p">,</span>
-                                       <span class="n">temperature</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">temperature</span><span class="p">,</span>
-                                       <span class="n">is_classic</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_classic</span><span class="p">,</span>
-                                       <span class="n">is_nw</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_nw</span><span class="p">,</span>
-                                       <span class="n">is_unfolding</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_unfolding</span><span class="p">,</span>
-                                       <span class="n">is_amorphous</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_is_amorphous</span><span class="p">)</span>
+            <span class="n">phonon</span> <span class="o">=</span> <span class="n">HarmonicWithQTemp</span><span class="p">(</span>
+                <span class="n">q_point</span><span class="o">=</span><span class="n">q_point</span><span class="p">,</span>
+                <span class="n">second</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second</span><span class="p">,</span>
+                <span class="n">distance_threshold</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">distance_threshold</span><span class="p">,</span>
+                <span class="n">folder</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">folder</span><span class="p">,</span>
+                <span class="n">storage</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="p">,</span>
+                <span class="n">temperature</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">temperature</span><span class="p">,</span>
+                <span class="n">is_classic</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_classic</span><span class="p">,</span>
+                <span class="n">is_nw</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_nw</span><span class="p">,</span>
+                <span class="n">ifc_interpolation</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ifc_interpolation</span><span class="p">,</span>
+                <span class="n">is_amorphous</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_is_amorphous</span><span class="p">,</span>
+            <span class="p">)</span>
 
             <span class="n">population</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span> <span class="o">=</span> <span class="n">phonon</span><span class="o">.</span><span class="n">population</span>
         <span class="k">return</span> <span class="n">population</span>
@@ -1974,92 +2143,114 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_project_crystal</span><span class="p">()</span>
 
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_sparse_tensor_to_numpy</span><span class="p">(</span><span class="n">sparse_tensor</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Convert one TensorFlow sparse tensor to a picklable payload.</span>
+
+<span class="sd">        Parallel projection workers and NumPy persistence share this</span>
+<span class="sd">        ``(indices, values, dense_shape)`` boundary. Keeping it on</span>
+<span class="sd">        :class:`Phonons` makes serialization part of the high-level phonon</span>
+<span class="sd">        storage workflow rather than the anharmonic physics controller.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">sparse_tensor</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">return</span> <span class="p">(</span>
+            <span class="n">sparse_tensor</span><span class="o">.</span><span class="n">indices</span><span class="o">.</span><span class="n">numpy</span><span class="p">(),</span>
+            <span class="n">sparse_tensor</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">numpy</span><span class="p">(),</span>
+            <span class="nb">tuple</span><span class="p">(</span><span class="n">sparse_tensor</span><span class="o">.</span><span class="n">dense_shape</span><span class="o">.</span><span class="n">numpy</span><span class="p">()),</span>
+        <span class="p">)</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_numpy_to_sparse_tensor</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Reconstruct one TensorFlow sparse tensor from a worker payload.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">data</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="n">indices</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span> <span class="n">dense_shape</span> <span class="o">=</span> <span class="n">data</span>
+        <span class="k">return</span> <span class="n">tf</span><span class="o">.</span><span class="n">SparseTensor</span><span class="p">(</span>
+            <span class="n">indices</span><span class="o">=</span><span class="n">indices</span><span class="p">,</span>
+            <span class="n">values</span><span class="o">=</span><span class="n">values</span><span class="p">,</span>
+            <span class="n">dense_shape</span><span class="o">=</span><span class="n">dense_shape</span><span class="p">,</span>
+        <span class="p">)</span>
+
     <span class="k">def</span><span class="w"> </span><span class="nf">_convert_sparse_tensors_to_per_mu_arrays</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sparse_phase</span><span class="p">,</span> <span class="n">sparse_potential</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Convert sparse tensors to per-mu arrays for numpy storage.</span>
-<span class="sd">        </span>
-<span class="sd">        Returns a list where each element contains the data for one mu (phonon mode).</span>
-<span class="sd">        Each mu can have 0, 1, or 2 non-None tensors (for is_plus=0,1).</span>
-<span class="sd">        </span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Convert the phase/potential tensor collections for NumPy storage.</span>
+
+<span class="sd">        The two tensors for a process share sparse indices and shape, so each</span>
+<span class="sd">        stored record keeps those coordinates once and carries the two value</span>
+<span class="sd">        arrays separately.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        sparse_phase, sparse_potential : list</span>
+<span class="sd">            Per-mode pairs of TensorFlow sparse tensors for absorption and</span>
+<span class="sd">            emission processes.</span>
+
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
-<span class="sd">        list : List of per-mu data dictionaries</span>
+<span class="sd">        list</span>
+<span class="sd">            One serializable dictionary per phonon mode.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">per_mu_data</span> <span class="o">=</span> <span class="p">[]</span>
-        
-        <span class="k">for</span> <span class="n">nu_single</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">sparse_phase</span><span class="p">)):</span>
+        <span class="k">for</span> <span class="n">nu_single</span><span class="p">,</span> <span class="n">phase_by_process</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">sparse_phase</span><span class="p">):</span>
             <span class="n">mu_data</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;exists&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span> <span class="s1">&#39;tensors&#39;</span><span class="p">:</span> <span class="p">[]}</span>
-            
-            <span class="k">for</span> <span class="n">is_plus</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">):</span>
-                <span class="k">if</span> <span class="p">(</span><span class="n">nu_single</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">sparse_phase</span><span class="p">)</span> <span class="ow">and</span> 
-                    <span class="n">is_plus</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">sparse_phase</span><span class="p">[</span><span class="n">nu_single</span><span class="p">])</span> <span class="ow">and</span>
-                    <span class="n">sparse_phase</span><span class="p">[</span><span class="n">nu_single</span><span class="p">][</span><span class="n">is_plus</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">):</span>
-                    
-                    <span class="n">phase_tensor</span> <span class="o">=</span> <span class="n">sparse_phase</span><span class="p">[</span><span class="n">nu_single</span><span class="p">][</span><span class="n">is_plus</span><span class="p">]</span>
-                    <span class="n">potential_tensor</span> <span class="o">=</span> <span class="n">sparse_potential</span><span class="p">[</span><span class="n">nu_single</span><span class="p">][</span><span class="n">is_plus</span><span class="p">]</span>
-                    
-                    <span class="c1"># Get tensor components</span>
-                    <span class="n">indices</span> <span class="o">=</span> <span class="n">phase_tensor</span><span class="o">.</span><span class="n">indices</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
-                    <span class="n">phase_values</span> <span class="o">=</span> <span class="n">phase_tensor</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>  
-                    <span class="n">potential_values</span> <span class="o">=</span> <span class="n">potential_tensor</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
-                    <span class="n">dense_shape</span> <span class="o">=</span> <span class="n">phase_tensor</span><span class="o">.</span><span class="n">dense_shape</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
-                    
-                    <span class="n">tensor_data</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="k">for</span> <span class="n">is_plus</span><span class="p">,</span> <span class="n">phase_tensor</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">phase_by_process</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">phase_tensor</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="n">potential_tensor</span> <span class="o">=</span> <span class="n">sparse_potential</span><span class="p">[</span><span class="n">nu_single</span><span class="p">][</span><span class="n">is_plus</span><span class="p">]</span>
+
+                <span class="c1"># Use the worker payload boundary here as well, ensuring the</span>
+                <span class="c1"># in-memory and on-disk representations cannot drift.</span>
+                <span class="n">indices</span><span class="p">,</span> <span class="n">phase_values</span><span class="p">,</span> <span class="n">dense_shape</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sparse_tensor_to_numpy</span><span class="p">(</span>
+                    <span class="n">phase_tensor</span>
+                <span class="p">)</span>
+                <span class="n">_</span><span class="p">,</span> <span class="n">potential_values</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sparse_tensor_to_numpy</span><span class="p">(</span><span class="n">potential_tensor</span><span class="p">)</span>
+                <span class="n">mu_data</span><span class="p">[</span><span class="s2">&quot;tensors&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="p">{</span>
                         <span class="s1">&#39;is_plus&#39;</span><span class="p">:</span> <span class="n">is_plus</span><span class="p">,</span>
                         <span class="s1">&#39;indices&#39;</span><span class="p">:</span> <span class="n">indices</span><span class="p">,</span>
                         <span class="s1">&#39;phase_values&#39;</span><span class="p">:</span> <span class="n">phase_values</span><span class="p">,</span>
                         <span class="s1">&#39;potential_values&#39;</span><span class="p">:</span> <span class="n">potential_values</span><span class="p">,</span>
                         <span class="s1">&#39;dense_shape&#39;</span><span class="p">:</span> <span class="n">dense_shape</span>
                     <span class="p">}</span>
-                    
-                    <span class="n">mu_data</span><span class="p">[</span><span class="s1">&#39;tensors&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tensor_data</span><span class="p">)</span>
-                    <span class="n">mu_data</span><span class="p">[</span><span class="s1">&#39;exists&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
-            
+                <span class="p">)</span>
+                <span class="n">mu_data</span><span class="p">[</span><span class="s2">&quot;exists&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
             <span class="n">per_mu_data</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mu_data</span><span class="p">)</span>
         
         <span class="k">return</span> <span class="n">per_mu_data</span>
     
     <span class="k">def</span><span class="w"> </span><span class="nf">_convert_per_mu_arrays_to_sparse_tensors</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">per_mu_data</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Convert per-mu arrays back to sparse tensor format.</span>
-<span class="sd">        </span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Reconstruct phase/potential tensor collections from NumPy records.</span>
+
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
 <span class="sd">        per_mu_data : list</span>
-<span class="sd">            List of per-mu data dictionaries</span>
-<span class="sd">            </span>
+<span class="sd">            Dictionaries produced by</span>
+<span class="sd">            :meth:`_convert_sparse_tensors_to_per_mu_arrays`.</span>
+
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
-<span class="sd">        tuple : (sparse_phase, sparse_potential)</span>
+<span class="sd">        tuple</span>
+<span class="sd">            ``(sparse_phase, sparse_potential)`` with two process slots per</span>
+<span class="sd">            phonon mode.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="kn">import</span><span class="w"> </span><span class="nn">tensorflow</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">tf</span>
-        
         <span class="n">sparse_phase</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">sparse_potential</span> <span class="o">=</span> <span class="p">[]</span>
-        
-        <span class="k">for</span> <span class="n">nu_single</span><span class="p">,</span> <span class="n">mu_data</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">per_mu_data</span><span class="p">):</span>
-            <span class="n">sparse_phase</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">])</span>  <span class="c1"># Initialize with None for both is_plus</span>
+        <span class="k">for</span> <span class="n">mu_data</span> <span class="ow">in</span> <span class="n">per_mu_data</span><span class="p">:</span>
+            <span class="n">sparse_phase</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">])</span>
             <span class="n">sparse_potential</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">])</span>
-            
-            <span class="k">if</span> <span class="n">mu_data</span><span class="p">[</span><span class="s1">&#39;exists&#39;</span><span class="p">]:</span>
-                <span class="k">for</span> <span class="n">tensor_data</span> <span class="ow">in</span> <span class="n">mu_data</span><span class="p">[</span><span class="s1">&#39;tensors&#39;</span><span class="p">]:</span>
-                    <span class="n">is_plus</span> <span class="o">=</span> <span class="n">tensor_data</span><span class="p">[</span><span class="s1">&#39;is_plus&#39;</span><span class="p">]</span>
-                    
-                    <span class="c1"># Reconstruct sparse tensors</span>
-                    <span class="n">phase_tensor</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">SparseTensor</span><span class="p">(</span>
-                        <span class="n">indices</span><span class="o">=</span><span class="n">tensor_data</span><span class="p">[</span><span class="s1">&#39;indices&#39;</span><span class="p">],</span>
-                        <span class="n">values</span><span class="o">=</span><span class="n">tensor_data</span><span class="p">[</span><span class="s1">&#39;phase_values&#39;</span><span class="p">],</span>
-                        <span class="n">dense_shape</span><span class="o">=</span><span class="n">tensor_data</span><span class="p">[</span><span class="s1">&#39;dense_shape&#39;</span><span class="p">]</span>
-                    <span class="p">)</span>
-                    <span class="n">potential_tensor</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">SparseTensor</span><span class="p">(</span>
-                        <span class="n">indices</span><span class="o">=</span><span class="n">tensor_data</span><span class="p">[</span><span class="s1">&#39;indices&#39;</span><span class="p">],</span>
-                        <span class="n">values</span><span class="o">=</span><span class="n">tensor_data</span><span class="p">[</span><span class="s1">&#39;potential_values&#39;</span><span class="p">],</span>
-                        <span class="n">dense_shape</span><span class="o">=</span><span class="n">tensor_data</span><span class="p">[</span><span class="s1">&#39;dense_shape&#39;</span><span class="p">]</span>
-                    <span class="p">)</span>
-                    
-                    <span class="n">sparse_phase</span><span class="p">[</span><span class="n">nu_single</span><span class="p">][</span><span class="n">is_plus</span><span class="p">]</span> <span class="o">=</span> <span class="n">phase_tensor</span>
-                    <span class="n">sparse_potential</span><span class="p">[</span><span class="n">nu_single</span><span class="p">][</span><span class="n">is_plus</span><span class="p">]</span> <span class="o">=</span> <span class="n">potential_tensor</span>
-        
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">mu_data</span><span class="p">[</span><span class="s2">&quot;exists&quot;</span><span class="p">]:</span>
+                <span class="k">continue</span>
+
+            <span class="k">for</span> <span class="n">tensor_data</span> <span class="ow">in</span> <span class="n">mu_data</span><span class="p">[</span><span class="s2">&quot;tensors&quot;</span><span class="p">]:</span>
+                <span class="n">is_plus</span> <span class="o">=</span> <span class="n">tensor_data</span><span class="p">[</span><span class="s2">&quot;is_plus&quot;</span><span class="p">]</span>
+                <span class="n">indices</span> <span class="o">=</span> <span class="n">tensor_data</span><span class="p">[</span><span class="s2">&quot;indices&quot;</span><span class="p">]</span>
+                <span class="n">dense_shape</span> <span class="o">=</span> <span class="n">tensor_data</span><span class="p">[</span><span class="s2">&quot;dense_shape&quot;</span><span class="p">]</span>
+                <span class="n">sparse_phase</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="n">is_plus</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_numpy_to_sparse_tensor</span><span class="p">(</span>
+                    <span class="p">(</span><span class="n">indices</span><span class="p">,</span> <span class="n">tensor_data</span><span class="p">[</span><span class="s2">&quot;phase_values&quot;</span><span class="p">],</span> <span class="n">dense_shape</span><span class="p">)</span>
+                <span class="p">)</span>
+                <span class="n">sparse_potential</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="n">is_plus</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_numpy_to_sparse_tensor</span><span class="p">(</span>
+                    <span class="p">(</span><span class="n">indices</span><span class="p">,</span> <span class="n">tensor_data</span><span class="p">[</span><span class="s2">&quot;potential_values&quot;</span><span class="p">],</span> <span class="n">dense_shape</span><span class="p">)</span>
+                <span class="p">)</span>
         <span class="k">return</span> <span class="n">sparse_phase</span><span class="p">,</span> <span class="n">sparse_potential</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_load_property</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">property_name</span><span class="p">,</span> <span class="n">folder</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s1">&#39;formatted&#39;</span><span class="p">):</span>
@@ -2180,7 +2371,10 @@
 
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">_is_amorphous</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="n">is_amorphous</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array_equal</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kpts</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span> <span class="ow">and</span> <span class="n">np</span><span class="o">.</span><span class="n">array_equal</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">supercell</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="n">is_amorphous</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">array_equal</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kpts</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+            <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">supercell_grid</span><span class="o">.</span><span class="n">size</span> <span class="o">==</span> <span class="mi">1</span>
+        <span class="p">)</span>
         <span class="k">return</span> <span class="n">is_amorphous</span>
 
 
@@ -2276,17 +2470,14 @@
         <span class="k">return</span> <span class="n">f_grid</span><span class="p">,</span> <span class="n">p_dos</span></div>
 
 
-
     <span class="k">def</span><span class="w"> </span><span class="nf">_allowed_third_phonons_index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index_q</span><span class="p">,</span> <span class="n">is_plus</span><span class="p">):</span>
-        <span class="n">q_vec</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reciprocal_grid</span><span class="o">.</span><span class="n">id_to_unitary_grid_index</span><span class="p">(</span><span class="n">index_q</span><span class="p">)</span>
-        <span class="n">qp_vec</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reciprocal_grid</span><span class="o">.</span><span class="n">unitary_grid</span><span class="p">(</span><span class="n">is_wrapping</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-        <span class="n">qpp_vec</span> <span class="o">=</span> <span class="n">q_vec</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:]</span> <span class="o">+</span> <span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">is_plus</span><span class="p">)</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">qp_vec</span><span class="p">[:,</span> <span class="p">:]</span>
-        <span class="n">rescaled_qpp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">((</span><span class="n">qpp_vec</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reciprocal_grid</span><span class="o">.</span><span class="n">grid_shape</span><span class="p">),</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
-        <span class="n">rescaled_qpp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mod</span><span class="p">(</span><span class="n">rescaled_qpp</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reciprocal_grid</span><span class="o">.</span><span class="n">grid_shape</span><span class="p">)</span>
-        <span class="n">index_qpp_full</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ravel_multi_index</span><span class="p">(</span><span class="n">rescaled_qpp</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reciprocal_grid</span><span class="o">.</span><span class="n">grid_shape</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;raise&#39;</span><span class="p">,</span>
-                                              <span class="n">order</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_grid_type</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">index_qpp_full</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return exact mesh ids satisfying three-phonon momentum conservation.</span>
 
+<span class="sd">        For every ``q&#39;`` the reciprocal grid returns ``q+q&#39;`` for absorption</span>
+<span class="sd">        and ``q-q&#39;`` for decay, wrapped by integer mesh arithmetic. No floating</span>
+<span class="sd">        tolerance or real-space supercell representation enters this mapping.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reciprocal_grid</span><span class="o">.</span><span class="n">momentum_partner_ids</span><span class="p">(</span><span class="n">index_q</span><span class="p">,</span> <span class="n">is_plus</span><span class="p">)</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">_ir_kgrid_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -2352,28 +2543,52 @@
 
     <span class="nd">@timeit</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">_project_amorphous</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Project anharmonic properties for amorphous materials.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Project Gamma-only IFC3 onto amorphous normal modes.</span>
 
-<span class="sd">        Args:</span>
-<span class="sd">            self: Phonon object containing material properties</span>
+<span class="sd">        A periodically repeated amorphous cell is treated as one large unit</span>
+<span class="sd">        cell sampled only at Gamma. Every integer-translation phase is then</span>
+<span class="sd">        one, so literal or pair-image IFC3 blocks enter only through their sum</span>
+<span class="sd">        over the two translation axes. Folding that sum here is exact and does</span>
+<span class="sd">        not invoke the off-Gamma IFC3 interpolation compiler.</span>
 
-<span class="sd">        Returns:</span>
-<span class="sd">            np.ndarray: Array containing projected properties</span>
+<span class="sd">        This does *not* make real-space image geometry irrelevant to amorphous</span>
+<span class="sd">        transport. The heat-flux operator uses the first Cartesian moment of</span>
+<span class="sd">        IFC2 and therefore obtains pair-specific nearest displacements from</span>
+<span class="sd">        :class:`HarmonicWithQ`. Gamma frequencies contain only the zeroth IFC2</span>
+<span class="sd">        moment and can remain unchanged when that displacement is wrong.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        sparse_phase, sparse_potential : tuple[list, list]</span>
+<span class="sd">            Energy-conservation entries and squared three-phonon potentials</span>
+<span class="sd">            for each Gamma mode and absorption/emission channel.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">frequency</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">frequency</span>
         <span class="n">omega</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">frequency</span>
-        <span class="n">n_replicas</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">n_replicas</span>
         <span class="n">rescaled_eigenvectors</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rescaled_eigenvectors</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
         <span class="n">evect_tf</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">convert_to_tensor</span><span class="p">(</span><span class="n">rescaled_eigenvectors</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
-        <span class="n">coords</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">third</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">coords</span>
+
+        <span class="n">third</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">third</span>
+        <span class="c1"># Sum the independently translated j and k legs because q&#39;=q&#39;&#39;=0.</span>
+        <span class="c1"># The resulting rank-three tensor follows the historical</span>
+        <span class="c1"># (central, partner-j, partner-k) mode ordering.</span>
+        <span class="n">gamma_third</span> <span class="o">=</span> <span class="n">third</span><span class="o">.</span><span class="n">gamma_contracted_value</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">gamma_third</span><span class="p">,</span> <span class="s2">&quot;coords&quot;</span><span class="p">):</span>
+            <span class="kn">from</span><span class="w"> </span><span class="nn">sparse</span><span class="w"> </span><span class="kn">import</span> <span class="n">COO</span>
+
+            <span class="n">gamma_third</span> <span class="o">=</span> <span class="n">COO</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">gamma_third</span><span class="p">))</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="n">gamma_third</span><span class="o">.</span><span class="n">coords</span>
         <span class="n">coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">([</span><span class="n">coords</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">coords</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">coords</span><span class="p">[</span><span class="mi">0</span><span class="p">]])</span>
         <span class="n">coords</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">coords</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
-        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">third</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">data</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">gamma_third</span><span class="o">.</span><span class="n">data</span>
         <span class="n">third_tf</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">SparseTensor</span><span class="p">(</span>
-            <span class="n">coords</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span> <span class="o">*</span> <span class="n">n_replicas</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span> <span class="o">*</span> <span class="n">n_replicas</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">)</span>
+            <span class="n">coords</span><span class="p">,</span>
+            <span class="n">data</span><span class="p">,</span>
+            <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">),</span>
         <span class="p">)</span>
-        <span class="n">third_tf</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">sparse</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">third_tf</span><span class="p">,</span> <span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span> <span class="o">*</span> <span class="n">n_replicas</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">))</span>
+        <span class="c1"># Same canonical-ordering requirement as the crystal projection above.</span>
+        <span class="n">third_tf</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">sparse</span><span class="o">.</span><span class="n">reorder</span><span class="p">(</span><span class="n">third_tf</span><span class="p">)</span>
+        <span class="n">third_tf</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">sparse</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">third_tf</span><span class="p">,</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">))</span>
         <span class="n">physical_mode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">physical_mode</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">))</span>
         <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Projection started&quot;</span><span class="p">)</span>
         <span class="n">hbar</span> <span class="o">=</span> <span class="n">units</span><span class="o">.</span><span class="n">_hbar</span>
@@ -2407,9 +2622,13 @@
                 <span class="n">sparse_phase</span><span class="p">[</span><span class="n">nu_single</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">dirac_delta_result</span><span class="p">)</span>
                 <span class="n">mup_vec</span><span class="p">,</span> <span class="n">mupp_vec</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">unstack</span><span class="p">(</span><span class="n">dirac_delta_result</span><span class="o">.</span><span class="n">indices</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
 
-                <span class="n">third_nu_tf</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">sparse</span><span class="o">.</span><span class="n">sparse_dense_matmul</span><span class="p">(</span><span class="n">third_tf</span><span class="p">,</span> <span class="n">tf</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">evect_tf</span><span class="p">[:,</span> <span class="n">nu_single</span><span class="p">],</span> <span class="p">(</span><span class="n">n_modes</span><span class="p">,</span> <span class="mi">1</span><span class="p">)))</span>
-                <span class="n">third_nu_tf</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">third_nu_tf</span><span class="p">,</span> <span class="p">(</span><span class="n">n_modes</span> <span class="o">*</span> <span class="n">n_replicas</span><span class="p">,</span> <span class="n">n_modes</span> <span class="o">*</span> <span class="n">n_replicas</span><span class="p">))</span>
-                <span class="n">scaled_potential_tf</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s2">&quot;ij,in,jm-&gt;nm&quot;</span><span class="p">,</span> <span class="n">third_nu_tf</span><span class="p">,</span> <span class="n">evect_tf</span><span class="p">,</span> <span class="n">evect_tf</span><span class="p">)</span>
+                <span class="n">third_nu_tf</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">sparse</span><span class="o">.</span><span class="n">sparse_dense_matmul</span><span class="p">(</span>
+                    <span class="n">third_tf</span><span class="p">,</span> <span class="n">tf</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">evect_tf</span><span class="p">[:,</span> <span class="n">nu_single</span><span class="p">],</span> <span class="p">(</span><span class="n">n_modes</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+                <span class="p">)</span>
+                <span class="n">third_nu_tf</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">third_nu_tf</span><span class="p">,</span> <span class="p">(</span><span class="n">n_modes</span><span class="p">,</span> <span class="n">n_modes</span><span class="p">))</span>
+                <span class="n">scaled_potential_tf</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span>
+                    <span class="s2">&quot;ij,in,jm-&gt;nm&quot;</span><span class="p">,</span> <span class="n">third_nu_tf</span><span class="p">,</span> <span class="n">evect_tf</span><span class="p">,</span> <span class="n">evect_tf</span>
+                <span class="p">)</span>
                 <span class="n">coords</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">stack</span><span class="p">((</span><span class="n">mup_vec</span><span class="p">,</span> <span class="n">mupp_vec</span><span class="p">),</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
                 <span class="n">pot_times_dirac</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">gather_nd</span><span class="p">(</span><span class="n">scaled_potential_tf</span><span class="p">,</span> <span class="n">coords</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span>
                 <span class="n">pot_times_dirac</span> <span class="o">/=</span> <span class="n">tf</span><span class="o">.</span><span class="n">gather</span><span class="p">(</span><span class="n">omega</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">mup_vec</span><span class="p">)</span> <span class="o">*</span> <span class="n">tf</span><span class="o">.</span><span class="n">gather</span><span class="p">(</span><span class="n">omega</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">mupp_vec</span><span class="p">)</span>
@@ -2427,24 +2646,60 @@
 
     <span class="nd">@timeit</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">_project_crystal</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="n">n_replicas</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">third</span><span class="o">.</span><span class="n">n_replicas</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Project source-aware IFC3 onto all allowed crystal phonon triplets.</span>
+
+<span class="sd">        The selected interpolation object owns both the rank-eight IFC3 tensor</span>
+<span class="sd">        and the ordered translation support used by its two Fourier legs. A</span>
+<span class="sd">        literal file or Wigner--Seitz compilation may have support size</span>
+<span class="sd">        ``S != |det(M)|``; every reshape and phase contraction in this method</span>
+<span class="sd">        therefore uses ``S`` and never the physical replica count.</span>
+
+<span class="sd">        Sparse IFCs remain sparse until the normal-mode contraction. Work is</span>
+<span class="sd">        distributed over initial q points, with optional per-q restart files</span>
+<span class="sd">        namespaced by interpolation provenance and support digest. The return</span>
+<span class="sd">        value is the pair ``(sparse_phase, sparse_potential)`` consumed by</span>
+<span class="sd">        :func:`kaldo.controllers.anharmonic.calculate_ps_and_gamma`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># IFC3 interpolation may expand the translation axes beyond the</span>
+        <span class="c1"># |det(M)| periodic classes. Keep that support size distinct from the</span>
+        <span class="c1"># physical replica count throughout the Fourier projection.</span>
+        <span class="n">interpolation</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">third</span><span class="o">.</span><span class="n">get_interpolation</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ifc_interpolation</span>
+        <span class="p">)</span>
+        <span class="n">n_translations</span> <span class="o">=</span> <span class="n">interpolation</span><span class="o">.</span><span class="n">support</span><span class="o">.</span><span class="n">size</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="n">sparse_third</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">third</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">))</span>
-            <span class="n">sparse_coords</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">sparse_third</span><span class="o">.</span><span class="n">coords</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">sparse_third</span><span class="o">.</span><span class="n">coords</span><span class="p">[</span><span class="mi">0</span><span class="p">]],</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">sparse_third</span> <span class="o">=</span> <span class="n">interpolation</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">))</span>
+            <span class="n">sparse_coords</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span>
+                <span class="p">[</span><span class="n">sparse_third</span><span class="o">.</span><span class="n">coords</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">sparse_third</span><span class="o">.</span><span class="n">coords</span><span class="p">[</span><span class="mi">0</span><span class="p">]],</span> <span class="o">-</span><span class="mi">1</span>
+            <span class="p">)</span>
             <span class="n">sparse_coords</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">sparse_coords</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
             <span class="n">third_sparse_data</span> <span class="o">=</span> <span class="p">(</span>
                 <span class="n">sparse_coords</span><span class="o">.</span><span class="n">numpy</span><span class="p">(),</span>
-                <span class="n">sparse_third</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">complex128</span><span class="p">)</span> <span class="k">if</span> <span class="n">sparse_third</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">dtype</span> <span class="o">!=</span> <span class="n">np</span><span class="o">.</span><span class="n">complex128</span> <span class="k">else</span> <span class="n">sparse_third</span><span class="o">.</span><span class="n">data</span><span class="p">,</span>
-                <span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span> <span class="o">*</span> <span class="n">n_replicas</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">),</span>
+                <span class="p">(</span>
+                    <span class="n">sparse_third</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">complex128</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">sparse_third</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">dtype</span> <span class="o">!=</span> <span class="n">np</span><span class="o">.</span><span class="n">complex128</span>
+                    <span class="k">else</span> <span class="n">sparse_third</span><span class="o">.</span><span class="n">data</span>
+                <span class="p">),</span>
+                <span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span> <span class="o">*</span> <span class="n">n_translations</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">),</span>
             <span class="p">)</span>
             <span class="n">is_sparse</span> <span class="o">=</span> <span class="kc">True</span>
         <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
-            <span class="n">third_sparse_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">third</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+            <span class="c1"># The dense projection kernel consumes the historical rank-3</span>
+            <span class="c1"># layout (central mode, translated mode, translated mode).  The</span>
+            <span class="c1"># interpolation compiler exposes rank 8 so its two translation</span>
+            <span class="c1"># axes are explicit; reshape without changing storage order.</span>
+            <span class="n">third_sparse_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">interpolation</span><span class="o">.</span><span class="n">value</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span>
+                <span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">,</span>
+                    <span class="n">n_translations</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">,</span>
+                    <span class="n">n_translations</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
             <span class="n">is_sparse</span> <span class="o">=</span> <span class="kc">False</span>
 
-        <span class="n">k_mesh</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reciprocal_grid</span><span class="o">.</span><span class="n">unitary_grid</span><span class="p">(</span><span class="n">is_wrapping</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">k_mesh</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reciprocal_grid</span><span class="o">.</span><span class="n">fractional_points</span>
         <span class="n">n_k_points</span> <span class="o">=</span> <span class="n">k_mesh</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-        <span class="n">chi_k_np</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">third</span><span class="o">.</span><span class="n">_chi_k</span><span class="p">(</span><span class="n">k_mesh</span><span class="p">))</span>
+        <span class="n">chi_k_np</span> <span class="o">=</span> <span class="n">interpolation</span><span class="o">.</span><span class="n">support</span><span class="o">.</span><span class="n">phases</span><span class="p">(</span><span class="n">k_mesh</span><span class="p">)</span>
         <span class="n">evect_np</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_rescaled_eigenvectors</span><span class="p">)</span>
         <span class="n">physical_mode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">physical_mode</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">n_k_points</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span><span class="p">))</span>
         <span class="n">omega</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">omega</span>
@@ -2488,13 +2743,23 @@
             <span class="n">broadening_shape</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">broadening_shape</span><span class="p">,</span>
             <span class="n">broadening_kernel</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">broadening_kernel</span><span class="p">,</span>
             <span class="n">sigma_mode_np</span><span class="o">=</span><span class="n">sigma_mode_np</span><span class="p">,</span>
-            <span class="n">third_bandwidth</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">third_bandwidth</span><span class="p">,</span> <span class="n">hbar</span><span class="o">=</span><span class="n">hbar</span><span class="p">,</span>
-            <span class="n">n_replicas</span><span class="o">=</span><span class="n">n_replicas</span><span class="p">,</span> <span class="n">is_sparse</span><span class="o">=</span><span class="n">is_sparse</span><span class="p">,</span>
+            <span class="n">third_bandwidth</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">third_bandwidth</span><span class="p">,</span>
+            <span class="n">hbar</span><span class="o">=</span><span class="n">hbar</span><span class="p">,</span>
+            <span class="n">n_translations</span><span class="o">=</span><span class="n">n_translations</span><span class="p">,</span>
+            <span class="n">is_sparse</span><span class="o">=</span><span class="n">is_sparse</span><span class="p">,</span>
             <span class="n">kpoint_maps</span><span class="o">=</span><span class="n">kpoint_maps</span><span class="p">,</span>
         <span class="p">)</span>
 
         <span class="n">worker_fn</span> <span class="o">=</span> <span class="n">functools</span><span class="o">.</span><span class="n">partial</span><span class="p">(</span><span class="n">_compute_kpoint_projection</span><span class="p">,</span> <span class="o">**</span><span class="n">shared</span><span class="p">)</span>
         <span class="n">output_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">projection_output_dir</span>
+        <span class="k">if</span> <span class="n">output_dir</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Resume files are numerical results, not generic work markers.</span>
+            <span class="c1"># Put each interpolation/support topology in its own namespace so</span>
+            <span class="c1"># a periodic or pre-refactor checkpoint cannot satisfy a WS run.</span>
+            <span class="n">output_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                <span class="n">output_dir</span><span class="p">,</span>
+                <span class="s2">&quot;ifc_&quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">ifc_cache_key</span> <span class="o">+</span> <span class="s2">&quot;_&quot;</span> <span class="o">+</span> <span class="n">interpolation</span><span class="o">.</span><span class="n">support</span><span class="o">.</span><span class="n">digest</span><span class="p">[:</span><span class="mi">16</span><span class="p">],</span>
+            <span class="p">)</span>
 
         <span class="c1"># Memory handling:</span>
         <span class="c1"># - output_dir set: write to disk inside the loop and DROP the</span>
@@ -2540,14 +2805,18 @@
 
             <span class="k">for</span> <span class="n">mu</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_modes</span><span class="p">):</span>
                 <span class="n">phase_list</span><span class="p">,</span> <span class="n">pot_list</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="n">mu</span><span class="p">]</span>
-                <span class="n">sparse_phase</span><span class="o">.</span><span class="n">append</span><span class="p">([</span>
-                    <span class="n">_numpy_to_sparse_tensor</span><span class="p">(</span><span class="n">phase_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span>
-                    <span class="n">_numpy_to_sparse_tensor</span><span class="p">(</span><span class="n">phase_list</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span>
-                <span class="p">])</span>
-                <span class="n">sparse_potential</span><span class="o">.</span><span class="n">append</span><span class="p">([</span>
-                    <span class="n">_numpy_to_sparse_tensor</span><span class="p">(</span><span class="n">pot_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span>
-                    <span class="n">_numpy_to_sparse_tensor</span><span class="p">(</span><span class="n">pot_list</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span>
-                <span class="p">])</span>
+                <span class="n">sparse_phase</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="p">[</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">_numpy_to_sparse_tensor</span><span class="p">(</span><span class="n">phase_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">_numpy_to_sparse_tensor</span><span class="p">(</span><span class="n">phase_list</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span>
+                    <span class="p">]</span>
+                <span class="p">)</span>
+                <span class="n">sparse_potential</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="p">[</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">_numpy_to_sparse_tensor</span><span class="p">(</span><span class="n">pot_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">_numpy_to_sparse_tensor</span><span class="p">(</span><span class="n">pot_list</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span>
+                    <span class="p">]</span>
+                <span class="p">)</span>
 
         <span class="k">return</span> <span class="n">sparse_phase</span><span class="p">,</span> <span class="n">sparse_potential</span></div>
 

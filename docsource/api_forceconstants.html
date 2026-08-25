@@ -764,7 +764,7 @@
       <span aria-label="Python parameter" class="objinfo-icon objinfo-icon__sub-data" title="Python parameter">p</span>
     
     <span class="md-ellipsis">
-      <span title="kaldo.forceconstants.ForceConstants.__init__.supercell (Python parameter) — Size of supercell given by the number of repetitions (l, m, n) of the small unit cell in each direction. Default: (1, 1, 1)"><span>supercell</span></span>
+      <span title="kaldo.forceconstants.ForceConstants.__init__.supercell (Python parameter) — Diagonal repetitions (l, m, n) or an integer expansion matrix whose determinant gives the number of primitive cells. Default: (1, 1, 1)"><span>supercell</span></span>
     </span>
   </a>
   
@@ -921,7 +921,7 @@
       <span aria-label="Python attribute" class="objinfo-icon objinfo-icon__alias" title="Python attribute">A</span>
     
     <span class="md-ellipsis">
-      <span title="kaldo.forceconstants.ForceConstants.n_replicas (Python attribute) — The number of repeated unit cells represented in the system. Equivalent to np.prod(supercell)."><span>n_<wbr>replicas</span></span>
+      <span title="kaldo.forceconstants.ForceConstants.n_replicas (Python attribute) — Number of periodic supercell classes, abs(det(supercell_matrix)). For a diagonal three-vector this is np.prod(supercell)."><span>n_<wbr>replicas</span></span>
     </span>
   </a>
   
@@ -949,7 +949,7 @@
       <span aria-label="Python attribute" class="objinfo-icon objinfo-icon__alias" title="Python attribute">A</span>
     
     <span class="md-ellipsis">
-      <span title="kaldo.forceconstants.ForceConstants.n_replicated_atoms (Python attribute) — The number of atoms represented in the system. Equivalent to n_atoms * np.prod(supercell)"><span>n_<wbr>replicated_<wbr>atoms</span></span>
+      <span title="kaldo.forceconstants.ForceConstants.n_replicated_atoms (Python attribute) — Number of atoms in the physical replicated structure, n_atoms * n_replicas."><span>n_<wbr>replicated_<wbr>atoms</span></span>
     </span>
   </a>
   
@@ -1053,7 +1053,7 @@
       <span aria-label="Python parameter" class="objinfo-icon objinfo-icon__sub-data" title="Python parameter">p</span>
     
     <span class="md-ellipsis">
-      <span title="kaldo.forceconstants.ForceConstants.from_folder.supercell (Python parameter) — Number of unit cells in each cartesian direction replicated to form the input structure. Default is (1, 1, 1)"><span>supercell</span></span>
+      <span title="kaldo.forceconstants.ForceConstants.from_folder.supercell (Python parameter) — Diagonal repetitions or an integer primitive-to-supercell expansion matrix."><span>supercell</span></span>
     </span>
   </a>
   
@@ -1101,7 +1101,7 @@
       <span aria-label="Python parameter" class="objinfo-icon objinfo-icon__sub-data" title="Python parameter">p</span>
     
     <span class="md-ellipsis">
-      <span title="kaldo.forceconstants.ForceConstants.from_folder.third_supercell (Python parameter) — Takes in the unit cell for the third order force constant matrix. Default is self.supercell"><span>third_<wbr>supercell</span></span>
+      <span title="kaldo.forceconstants.ForceConstants.from_folder.third_supercell (Python parameter) — Supercell topology for the third-order force constants."><span>third_<wbr>supercell</span></span>
     </span>
   </a>
   
@@ -1120,12 +1120,48 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#kaldo.forceconstants.ForceConstants.from_folder.only_second" class="md-nav__link">
+    
+      <span aria-label="Python parameter" class="objinfo-icon objinfo-icon__sub-data" title="Python parameter">p</span>
+    
+    <span class="md-ellipsis">
+      <span title="kaldo.forceconstants.ForceConstants.from_folder.only_second (Python parameter) — Load only harmonic force constants and leave IFC3 unconstructed. Default: False"><span>only_<wbr>second</span></span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.forceconstants.ForceConstants.from_folder.include_fourth" class="md-nav__link">
+    
+      <span aria-label="Python parameter" class="objinfo-icon objinfo-icon__sub-data" title="Python parameter">p</span>
+    
+    <span class="md-ellipsis">
+      <span title="kaldo.forceconstants.ForceConstants.from_folder.include_fourth (Python parameter) — Also load infile.forceconstant_fourthorder."><span>include_<wbr>fourth</span></span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#kaldo.forceconstants.ForceConstants.from_folder.chunk_size" class="md-nav__link">
     
       <span aria-label="Python parameter" class="objinfo-icon objinfo-icon__sub-data" title="Python parameter">p</span>
     
     <span class="md-ellipsis">
       <span title="kaldo.forceconstants.ForceConstants.from_folder.chunk_size (Python parameter) — Number of entries to process per chunk when reading sparse third order files. Larger values use more memory but may be faster for very large files. Default: 100000"><span>chunk_<wbr>size</span></span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.forceconstants.ForceConstants.from_folder.supercell_matrix" class="md-nav__link">
+    
+      <span aria-label="Python parameter" class="objinfo-icon objinfo-icon__sub-data" title="Python parameter">p</span>
+    
+    <span class="md-ellipsis">
+      <span title="kaldo.forceconstants.ForceConstants.from_folder.supercell_matrix (Python parameter) — Expected integer expansion matrix for TDEP input."><span>supercell_<wbr>matrix</span></span>
     </span>
   </a>
   
@@ -1231,64 +1267,6 @@
       <span>Return type</span>
     </span>
   </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#kaldo.forceconstants.ForceConstants.unfold_third_order" class="md-nav__link">
-    
-      <span aria-label="Python method" class="objinfo-icon objinfo-icon__procedure" title="Python method">M</span>
-    
-    <span class="md-ellipsis">
-      <span title="kaldo.forceconstants.ForceConstants.unfold_third_order (Python method) — This method extrapolates a third order force constant matrix from a unit cell into a matrix for a larger supercell."><span>unfold_<wbr>third_<wbr>order</span></span>
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="unfold_third_order">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#kaldo.forceconstants.ForceConstants.unfold_third_order-parameters" class="md-nav__link">
-    
-    <span class="md-ellipsis">
-      <span>Parameters</span>
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Parameters">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#kaldo.forceconstants.ForceConstants.unfold_third_order.reduced_third" class="md-nav__link">
-    
-      <span aria-label="Python parameter" class="objinfo-icon objinfo-icon__sub-data" title="Python parameter">p</span>
-    
-    <span class="md-ellipsis">
-      <span title="kaldo.forceconstants.ForceConstants.unfold_third_order.reduced_third (Python parameter) — The third order force constant matrix. Default is self.third"><span>reduced_<wbr>third</span></span>
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#kaldo.forceconstants.ForceConstants.unfold_third_order.distance_threshold" class="md-nav__link">
-    
-      <span aria-label="Python parameter" class="objinfo-icon objinfo-icon__sub-data" title="Python parameter">p</span>
-    
-    <span class="md-ellipsis">
-      <span title="kaldo.forceconstants.ForceConstants.unfold_third_order.distance_threshold (Python parameter) — When calculating force constants, contributions from atoms further than the distance threshold will be ignored. Default is self.distance_threshold"><span>distance_<wbr>threshold</span></span>
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
         
@@ -1404,7 +1382,7 @@
       <span aria-label="Python parameter" class="objinfo-icon objinfo-icon__sub-data" title="Python parameter">p</span>
     
     <span class="md-ellipsis">
-      <span title="kaldo.observables.secondorder.SecondOrder.load.supercell (Python parameter) — The supercell for the third order force constant matrix. Default: (1, 1, 1)"><span>supercell</span></span>
+      <span title="kaldo.observables.secondorder.SecondOrder.load.supercell (Python parameter) — Diagonal repetitions or an integer 3 by 3 supercell matrix for the second-order force constants."><span>supercell</span></span>
     </span>
   </a>
   
@@ -1440,7 +1418,7 @@
       <span aria-label="Python parameter" class="objinfo-icon objinfo-icon__sub-data" title="Python parameter">p</span>
     
     <span class="md-ellipsis">
-      <span title="kaldo.observables.secondorder.SecondOrder.load.supercell_matrix (Python parameter) — 3x3 integer supercell expansion matrix."><span>supercell_<wbr>matrix</span></span>
+      <span title="kaldo.observables.secondorder.SecondOrder.load.supercell_matrix (Python parameter) — Expected 3x3 integer supercell expansion matrix."><span>supercell_<wbr>matrix</span></span>
     </span>
   </a>
   
@@ -1688,7 +1666,7 @@
       <span aria-label="Python parameter" class="objinfo-icon objinfo-icon__sub-data" title="Python parameter">p</span>
     
     <span class="md-ellipsis">
-      <span title="kaldo.observables.thirdorder.ThirdOrder.load.supercell (Python parameter) — The supercell for the third order force constant matrix. Default: (1, 1, 1)"><span>supercell</span></span>
+      <span title="kaldo.observables.thirdorder.ThirdOrder.load.supercell (Python parameter) — Diagonal repetitions or an integer 3 by 3 supercell matrix for the third-order force constants."><span>supercell</span></span>
     </span>
   </a>
   
@@ -1736,7 +1714,19 @@
       <span aria-label="Python parameter" class="objinfo-icon objinfo-icon__sub-data" title="Python parameter">p</span>
     
     <span class="md-ellipsis">
-      <span title="kaldo.observables.thirdorder.ThirdOrder.load.supercell_matrix (Python parameter) — 3x3 integer supercell expansion matrix."><span>supercell_<wbr>matrix</span></span>
+      <span title="kaldo.observables.thirdorder.ThirdOrder.load.supercell_matrix (Python parameter) — Expected 3x3 integer supercell expansion matrix."><span>supercell_<wbr>matrix</span></span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.observables.thirdorder.ThirdOrder.load.atoms_override" class="md-nav__link">
+    
+      <span aria-label="Python parameter" class="objinfo-icon objinfo-icon__sub-data" title="Python parameter">p</span>
+    
+    <span class="md-ellipsis">
+      <span title="kaldo.observables.thirdorder.ThirdOrder.load.atoms_override (Python parameter) — Authoritative primitive structure supplied by an already loaded IFC2 object."><span>atoms_<wbr>override</span></span>
     </span>
   </a>
   
@@ -2378,7 +2368,7 @@
       <span aria-label="Python parameter" class="objinfo-icon objinfo-icon__sub-data" title="Python parameter">p</span>
     
     <span class="md-ellipsis">
-      <span title="kaldo.forceconstants.ForceConstants.__init__.supercell (Python parameter) — Size of supercell given by the number of repetitions (l, m, n) of the small unit cell in each direction. Default: (1, 1, 1)"><span>supercell</span></span>
+      <span title="kaldo.forceconstants.ForceConstants.__init__.supercell (Python parameter) — Diagonal repetitions (l, m, n) or an integer expansion matrix whose determinant gives the number of primitive cells. Default: (1, 1, 1)"><span>supercell</span></span>
     </span>
   </a>
   
@@ -2535,7 +2525,7 @@
       <span aria-label="Python attribute" class="objinfo-icon objinfo-icon__alias" title="Python attribute">A</span>
     
     <span class="md-ellipsis">
-      <span title="kaldo.forceconstants.ForceConstants.n_replicas (Python attribute) — The number of repeated unit cells represented in the system. Equivalent to np.prod(supercell)."><span>n_<wbr>replicas</span></span>
+      <span title="kaldo.forceconstants.ForceConstants.n_replicas (Python attribute) — Number of periodic supercell classes, abs(det(supercell_matrix)). For a diagonal three-vector this is np.prod(supercell)."><span>n_<wbr>replicas</span></span>
     </span>
   </a>
   
@@ -2563,7 +2553,7 @@
       <span aria-label="Python attribute" class="objinfo-icon objinfo-icon__alias" title="Python attribute">A</span>
     
     <span class="md-ellipsis">
-      <span title="kaldo.forceconstants.ForceConstants.n_replicated_atoms (Python attribute) — The number of atoms represented in the system. Equivalent to n_atoms * np.prod(supercell)"><span>n_<wbr>replicated_<wbr>atoms</span></span>
+      <span title="kaldo.forceconstants.ForceConstants.n_replicated_atoms (Python attribute) — Number of atoms in the physical replicated structure, n_atoms * n_replicas."><span>n_<wbr>replicated_<wbr>atoms</span></span>
     </span>
   </a>
   
@@ -2667,7 +2657,7 @@
       <span aria-label="Python parameter" class="objinfo-icon objinfo-icon__sub-data" title="Python parameter">p</span>
     
     <span class="md-ellipsis">
-      <span title="kaldo.forceconstants.ForceConstants.from_folder.supercell (Python parameter) — Number of unit cells in each cartesian direction replicated to form the input structure. Default is (1, 1, 1)"><span>supercell</span></span>
+      <span title="kaldo.forceconstants.ForceConstants.from_folder.supercell (Python parameter) — Diagonal repetitions or an integer primitive-to-supercell expansion matrix."><span>supercell</span></span>
     </span>
   </a>
   
@@ -2715,7 +2705,7 @@
       <span aria-label="Python parameter" class="objinfo-icon objinfo-icon__sub-data" title="Python parameter">p</span>
     
     <span class="md-ellipsis">
-      <span title="kaldo.forceconstants.ForceConstants.from_folder.third_supercell (Python parameter) — Takes in the unit cell for the third order force constant matrix. Default is self.supercell"><span>third_<wbr>supercell</span></span>
+      <span title="kaldo.forceconstants.ForceConstants.from_folder.third_supercell (Python parameter) — Supercell topology for the third-order force constants."><span>third_<wbr>supercell</span></span>
     </span>
   </a>
   
@@ -2734,12 +2724,48 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#kaldo.forceconstants.ForceConstants.from_folder.only_second" class="md-nav__link">
+    
+      <span aria-label="Python parameter" class="objinfo-icon objinfo-icon__sub-data" title="Python parameter">p</span>
+    
+    <span class="md-ellipsis">
+      <span title="kaldo.forceconstants.ForceConstants.from_folder.only_second (Python parameter) — Load only harmonic force constants and leave IFC3 unconstructed. Default: False"><span>only_<wbr>second</span></span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.forceconstants.ForceConstants.from_folder.include_fourth" class="md-nav__link">
+    
+      <span aria-label="Python parameter" class="objinfo-icon objinfo-icon__sub-data" title="Python parameter">p</span>
+    
+    <span class="md-ellipsis">
+      <span title="kaldo.forceconstants.ForceConstants.from_folder.include_fourth (Python parameter) — Also load infile.forceconstant_fourthorder."><span>include_<wbr>fourth</span></span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#kaldo.forceconstants.ForceConstants.from_folder.chunk_size" class="md-nav__link">
     
       <span aria-label="Python parameter" class="objinfo-icon objinfo-icon__sub-data" title="Python parameter">p</span>
     
     <span class="md-ellipsis">
       <span title="kaldo.forceconstants.ForceConstants.from_folder.chunk_size (Python parameter) — Number of entries to process per chunk when reading sparse third order files. Larger values use more memory but may be faster for very large files. Default: 100000"><span>chunk_<wbr>size</span></span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.forceconstants.ForceConstants.from_folder.supercell_matrix" class="md-nav__link">
+    
+      <span aria-label="Python parameter" class="objinfo-icon objinfo-icon__sub-data" title="Python parameter">p</span>
+    
+    <span class="md-ellipsis">
+      <span title="kaldo.forceconstants.ForceConstants.from_folder.supercell_matrix (Python parameter) — Expected integer expansion matrix for TDEP input."><span>supercell_<wbr>matrix</span></span>
     </span>
   </a>
   
@@ -2845,64 +2871,6 @@
       <span>Return type</span>
     </span>
   </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#kaldo.forceconstants.ForceConstants.unfold_third_order" class="md-nav__link">
-    
-      <span aria-label="Python method" class="objinfo-icon objinfo-icon__procedure" title="Python method">M</span>
-    
-    <span class="md-ellipsis">
-      <span title="kaldo.forceconstants.ForceConstants.unfold_third_order (Python method) — This method extrapolates a third order force constant matrix from a unit cell into a matrix for a larger supercell."><span>unfold_<wbr>third_<wbr>order</span></span>
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="unfold_third_order">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#kaldo.forceconstants.ForceConstants.unfold_third_order-parameters" class="md-nav__link">
-    
-    <span class="md-ellipsis">
-      <span>Parameters</span>
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Parameters">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#kaldo.forceconstants.ForceConstants.unfold_third_order.reduced_third" class="md-nav__link">
-    
-      <span aria-label="Python parameter" class="objinfo-icon objinfo-icon__sub-data" title="Python parameter">p</span>
-    
-    <span class="md-ellipsis">
-      <span title="kaldo.forceconstants.ForceConstants.unfold_third_order.reduced_third (Python parameter) — The third order force constant matrix. Default is self.third"><span>reduced_<wbr>third</span></span>
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#kaldo.forceconstants.ForceConstants.unfold_third_order.distance_threshold" class="md-nav__link">
-    
-      <span aria-label="Python parameter" class="objinfo-icon objinfo-icon__sub-data" title="Python parameter">p</span>
-    
-    <span class="md-ellipsis">
-      <span title="kaldo.forceconstants.ForceConstants.unfold_third_order.distance_threshold (Python parameter) — When calculating force constants, contributions from atoms further than the distance threshold will be ignored. Default is self.distance_threshold"><span>distance_<wbr>threshold</span></span>
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
         
@@ -3018,7 +2986,7 @@
       <span aria-label="Python parameter" class="objinfo-icon objinfo-icon__sub-data" title="Python parameter">p</span>
     
     <span class="md-ellipsis">
-      <span title="kaldo.observables.secondorder.SecondOrder.load.supercell (Python parameter) — The supercell for the third order force constant matrix. Default: (1, 1, 1)"><span>supercell</span></span>
+      <span title="kaldo.observables.secondorder.SecondOrder.load.supercell (Python parameter) — Diagonal repetitions or an integer 3 by 3 supercell matrix for the second-order force constants."><span>supercell</span></span>
     </span>
   </a>
   
@@ -3054,7 +3022,7 @@
       <span aria-label="Python parameter" class="objinfo-icon objinfo-icon__sub-data" title="Python parameter">p</span>
     
     <span class="md-ellipsis">
-      <span title="kaldo.observables.secondorder.SecondOrder.load.supercell_matrix (Python parameter) — 3x3 integer supercell expansion matrix."><span>supercell_<wbr>matrix</span></span>
+      <span title="kaldo.observables.secondorder.SecondOrder.load.supercell_matrix (Python parameter) — Expected 3x3 integer supercell expansion matrix."><span>supercell_<wbr>matrix</span></span>
     </span>
   </a>
   
@@ -3302,7 +3270,7 @@
       <span aria-label="Python parameter" class="objinfo-icon objinfo-icon__sub-data" title="Python parameter">p</span>
     
     <span class="md-ellipsis">
-      <span title="kaldo.observables.thirdorder.ThirdOrder.load.supercell (Python parameter) — The supercell for the third order force constant matrix. Default: (1, 1, 1)"><span>supercell</span></span>
+      <span title="kaldo.observables.thirdorder.ThirdOrder.load.supercell (Python parameter) — Diagonal repetitions or an integer 3 by 3 supercell matrix for the third-order force constants."><span>supercell</span></span>
     </span>
   </a>
   
@@ -3350,7 +3318,19 @@
       <span aria-label="Python parameter" class="objinfo-icon objinfo-icon__sub-data" title="Python parameter">p</span>
     
     <span class="md-ellipsis">
-      <span title="kaldo.observables.thirdorder.ThirdOrder.load.supercell_matrix (Python parameter) — 3x3 integer supercell expansion matrix."><span>supercell_<wbr>matrix</span></span>
+      <span title="kaldo.observables.thirdorder.ThirdOrder.load.supercell_matrix (Python parameter) — Expected 3x3 integer supercell expansion matrix."><span>supercell_<wbr>matrix</span></span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kaldo.observables.thirdorder.ThirdOrder.load.atoms_override" class="md-nav__link">
+    
+      <span aria-label="Python parameter" class="objinfo-icon objinfo-icon__sub-data" title="Python parameter">p</span>
+    
+    <span class="md-ellipsis">
+      <span title="kaldo.observables.thirdorder.ThirdOrder.load.atoms_override (Python parameter) — Authoritative primitive structure supplied by an already loaded IFC2 object."><span>atoms_<wbr>override</span></span>
     </span>
   </a>
   
@@ -3875,7 +3855,7 @@ field (<code class="docutils literal notranslate"><span class="pre">'C'</span></
 <h2 id="api-reference"><span id="forceconstants-api"></span>API Reference<a class="headerlink" href="#api-reference" title="Link to this heading">¶</a></h2>
 <dl class="py class objdesc">
 <dt class="sig sig-object highlight sig-wrap py" id="kaldo.forceconstants.ForceConstants">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">kaldo.forceconstants.</span></span><span class="sig-name descname"><span class="pre">ForceConstants</span></span><span class="sig-paren">(</span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.forceconstants.ForceConstants.__init__.atoms" title="kaldo.forceconstants.ForceConstants.__init__.atoms (Python parameter) — The atoms to work on."><span class="n"><span class="pre">atoms</span></span></a></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.forceconstants.ForceConstants.__init__.supercell" title="kaldo.forceconstants.ForceConstants.__init__.supercell (Python parameter) — Size of supercell given by the number of repetitions (l, m, n) of the small unit cell in each direction. Default: (1, 1, 1)"><span class="n"><span class="pre">supercell</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.forceconstants.ForceConstants.__init__.third_supercell" title="kaldo.forceconstants.ForceConstants.__init__.third_supercell (Python parameter) — Same as supercell, but for the third order force constant matrix. If not provided, it's copied from supercell. Default: self.supercell"><span class="n"><span class="pre">third_supercell</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="kc">None</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.forceconstants.ForceConstants.__init__.folder" title="kaldo.forceconstants.ForceConstants.__init__.folder (Python parameter) — Name to be used for the displacement information folder. Default: 'displacement'"><span class="n"><span class="pre">folder</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">str</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="s1">&#39;displacement&#39;</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.forceconstants.ForceConstants.__init__.distance_threshold" title="kaldo.forceconstants.ForceConstants.__init__.distance_threshold (Python parameter) — If the distance between two atoms exceeds threshold, the interatomic force is ignored. Default: None"><span class="n"><span class="pre">distance_threshold</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="kc">None</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.forceconstants.ForceConstants.__init__.second_order" title="kaldo.forceconstants.ForceConstants.__init__.second_order (Python parameter) — Preloaded second-order force constants attached to the instance. Default: None (lazy construction)"><span class="n"><span class="pre">second_order</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">SecondOrder</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="kc">None</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.forceconstants.ForceConstants.__init__.third_order" title="kaldo.forceconstants.ForceConstants.__init__.third_order (Python parameter) — Preloaded third-order force constants attached to the instance. Default: None (lazy construction)"><span class="n"><span class="pre">third_order</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">ThirdOrder</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="kc">None</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.forceconstants.ForceConstants.__init__.fourth_order" title="kaldo.forceconstants.ForceConstants.__init__.fourth_order (Python parameter) — Preloaded fourth-order force constants attached to the instance. Default: None (not constructed lazily — must be loaded explicitly)"><span class="n"><span class="pre">fourth_order</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">FourthOrder</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="kc">None</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.forceconstants.ForceConstants.__init__.is_acoustic_sum" title="kaldo.forceconstants.ForceConstants.__init__.is_acoustic_sum (Python parameter) — If True, apply the acoustic sum rule to second-order force constants computed via second.calculate."><span class="n"><span class="pre">is_acoustic_sum</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">bool</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="kc">False</span></code></em></span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/forceconstants.html#ForceConstants"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kaldo.forceconstants.ForceConstants" title="Link to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">kaldo.forceconstants.</span></span><span class="sig-name descname"><span class="pre">ForceConstants</span></span><span class="sig-paren">(</span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.forceconstants.ForceConstants.__init__.atoms" title="kaldo.forceconstants.ForceConstants.__init__.atoms (Python parameter) — The atoms to work on."><span class="n"><span class="pre">atoms</span></span></a></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.forceconstants.ForceConstants.__init__.supercell" title="kaldo.forceconstants.ForceConstants.__init__.supercell (Python parameter) — Diagonal repetitions (l, m, n) or an integer expansion matrix whose determinant gives the number of primitive cells. Default: (1, 1, 1)"><span class="n"><span class="pre">supercell</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">ndarray</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.forceconstants.ForceConstants.__init__.third_supercell" title="kaldo.forceconstants.ForceConstants.__init__.third_supercell (Python parameter) — Same as supercell, but for the third order force constant matrix. If not provided, it's copied from supercell. Default: self.supercell"><span class="n"><span class="pre">third_supercell</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="kc">None</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.forceconstants.ForceConstants.__init__.folder" title="kaldo.forceconstants.ForceConstants.__init__.folder (Python parameter) — Name to be used for the displacement information folder. Default: 'displacement'"><span class="n"><span class="pre">folder</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">str</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="s1">&#39;displacement&#39;</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.forceconstants.ForceConstants.__init__.distance_threshold" title="kaldo.forceconstants.ForceConstants.__init__.distance_threshold (Python parameter) — If the distance between two atoms exceeds threshold, the interatomic force is ignored. Default: None"><span class="n"><span class="pre">distance_threshold</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="kc">None</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.forceconstants.ForceConstants.__init__.second_order" title="kaldo.forceconstants.ForceConstants.__init__.second_order (Python parameter) — Preloaded second-order force constants attached to the instance. Default: None (lazy construction)"><span class="n"><span class="pre">second_order</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">SecondOrder</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="kc">None</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.forceconstants.ForceConstants.__init__.third_order" title="kaldo.forceconstants.ForceConstants.__init__.third_order (Python parameter) — Preloaded third-order force constants attached to the instance. Default: None (lazy construction)"><span class="n"><span class="pre">third_order</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">ThirdOrder</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="kc">None</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.forceconstants.ForceConstants.__init__.fourth_order" title="kaldo.forceconstants.ForceConstants.__init__.fourth_order (Python parameter) — Preloaded fourth-order force constants attached to the instance. Default: None (not constructed lazily — must be loaded explicitly)"><span class="n"><span class="pre">fourth_order</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">FourthOrder</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="kc">None</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.forceconstants.ForceConstants.__init__.is_acoustic_sum" title="kaldo.forceconstants.ForceConstants.__init__.is_acoustic_sum (Python parameter) — If True, apply the acoustic sum rule to second-order force constants computed via second.calculate."><span class="n"><span class="pre">is_acoustic_sum</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">bool</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="kc">False</span></code></em></span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/forceconstants.html#ForceConstants"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kaldo.forceconstants.ForceConstants" title="Link to this definition">¶</a></dt>
 <dd><p>A ForceConstants class object is used to create or load the second or third order force constant matrices as well as
 store information related to the geometry of the system.</p>
 <dl class="field-list simple">
@@ -3883,11 +3863,11 @@ store information related to the geometry of the system.</p>
 <dd class="field-odd"><dl class="simple api-field highlight">
 <dt id="kaldo.forceconstants.ForceConstants.__init__.atoms"><span class="sig-name descname">atoms</span><span class="p"> : </span><span class="desctype"><span class="desctype">Tabulated xyz files or ASE Atoms object</span></span><a class="headerlink" href="#kaldo.forceconstants.ForceConstants.__init__.atoms" title="Permalink to this definition">¶</a></dt><dd><p>The atoms to work on.</p>
 </dd>
-<dt id="kaldo.forceconstants.ForceConstants.__init__.supercell"><span class="sig-name descname">supercell</span><span class="p"> : </span><span class="desctype"><span class="desctype">tuple[int, int, int], optional</span></span><a class="headerlink" href="#kaldo.forceconstants.ForceConstants.__init__.supercell" title="Permalink to this definition">¶</a></dt><dd><p>Size of supercell given by the number of repetitions (l, m, n) of
-the small unit cell in each direction.
+<dt id="kaldo.forceconstants.ForceConstants.__init__.supercell"><span class="sig-name descname">supercell</span><span class="p"> : </span><span class="desctype"><span class="desctype">tuple[int, int, int] or array-like (3, 3), optional</span></span><a class="headerlink" href="#kaldo.forceconstants.ForceConstants.__init__.supercell" title="Permalink to this definition">¶</a></dt><dd><p>Diagonal repetitions <code class="docutils literal notranslate"><span class="pre">(l,</span> <span class="pre">m,</span> <span class="pre">n)</span></code> or an integer expansion matrix
+whose determinant gives the number of primitive cells.
 Default: (1, 1, 1)</p>
 </dd>
-<dt id="kaldo.forceconstants.ForceConstants.__init__.third_supercell"><span class="sig-name descname">third_supercell</span><span class="p"> : </span><span class="desctype"><span class="desctype">tuple[int, int, int], optional</span></span><a class="headerlink" href="#kaldo.forceconstants.ForceConstants.__init__.third_supercell" title="Permalink to this definition">¶</a></dt><dd><p>Same as supercell, but for the third order force constant matrix.
+<dt id="kaldo.forceconstants.ForceConstants.__init__.third_supercell"><span class="sig-name descname">third_supercell</span><span class="p"> : </span><span class="desctype"><span class="desctype">tuple[int, int, int] or array-like (3, 3), optional</span></span><a class="headerlink" href="#kaldo.forceconstants.ForceConstants.__init__.third_supercell" title="Permalink to this definition">¶</a></dt><dd><p>Same as supercell, but for the third order force constant matrix.
 If not provided, it’s copied from supercell.
 Default: <code class="docutils literal notranslate"><span class="pre">self.supercell</span></code></p>
 </dd>
@@ -3944,7 +3924,8 @@ Default: False</p>
 <dl class="py attribute objdesc">
 <dt class="sig sig-object highlight py" id="kaldo.forceconstants.ForceConstants.n_replicas">
 <span class="sig-name descname"><span class="pre">n_replicas</span></span><a class="headerlink" href="#kaldo.forceconstants.ForceConstants.n_replicas" title="Link to this definition">¶</a></dt>
-<dd><p>The number of repeated unit cells represented in the system. Equivalent to <code class="docutils literal notranslate"><span class="pre">np.prod(supercell)</span></code>.</p>
+<dd><p>Number of periodic supercell classes, <code class="docutils literal notranslate"><span class="pre">abs(det(supercell_matrix))</span></code>.
+For a diagonal three-vector this is <code class="docutils literal notranslate"><span class="pre">np.prod(supercell)</span></code>.</p>
 <dl class="field-list simple">
 <dt class="field-odd" id="kaldo.forceconstants.ForceConstants.n_replicas-type">Type<span class="colon">:</span><a class="headerlink" href="#kaldo.forceconstants.ForceConstants.n_replicas-type" title="Permalink to this headline">¶</a></dt>
 <dd class="field-odd"><p>int</p>
@@ -3955,7 +3936,8 @@ Default: False</p>
 <dl class="py attribute objdesc">
 <dt class="sig sig-object highlight py" id="kaldo.forceconstants.ForceConstants.n_replicated_atoms">
 <span class="sig-name descname"><span class="pre">n_replicated_atoms</span></span><a class="headerlink" href="#kaldo.forceconstants.ForceConstants.n_replicated_atoms" title="Link to this definition">¶</a></dt>
-<dd><p>The number of atoms represented in the system. Equivalent to <code class="docutils literal notranslate"><span class="pre">n_atoms</span> <span class="pre">*</span> <span class="pre">np.prod(supercell)</span></code></p>
+<dd><p>Number of atoms in the physical replicated structure,
+<code class="docutils literal notranslate"><span class="pre">n_atoms</span> <span class="pre">*</span> <span class="pre">n_replicas</span></code>.</p>
 <dl class="field-list simple">
 <dt class="field-odd" id="kaldo.forceconstants.ForceConstants.n_replicated_atoms-type">Type<span class="colon">:</span><a class="headerlink" href="#kaldo.forceconstants.ForceConstants.n_replicated_atoms-type" title="Permalink to this headline">¶</a></dt>
 <dd class="field-odd"><p>int</p>
@@ -3987,7 +3969,7 @@ construction time. Returns <code class="docutils literal notranslate"><span clas
 
 <dl class="py method objdesc">
 <dt class="sig sig-object highlight sig-wrap py" id="kaldo.forceconstants.ForceConstants.from_folder">
-<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_folder</span></span><span class="sig-paren">(</span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.forceconstants.ForceConstants.from_folder.folder" title="kaldo.forceconstants.ForceConstants.from_folder.folder (Python parameter) — Chosen folder to load in system information."><span class="n"><span class="pre">folder</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">str</span></span></span></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.forceconstants.ForceConstants.from_folder.supercell" title="kaldo.forceconstants.ForceConstants.from_folder.supercell (Python parameter) — Number of unit cells in each cartesian direction replicated to form the input structure. Default is (1, 1, 1)"><span class="n"><span class="pre">supercell</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.forceconstants.ForceConstants.from_folder.format" title="kaldo.forceconstants.ForceConstants.from_folder.format (Python parameter) — Format of force constant information being loaded into ForceConstants object. Default is 'numpy'"><span class="n"><span class="pre">format</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">str</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="s1">&#39;numpy&#39;</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.forceconstants.ForceConstants.from_folder.third_energy_threshold" title="kaldo.forceconstants.ForceConstants.from_folder.third_energy_threshold (Python parameter) — When importing sparse third order force constant matrices, energies below the threshold value in magnitude are ignored."><span class="n"><span class="pre">third_energy_threshold</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">float</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="mf">0.0</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.forceconstants.ForceConstants.from_folder.third_supercell" title="kaldo.forceconstants.ForceConstants.from_folder.third_supercell (Python parameter) — Takes in the unit cell for the third order force constant matrix. Default is self.supercell"><span class="n"><span class="pre">third_supercell</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="kc">None</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.forceconstants.ForceConstants.from_folder.is_acoustic_sum" title="kaldo.forceconstants.ForceConstants.from_folder.is_acoustic_sum (Python parameter) — If true, the acoustic sum rule is applied to the dynamical matrix. Default is False"><span class="n"><span class="pre">is_acoustic_sum</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">bool</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="kc">False</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.forceconstants.ForceConstants.from_folder" title="kaldo.forceconstants.ForceConstants.from_folder.only_second (Python parameter)"><span class="n"><span class="pre">only_second</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">bool</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="kc">False</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.forceconstants.ForceConstants.from_folder" title="kaldo.forceconstants.ForceConstants.from_folder.include_fourth (Python parameter)"><span class="n"><span class="pre">include_fourth</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">bool</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="kc">False</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.forceconstants.ForceConstants.from_folder.distance_threshold" title="kaldo.forceconstants.ForceConstants.from_folder.distance_threshold (Python parameter) — When calculating force constants, contributions from atoms further than the distance threshold will be ignored."><span class="n"><span class="pre">distance_threshold</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="kc">None</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.forceconstants.ForceConstants.from_folder.chunk_size" title="kaldo.forceconstants.ForceConstants.from_folder.chunk_size (Python parameter) — Number of entries to process per chunk when reading sparse third order files. Larger values use more memory but may be faster for very large files. Default: 100000"><span class="n"><span class="pre">chunk_size</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">int</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="mi">100000</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.forceconstants.ForceConstants.from_folder" title="kaldo.forceconstants.ForceConstants.from_folder.supercell_matrix (Python parameter)"><span class="n"><span class="pre">supercell_matrix</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="kc">None</span></code></em></span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/forceconstants.html#ForceConstants.from_folder"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kaldo.forceconstants.ForceConstants.from_folder" title="Link to this definition">¶</a></dt>
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_folder</span></span><span class="sig-paren">(</span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.forceconstants.ForceConstants.from_folder.folder" title="kaldo.forceconstants.ForceConstants.from_folder.folder (Python parameter) — Chosen folder to load in system information."><span class="n"><span class="pre">folder</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">str</span></span></span></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.forceconstants.ForceConstants.from_folder.supercell" title="kaldo.forceconstants.ForceConstants.from_folder.supercell (Python parameter) — Diagonal repetitions or an integer primitive-to-supercell expansion matrix."><span class="n"><span class="pre">supercell</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">ndarray</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.forceconstants.ForceConstants.from_folder.format" title="kaldo.forceconstants.ForceConstants.from_folder.format (Python parameter) — Format of force constant information being loaded into ForceConstants object. Default is 'numpy'"><span class="n"><span class="pre">format</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">str</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="s1">&#39;numpy&#39;</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.forceconstants.ForceConstants.from_folder.third_energy_threshold" title="kaldo.forceconstants.ForceConstants.from_folder.third_energy_threshold (Python parameter) — When importing sparse third order force constant matrices, energies below the threshold value in magnitude are ignored."><span class="n"><span class="pre">third_energy_threshold</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">float</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="mf">0.0</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.forceconstants.ForceConstants.from_folder.third_supercell" title="kaldo.forceconstants.ForceConstants.from_folder.third_supercell (Python parameter) — Supercell topology for the third-order force constants."><span class="n"><span class="pre">third_supercell</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="kc">None</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.forceconstants.ForceConstants.from_folder.is_acoustic_sum" title="kaldo.forceconstants.ForceConstants.from_folder.is_acoustic_sum (Python parameter) — If true, the acoustic sum rule is applied to the dynamical matrix. Default is False"><span class="n"><span class="pre">is_acoustic_sum</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">bool</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="kc">False</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.forceconstants.ForceConstants.from_folder.only_second" title="kaldo.forceconstants.ForceConstants.from_folder.only_second (Python parameter) — Load only harmonic force constants and leave IFC3 unconstructed. Default: False"><span class="n"><span class="pre">only_second</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">bool</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="kc">False</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.forceconstants.ForceConstants.from_folder.include_fourth" title="kaldo.forceconstants.ForceConstants.from_folder.include_fourth (Python parameter) — Also load infile.forceconstant_fourthorder."><span class="n"><span class="pre">include_fourth</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">bool</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="kc">False</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.forceconstants.ForceConstants.from_folder.distance_threshold" title="kaldo.forceconstants.ForceConstants.from_folder.distance_threshold (Python parameter) — When calculating force constants, contributions from atoms further than the distance threshold will be ignored."><span class="n"><span class="pre">distance_threshold</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="kc">None</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.forceconstants.ForceConstants.from_folder.chunk_size" title="kaldo.forceconstants.ForceConstants.from_folder.chunk_size (Python parameter) — Number of entries to process per chunk when reading sparse third order files. Larger values use more memory but may be faster for very large files. Default: 100000"><span class="n"><span class="pre">chunk_size</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">int</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="mi">100000</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.forceconstants.ForceConstants.from_folder.supercell_matrix" title="kaldo.forceconstants.ForceConstants.from_folder.supercell_matrix (Python parameter) — Expected integer expansion matrix for TDEP input."><span class="n"><span class="pre">supercell_matrix</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="kc">None</span></code></em></span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/forceconstants.html#ForceConstants.from_folder"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kaldo.forceconstants.ForceConstants.from_folder" title="Link to this definition">¶</a></dt>
 <dd><p>Create a finite difference object from a folder</p>
 <p>The folder should contain the a set of files whose names and contents are dependent on the “format” parameter.
 Below is the list required for each format (also found in the api_forceconstants documentation if you prefer
@@ -4013,8 +3995,12 @@ to read it with nicer formatting and explanations).</p>
 <dd class="field-odd"><dl class="simple api-field highlight">
 <dt id="kaldo.forceconstants.ForceConstants.from_folder.folder"><span class="sig-name descname">folder</span><span class="p"> : </span><span class="desctype"><span class="desctype">str</span></span><a class="headerlink" href="#kaldo.forceconstants.ForceConstants.from_folder.folder" title="Permalink to this definition">¶</a></dt><dd><p>Chosen folder to load in system information.</p>
 </dd>
-<dt id="kaldo.forceconstants.ForceConstants.from_folder.supercell"><span class="sig-name descname">supercell</span><span class="p"> : </span><span class="desctype"><span class="desctype">(int, int, int), optional</span></span><a class="headerlink" href="#kaldo.forceconstants.ForceConstants.from_folder.supercell" title="Permalink to this definition">¶</a></dt><dd><p>Number of unit cells in each cartesian direction replicated to form the input structure.
-Default is (1, 1, 1)</p>
+<dt id="kaldo.forceconstants.ForceConstants.from_folder.supercell"><span class="sig-name descname">supercell</span><span class="p"> : </span><span class="desctype"><span class="desctype">(int, int, int) or array-like (3, 3), optional</span></span><a class="headerlink" href="#kaldo.forceconstants.ForceConstants.from_folder.supercell" title="Permalink to this definition">¶</a></dt><dd><p>Diagonal repetitions or an integer primitive-to-supercell
+expansion matrix. <code class="docutils literal notranslate"><span class="pre">format='tdep'</span></code> is the complete matrix-aware
+combined IFC2/IFC3 file route; legacy compact readers require a
+diagonal supercell. For TDEP, the matrix inferred from
+<code class="docutils literal notranslate"><span class="pre">infile.ucposcar</span></code> and <code class="docutils literal notranslate"><span class="pre">infile.ssposcar</span></code> is authoritative.
+Default: (1, 1, 1)</p>
 </dd>
 <dt id="kaldo.forceconstants.ForceConstants.from_folder.format"><span class="sig-name descname">format</span><span class="p"> : </span><span class="desctype"><span class="desctype">'numpy', 'eskm', 'lammps', 'vasp-sheng', 'qe-sheng', 'vasp-d3q', 'qe-d3q', 'hiphive', 'tdep', 'gpumd'</span></span><a class="headerlink" href="#kaldo.forceconstants.ForceConstants.from_folder.format" title="Permalink to this definition">¶</a></dt><dd><p>Format of force constant information being loaded into ForceConstants object.
 Default is <code class="docutils literal notranslate"><span class="pre">'numpy'</span></code></p>
@@ -4026,15 +4012,29 @@ Default is None</p>
 <dt id="kaldo.forceconstants.ForceConstants.from_folder.distance_threshold"><span class="sig-name descname">distance_threshold</span><span class="p"> : </span><span class="desctype"><span class="desctype">float, optional</span></span><a class="headerlink" href="#kaldo.forceconstants.ForceConstants.from_folder.distance_threshold" title="Permalink to this definition">¶</a></dt><dd><p>When calculating force constants, contributions from atoms further than the
 distance threshold will be ignored.</p>
 </dd>
-<dt id="kaldo.forceconstants.ForceConstants.from_folder.third_supercell"><span class="sig-name descname">third_supercell</span><span class="p"> : </span><span class="desctype"><span class="desctype">(int, int, int), optional</span></span><a class="headerlink" href="#kaldo.forceconstants.ForceConstants.from_folder.third_supercell" title="Permalink to this definition">¶</a></dt><dd><p>Takes in the unit cell for the third order force constant matrix.
-Default is self.supercell</p>
+<dt id="kaldo.forceconstants.ForceConstants.from_folder.third_supercell"><span class="sig-name descname">third_supercell</span><span class="p"> : </span><span class="desctype"><span class="desctype">(int, int, int) or array-like (3, 3), optional</span></span><a class="headerlink" href="#kaldo.forceconstants.ForceConstants.from_folder.third_supercell" title="Permalink to this definition">¶</a></dt><dd><p>Supercell topology for the third-order force constants. If not
+supplied, the resolved second-order topology is used.
+Default: <code class="docutils literal notranslate"><span class="pre">None</span></code></p>
 </dd>
 <dt id="kaldo.forceconstants.ForceConstants.from_folder.is_acoustic_sum"><span class="sig-name descname">is_acoustic_sum</span><span class="p"> : </span><span class="desctype"><span class="desctype">Bool, optional</span></span><a class="headerlink" href="#kaldo.forceconstants.ForceConstants.from_folder.is_acoustic_sum" title="Permalink to this definition">¶</a></dt><dd><p>If true, the acoustic sum rule is applied to the dynamical matrix.
 Default is False</p>
 </dd>
+<dt id="kaldo.forceconstants.ForceConstants.from_folder.only_second"><span class="sig-name descname">only_second</span><span class="p"> : </span><span class="desctype"><span class="desctype">bool, optional</span></span><a class="headerlink" href="#kaldo.forceconstants.ForceConstants.from_folder.only_second" title="Permalink to this definition">¶</a></dt><dd><p>Load only harmonic force constants and leave IFC3 unconstructed.
+Default: False</p>
+</dd>
+<dt id="kaldo.forceconstants.ForceConstants.from_folder.include_fourth"><span class="sig-name descname">include_fourth</span><span class="p"> : </span><span class="desctype"><span class="desctype">bool, optional</span></span><a class="headerlink" href="#kaldo.forceconstants.ForceConstants.from_folder.include_fourth" title="Permalink to this definition">¶</a></dt><dd><p>Also load <code class="docutils literal notranslate"><span class="pre">infile.forceconstant_fourthorder</span></code>. Currently valid
+only for <code class="docutils literal notranslate"><span class="pre">format='tdep'</span></code> and ignored when <code class="docutils literal notranslate"><span class="pre">only_second=True</span></code>.
+Default: False</p>
+</dd>
 <dt id="kaldo.forceconstants.ForceConstants.from_folder.chunk_size"><span class="sig-name descname">chunk_size</span><span class="p"> : </span><span class="desctype"><span class="desctype">int, optional</span></span><a class="headerlink" href="#kaldo.forceconstants.ForceConstants.from_folder.chunk_size" title="Permalink to this definition">¶</a></dt><dd><p>Number of entries to process per chunk when reading sparse third order files.
 Larger values use more memory but may be faster for very large files.
 Default: 100000</p>
+</dd>
+<dt id="kaldo.forceconstants.ForceConstants.from_folder.supercell_matrix"><span class="sig-name descname">supercell_matrix</span><span class="p"> : </span><span class="desctype"><span class="desctype">array-like (3, 3), optional</span></span><a class="headerlink" href="#kaldo.forceconstants.ForceConstants.from_folder.supercell_matrix" title="Permalink to this definition">¶</a></dt><dd><p>Expected integer expansion matrix for TDEP input. The structure
+files define the authoritative matrix; a mismatch raises an error.
+Other formats normally express the topology through <code class="docutils literal notranslate"><span class="pre">supercell</span></code>
+and <code class="docutils literal notranslate"><span class="pre">third_supercell</span></code>.
+Default: None</p>
 </dd>
 </dl>
 </dd>
@@ -4076,8 +4076,9 @@ and    shifted_rep = ForceConstants._build_shifted_rep(grid).</p>
 <dd class="field-odd"><dl class="simple api-field highlight">
 <dt id="kaldo.forceconstants.ForceConstants.irred_to_full.order"><span class="sig-name descname">order</span><span class="p"> : </span><span class="desctype"><span class="desctype">int</span></span><a class="headerlink" href="#kaldo.forceconstants.ForceConstants.irred_to_full.order" title="Permalink to this definition">¶</a></dt><dd><p>IFC order; 2 or 3.</p>
 </dd>
-<dt id="kaldo.forceconstants.ForceConstants.irred_to_full.grid"><span class="sig-name descname">grid</span><span class="p"> : </span><span class="desctype"><span class="desctype">Grid, optional</span></span><a class="headerlink" href="#kaldo.forceconstants.ForceConstants.irred_to_full.grid" title="Permalink to this definition">¶</a></dt><dd><p>Supercell grid.  Defaults to the grid of the corresponding order object
-(<code class="docutils literal notranslate"><span class="pre">self.second._direct_grid</span></code> or <code class="docutils literal notranslate"><span class="pre">self.third._direct_grid</span></code>).</p>
+<dt id="kaldo.forceconstants.ForceConstants.irred_to_full.grid"><span class="sig-name descname">grid</span><span class="p"> : </span><span class="desctype"><span class="desctype">Grid, optional</span></span><a class="headerlink" href="#kaldo.forceconstants.ForceConstants.irred_to_full.grid" title="Permalink to this definition">¶</a></dt><dd><p>Supercell grid.  Defaults to a grid reconstructed from the
+object’s SNF mapping (non-diagonal) or its translation
+support (diagonal).</p>
 </dd>
 </dl>
 </dd>
@@ -4086,26 +4087,6 @@ and    shifted_rep = ForceConstants._build_shifted_rep(grid).</p>
 </dd>
 <dt class="field-odd" id="kaldo.forceconstants.ForceConstants.irred_to_full-return-type">Return type<span class="colon">:</span><a class="headerlink" href="#kaldo.forceconstants.ForceConstants.irred_to_full-return-type" title="Permalink to this headline">¶</a></dt>
 <dd class="field-odd"><p>np.ndarray</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method objdesc">
-<dt class="sig sig-object highlight py" id="kaldo.forceconstants.ForceConstants.unfold_third_order">
-<span class="sig-name descname"><span class="pre">unfold_third_order</span></span><span class="sig-paren">(</span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.forceconstants.ForceConstants.unfold_third_order.reduced_third" title="kaldo.forceconstants.ForceConstants.unfold_third_order.reduced_third (Python parameter) — The third order force constant matrix. Default is self.third"><span class="n"><span class="pre">reduced_third</span></span></a><span class="o"><span class="pre">=</span></span><code class="code python default_value docutils literal highlight highlight-python"><span class="kc">None</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.forceconstants.ForceConstants.unfold_third_order.distance_threshold" title="kaldo.forceconstants.ForceConstants.unfold_third_order.distance_threshold (Python parameter) — When calculating force constants, contributions from atoms further than the distance threshold will be ignored. Default is self.distance_threshold"><span class="n"><span class="pre">distance_threshold</span></span></a><span class="o"><span class="pre">=</span></span><code class="code python default_value docutils literal highlight highlight-python"><span class="kc">None</span></code></em></span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/forceconstants.html#ForceConstants.unfold_third_order"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kaldo.forceconstants.ForceConstants.unfold_third_order" title="Link to this definition">¶</a></dt>
-<dd><p>This method extrapolates a third order force constant matrix from a unit
-cell into a matrix for a larger supercell.</p>
-<dl class="field-list simple">
-<dt class="field-odd" id="kaldo.forceconstants.ForceConstants.unfold_third_order-parameters">Parameters<span class="colon">:</span><a class="headerlink" href="#kaldo.forceconstants.ForceConstants.unfold_third_order-parameters" title="Permalink to this headline">¶</a></dt>
-<dd class="field-odd"><dl class="simple api-field highlight">
-<dt id="kaldo.forceconstants.ForceConstants.unfold_third_order.reduced_third"><span class="sig-name descname">reduced_third</span><span class="p"> : </span><span class="desctype"><span class="desctype">array, optional</span></span><a class="headerlink" href="#kaldo.forceconstants.ForceConstants.unfold_third_order.reduced_third" title="Permalink to this definition">¶</a></dt><dd><p>The third order force constant matrix.
-Default is <code class="docutils literal notranslate"><span class="pre">self.third</span></code></p>
-</dd>
-<dt id="kaldo.forceconstants.ForceConstants.unfold_third_order.distance_threshold"><span class="sig-name descname">distance_threshold</span><span class="p"> : </span><span class="desctype"><span class="desctype">float, optional</span></span><a class="headerlink" href="#kaldo.forceconstants.ForceConstants.unfold_third_order.distance_threshold" title="Permalink to this definition">¶</a></dt><dd><p>When calculating force constants, contributions from atoms further than
-the distance threshold will be ignored.
-Default is <code class="docutils literal notranslate"><span class="pre">self.distance_threshold</span></code></p>
-</dd>
-</dl>
 </dd>
 </dl>
 </dd></dl>
@@ -4145,7 +4126,7 @@ is most helpful when you want to load second-order data in a non-standard way (e
 <code class="docutils literal notranslate"><span class="pre">ForceConstants.from_folder</span></code> method) or to run the harmonic finite-difference calculation.</p>
 <dl class="py method objdesc">
 <dt class="sig sig-object highlight sig-wrap py" id="kaldo.observables.secondorder.SecondOrder.load">
-<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">SecondOrder.</span></span><span class="sig-name descname"><span class="pre">load</span></span><span class="sig-paren">(</span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.observables.secondorder.SecondOrder.load.folder" title="kaldo.observables.secondorder.SecondOrder.load.folder (Python parameter) — Specifies where to load the data files."><span class="n"><span class="pre">folder</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">str</span></span></span></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.observables.secondorder.SecondOrder.load.supercell" title="kaldo.observables.secondorder.SecondOrder.load.supercell (Python parameter) — The supercell for the third order force constant matrix. Default: (1, 1, 1)"><span class="n"><span class="pre">supercell</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.observables.secondorder.SecondOrder.load.format" title="kaldo.observables.secondorder.SecondOrder.load.format (Python parameter) — Format of the second order force constant information being loaded into SecondOrder object. Default: 'sparse'"><span class="n"><span class="pre">format</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">str</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="s1">&#39;numpy&#39;</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.observables.secondorder.SecondOrder.load.is_acoustic_sum" title="kaldo.observables.secondorder.SecondOrder.load.is_acoustic_sum (Python parameter) — If true, the acoustic sum rule is applied to the dynamical matrix. Default: False"><span class="n"><span class="pre">is_acoustic_sum</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">bool</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="kc">False</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.observables.secondorder.SecondOrder.load.supercell_matrix" title="kaldo.observables.secondorder.SecondOrder.load.supercell_matrix (Python parameter) — 3x3 integer supercell expansion matrix."><span class="n"><span class="pre">supercell_matrix</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="kc">None</span></code></em></span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/observables/secondorder.html#SecondOrder.load"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kaldo.observables.secondorder.SecondOrder.load" title="Link to this definition">¶</a></dt>
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">SecondOrder.</span></span><span class="sig-name descname"><span class="pre">load</span></span><span class="sig-paren">(</span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.observables.secondorder.SecondOrder.load.folder" title="kaldo.observables.secondorder.SecondOrder.load.folder (Python parameter) — Specifies where to load the data files."><span class="n"><span class="pre">folder</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">str</span></span></span></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.observables.secondorder.SecondOrder.load.supercell" title="kaldo.observables.secondorder.SecondOrder.load.supercell (Python parameter) — Diagonal repetitions or an integer 3 by 3 supercell matrix for the second-order force constants."><span class="n"><span class="pre">supercell</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">ndarray</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.observables.secondorder.SecondOrder.load.format" title="kaldo.observables.secondorder.SecondOrder.load.format (Python parameter) — Format of the second order force constant information being loaded into SecondOrder object. Default: 'sparse'"><span class="n"><span class="pre">format</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">str</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="s1">&#39;numpy&#39;</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.observables.secondorder.SecondOrder.load.is_acoustic_sum" title="kaldo.observables.secondorder.SecondOrder.load.is_acoustic_sum (Python parameter) — If true, the acoustic sum rule is applied to the dynamical matrix. Default: False"><span class="n"><span class="pre">is_acoustic_sum</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">bool</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="kc">False</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.observables.secondorder.SecondOrder.load.supercell_matrix" title="kaldo.observables.secondorder.SecondOrder.load.supercell_matrix (Python parameter) — Expected 3x3 integer supercell expansion matrix."><span class="n"><span class="pre">supercell_matrix</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="kc">None</span></code></em></span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/observables/secondorder.html#SecondOrder.load"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kaldo.observables.secondorder.SecondOrder.load" title="Link to this definition">¶</a></dt>
 <dd><p>Load second order force constants from a folder in the given format, used for library internally.</p>
 <p>To load force constants data, <code class="docutils literal notranslate"><span class="pre">ForceConstants.from_folder</span></code> is recommended.</p>
 <dl class="field-list simple">
@@ -4153,7 +4134,10 @@ is most helpful when you want to load second-order data in a non-standard way (e
 <dd class="field-odd"><dl class="simple api-field highlight">
 <dt id="kaldo.observables.secondorder.SecondOrder.load.folder"><span class="sig-name descname">folder</span><span class="p"> : </span><span class="desctype"><span class="desctype">str</span></span><a class="headerlink" href="#kaldo.observables.secondorder.SecondOrder.load.folder" title="Permalink to this definition">¶</a></dt><dd><p>Specifies where to load the data files.</p>
 </dd>
-<dt id="kaldo.observables.secondorder.SecondOrder.load.supercell"><span class="sig-name descname">supercell</span><span class="p"> : </span><span class="desctype"><span class="desctype">tuple[int, int, int]</span></span><a class="headerlink" href="#kaldo.observables.secondorder.SecondOrder.load.supercell" title="Permalink to this definition">¶</a></dt><dd><p>The supercell for the third order force constant matrix.
+<dt id="kaldo.observables.secondorder.SecondOrder.load.supercell"><span class="sig-name descname">supercell</span><span class="p"> : </span><span class="desctype"><span class="desctype">tuple[int, int, int] or ndarray</span></span><a class="headerlink" href="#kaldo.observables.secondorder.SecondOrder.load.supercell" title="Permalink to this definition">¶</a></dt><dd><p>Diagonal repetitions or an integer 3 by 3 supercell matrix for
+the second-order force constants. Matrix topology is currently
+supported by the TDEP loader; other file formats require a
+diagonal three-vector.
 Default: (1, 1, 1)</p>
 </dd>
 <dt id="kaldo.observables.secondorder.SecondOrder.load.format"><span class="sig-name descname">format</span><span class="p"> : </span><span class="desctype"><span class="desctype">str</span></span><a class="headerlink" href="#kaldo.observables.secondorder.SecondOrder.load.format" title="Permalink to this definition">¶</a></dt><dd><p>Format of the second order force constant information being loaded into SecondOrder object.
@@ -4162,10 +4146,9 @@ Default: ‘sparse’</p>
 <dt id="kaldo.observables.secondorder.SecondOrder.load.is_acoustic_sum"><span class="sig-name descname">is_acoustic_sum</span><span class="p"> : </span><span class="desctype"><span class="desctype">bool, optional</span></span><a class="headerlink" href="#kaldo.observables.secondorder.SecondOrder.load.is_acoustic_sum" title="Permalink to this definition">¶</a></dt><dd><p>If true, the acoustic sum rule is applied to the dynamical matrix.
 Default: False</p>
 </dd>
-<dt id="kaldo.observables.secondorder.SecondOrder.load.supercell_matrix"><span class="sig-name descname">supercell_matrix</span><span class="p"> : </span><span class="desctype"><span class="desctype">np.ndarray, optional</span></span><a class="headerlink" href="#kaldo.observables.secondorder.SecondOrder.load.supercell_matrix" title="Permalink to this definition">¶</a></dt><dd><p>3x3 integer supercell expansion matrix. Accepted for API symmetry
-with <code class="docutils literal notranslate"><span class="pre">ForceConstants.from_folder</span></code>; for <code class="docutils literal notranslate"><span class="pre">format='tdep'</span></code> the
-(possibly non-diagonal) supercell is inferred from
-<code class="docutils literal notranslate"><span class="pre">infile.ucposcar</span></code> / <code class="docutils literal notranslate"><span class="pre">infile.ssposcar</span></code> instead.
+<dt id="kaldo.observables.secondorder.SecondOrder.load.supercell_matrix"><span class="sig-name descname">supercell_matrix</span><span class="p"> : </span><span class="desctype"><span class="desctype">np.ndarray, optional</span></span><a class="headerlink" href="#kaldo.observables.secondorder.SecondOrder.load.supercell_matrix" title="Permalink to this definition">¶</a></dt><dd><p>Expected 3x3 integer supercell expansion matrix. For TDEP the
+structure files remain authoritative, and a supplied matrix must
+match their inferred (possibly non-diagonal) tiling.
 Default: None</p>
 </dd>
 </dl>
@@ -4273,7 +4256,7 @@ is most helpful when you need to load third-order data from a specific format or
 when launching the finite-difference calculation.</p>
 <dl class="py method objdesc">
 <dt class="sig sig-object highlight sig-wrap py" id="kaldo.observables.thirdorder.ThirdOrder.load">
-<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ThirdOrder.</span></span><span class="sig-name descname"><span class="pre">load</span></span><span class="sig-paren">(</span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.observables.thirdorder.ThirdOrder.load.folder" title="kaldo.observables.thirdorder.ThirdOrder.load.folder (Python parameter) — Specifies where to load the data files."><span class="n"><span class="pre">folder</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">str</span></span></span></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.observables.thirdorder.ThirdOrder.load.supercell" title="kaldo.observables.thirdorder.ThirdOrder.load.supercell (Python parameter) — The supercell for the third order force constant matrix. Default: (1, 1, 1)"><span class="n"><span class="pre">supercell</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.observables.thirdorder.ThirdOrder.load.format" title="kaldo.observables.thirdorder.ThirdOrder.load.format (Python parameter) — Format of the third order force constant information being loaded into ForceConstant object. Default: 'sparse'"><span class="n"><span class="pre">format</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">str</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="s1">&#39;sparse&#39;</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.observables.thirdorder.ThirdOrder.load.third_energy_threshold" title="kaldo.observables.thirdorder.ThirdOrder.load.third_energy_threshold (Python parameter) — When importing sparse third order force constant matrices, energies below the threshold value in magnitude are ignored."><span class="n"><span class="pre">third_energy_threshold</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">float</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="mf">0.0</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.observables.thirdorder.ThirdOrder.load.chunk_size" title="kaldo.observables.thirdorder.ThirdOrder.load.chunk_size (Python parameter) — Number of entries to process per chunk when reading sparse third order files. Larger values use more memory but may be faster for very large files. Default: 100000"><span class="n"><span class="pre">chunk_size</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">int</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="mi">100000</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.observables.thirdorder.ThirdOrder.load.supercell_matrix" title="kaldo.observables.thirdorder.ThirdOrder.load.supercell_matrix (Python parameter) — 3x3 integer supercell expansion matrix."><span class="n"><span class="pre">supercell_matrix</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="kc">None</span></code></em></span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/observables/thirdorder.html#ThirdOrder.load"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kaldo.observables.thirdorder.ThirdOrder.load" title="Link to this definition">¶</a></dt>
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ThirdOrder.</span></span><span class="sig-name descname"><span class="pre">load</span></span><span class="sig-paren">(</span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.observables.thirdorder.ThirdOrder.load.folder" title="kaldo.observables.thirdorder.ThirdOrder.load.folder (Python parameter) — Specifies where to load the data files."><span class="n"><span class="pre">folder</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">str</span></span></span></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.observables.thirdorder.ThirdOrder.load.supercell" title="kaldo.observables.thirdorder.ThirdOrder.load.supercell (Python parameter) — Diagonal repetitions or an integer 3 by 3 supercell matrix for the third-order force constants."><span class="n"><span class="pre">supercell</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">ndarray</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.observables.thirdorder.ThirdOrder.load.format" title="kaldo.observables.thirdorder.ThirdOrder.load.format (Python parameter) — Format of the third order force constant information being loaded into ForceConstant object. Default: 'sparse'"><span class="n"><span class="pre">format</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">str</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="s1">&#39;sparse&#39;</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.observables.thirdorder.ThirdOrder.load.third_energy_threshold" title="kaldo.observables.thirdorder.ThirdOrder.load.third_energy_threshold (Python parameter) — When importing sparse third order force constant matrices, energies below the threshold value in magnitude are ignored."><span class="n"><span class="pre">third_energy_threshold</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">float</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="mf">0.0</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.observables.thirdorder.ThirdOrder.load.chunk_size" title="kaldo.observables.thirdorder.ThirdOrder.load.chunk_size (Python parameter) — Number of entries to process per chunk when reading sparse third order files. Larger values use more memory but may be faster for very large files. Default: 100000"><span class="n"><span class="pre">chunk_size</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">int</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="mi">100000</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.observables.thirdorder.ThirdOrder.load.supercell_matrix" title="kaldo.observables.thirdorder.ThirdOrder.load.supercell_matrix (Python parameter) — Expected 3x3 integer supercell expansion matrix."><span class="n"><span class="pre">supercell_matrix</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="kc">None</span></code></em>, </span><span class="sig-param-decl"><em class="sig-param"><a class="n reference internal" href="#kaldo.observables.thirdorder.ThirdOrder.load.atoms_override" title="kaldo.observables.thirdorder.ThirdOrder.load.atoms_override (Python parameter) — Authoritative primitive structure supplied by an already loaded IFC2 object."><span class="n"><span class="pre">atoms_override</span></span></a><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="desctype"><span class="pre">Atoms</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><code class="code python default_value docutils literal highlight highlight-python"><span class="kc">None</span></code></em></span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/observables/thirdorder.html#ThirdOrder.load"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kaldo.observables.thirdorder.ThirdOrder.load" title="Link to this definition">¶</a></dt>
 <dd><p>Load third order force constants from a folder in the given format, used for library internally.</p>
 <p>To load force constants data, <code class="docutils literal notranslate"><span class="pre">ForceConstants.from_folder</span></code> is recommended.</p>
 <dl class="field-list simple">
@@ -4281,7 +4264,10 @@ when launching the finite-difference calculation.</p>
 <dd class="field-odd"><dl class="simple api-field highlight">
 <dt id="kaldo.observables.thirdorder.ThirdOrder.load.folder"><span class="sig-name descname">folder</span><span class="p"> : </span><span class="desctype"><span class="desctype">str</span></span><a class="headerlink" href="#kaldo.observables.thirdorder.ThirdOrder.load.folder" title="Permalink to this definition">¶</a></dt><dd><p>Specifies where to load the data files.</p>
 </dd>
-<dt id="kaldo.observables.thirdorder.ThirdOrder.load.supercell"><span class="sig-name descname">supercell</span><span class="p"> : </span><span class="desctype"><span class="desctype">tuple[int, int, int]</span></span><a class="headerlink" href="#kaldo.observables.thirdorder.ThirdOrder.load.supercell" title="Permalink to this definition">¶</a></dt><dd><p>The supercell for the third order force constant matrix.
+<dt id="kaldo.observables.thirdorder.ThirdOrder.load.supercell"><span class="sig-name descname">supercell</span><span class="p"> : </span><span class="desctype"><span class="desctype">tuple[int, int, int] or ndarray</span></span><a class="headerlink" href="#kaldo.observables.thirdorder.ThirdOrder.load.supercell" title="Permalink to this definition">¶</a></dt><dd><p>Diagonal repetitions or an integer 3 by 3 supercell matrix for
+the third-order force constants. TDEP and ShengBTE-style literal
+IFC3 readers support matrices; compact legacy formats require a
+diagonal three-vector.
 Default: (1, 1, 1)</p>
 </dd>
 <dt id="kaldo.observables.thirdorder.ThirdOrder.load.format"><span class="sig-name descname">format</span><span class="p"> : </span><span class="desctype"><span class="desctype">str</span></span><a class="headerlink" href="#kaldo.observables.thirdorder.ThirdOrder.load.format" title="Permalink to this definition">¶</a></dt><dd><p>Format of the third order force constant information being loaded into ForceConstant object.
@@ -4295,10 +4281,14 @@ Default: <span class="math notranslate nohighlight">\(None\)</span></p>
 Larger values use more memory but may be faster for very large files.
 Default: 100000</p>
 </dd>
-<dt id="kaldo.observables.thirdorder.ThirdOrder.load.supercell_matrix"><span class="sig-name descname">supercell_matrix</span><span class="p"> : </span><span class="desctype"><span class="desctype">np.ndarray, optional</span></span><a class="headerlink" href="#kaldo.observables.thirdorder.ThirdOrder.load.supercell_matrix" title="Permalink to this definition">¶</a></dt><dd><p>3x3 integer supercell expansion matrix. Accepted for API symmetry
-with <code class="docutils literal notranslate"><span class="pre">ForceConstants.from_folder</span></code>; for <code class="docutils literal notranslate"><span class="pre">format='tdep'</span></code> the
-(possibly non-diagonal) supercell is inferred from
-<code class="docutils literal notranslate"><span class="pre">infile.ucposcar</span></code> / <code class="docutils literal notranslate"><span class="pre">infile.ssposcar</span></code> instead.
+<dt id="kaldo.observables.thirdorder.ThirdOrder.load.supercell_matrix"><span class="sig-name descname">supercell_matrix</span><span class="p"> : </span><span class="desctype"><span class="desctype">np.ndarray, optional</span></span><a class="headerlink" href="#kaldo.observables.thirdorder.ThirdOrder.load.supercell_matrix" title="Permalink to this definition">¶</a></dt><dd><p>Expected 3x3 integer supercell expansion matrix. For TDEP the
+structure files remain authoritative, and a supplied matrix must
+match their inferred (possibly non-diagonal) tiling.
+Default: None</p>
+</dd>
+<dt id="kaldo.observables.thirdorder.ThirdOrder.load.atoms_override"><span class="sig-name descname">atoms_override</span><span class="p"> : </span><span class="desctype"><span class="desctype">ase.Atoms, optional</span></span><a class="headerlink" href="#kaldo.observables.thirdorder.ThirdOrder.load.atoms_override" title="Permalink to this definition">¶</a></dt><dd><p>Authoritative primitive structure supplied by an already loaded
+IFC2 object. Used for QE q2r-backed formats so IFC3 cannot be
+interpreted in a stale CONTROL/POSCAR atom order.
 Default: None</p>
 </dd>
 </dl>
