@@ -189,6 +189,22 @@ def test_dielectric_without_charges_raises():
     assert harmonic.is_nac is False
 
 
+def test_scalar_charges_are_not_polar_metadata():
+    """A LAMMPS-style per-atom charge column is not a Born-charge block."""
+    from ase import Atoms
+
+    atoms = Atoms("NaCl", positions=[[0, 0, 0], [2.8, 0, 0]], cell=np.eye(3) * 5.6)
+    atoms.set_array("charges", np.array([1.0, -1.0]))
+    assert _resolve_nac_activation(atoms, None) is False
+
+    atoms.info["dielectric"] = np.eye(3) * 2.5
+    with pytest.raises(ValueError, match=r"has shape \(2,\)"):
+        _resolve_nac_activation(atoms, None)
+    with pytest.raises(ValueError, match=r"has shape \(2,\)"):
+        _resolve_nac_activation(atoms, True)
+    assert _resolve_nac_activation(atoms, False) is False
+
+
 def test_required_nac_without_polar_metadata_has_actionable_error(nac_second_order):
     """An explicit NAC request should identify missing data and alternatives."""
     second = nac_second_order
