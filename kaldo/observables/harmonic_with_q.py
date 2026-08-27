@@ -337,11 +337,17 @@ def _resolve_nac_activation(atoms, requested):
         )
 
     if has_dielectric != has_charges:
-        missing = (
-            "atoms.arrays['charges']" if has_dielectric else "atoms.info['dielectric']"
-        )
+        if not has_dielectric:
+            missing = "atoms.info['dielectric'] is missing"
+        elif charges is not None:
+            missing = (
+                f"atoms.arrays['charges'] has shape {charges.shape} but Born "
+                "effective charges must have shape (n_atoms, 3, 3)"
+            )
+        else:
+            missing = "atoms.arrays['charges'] is missing"
         raise ValueError(
-            f"{missing} is missing: the non-analytic correction needs both "
+            f"{missing}: the non-analytic correction needs both "
             "a dielectric tensor and Born effective charges. Pass "
             "is_nac=False to compute without NAC."
         )
@@ -520,7 +526,7 @@ class HarmonicWithQ(Observable, Storable):
         dq_cart = (
             direction_cart / np.linalg.norm(direction_cart) * NAC_VELOCITY_Q_LENGTH
         )
-        # The cell is row-vector, so the forward map is inv(C) and the inverse is C.
+        # reciprocal_lattice is inv(C) for the row-vector cell, so C maps Cartesian q back to reduced.
         dq_red = static_data["primitive_cell"] @ dq_cart / units.Bohr
         q_red = np.array(self.q_point, dtype=float, copy=True)
         dm_minus = _to_phonopy_dm(
@@ -648,7 +654,7 @@ class HarmonicWithQ(Observable, Storable):
             dq_cart = (
                 direction_cart / np.linalg.norm(direction_cart) * NAC_VELOCITY_Q_LENGTH
             )
-            # The cell is row-vector, so the forward map is inv(C) and the inverse is C.
+            # reciprocal_lattice is inv(C) for the row-vector cell, so C maps Cartesian q back to reduced.
             dq_red = static_data["primitive_cell"] @ dq_cart / units.Bohr
             q_samples.extend((q_red - dq_red, q_red + dq_red))
         q_samples = np.array(q_samples, dtype=float)

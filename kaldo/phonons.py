@@ -643,12 +643,18 @@ class Phonons(Storable):
         self.is_balanced = is_balanced
         self.nac_bvk_supercell_matrix = nac_bvk_supercell_matrix
         self.atoms = self.forceconstants.atoms
+        second_atoms = self.forceconstants.second.atoms
+        born_charges = (
+            second_atoms.get_array("charges")
+            if "charges" in second_atoms.arrays
+            else None
+        )
         has_polar_data = (
-            "dielectric" in self.forceconstants.second.atoms.info
-            and "charges" in self.forceconstants.second.atoms.arrays
-            and np.any(
-                np.abs(self.forceconstants.second.atoms.arrays["charges"]) > 1.0e-8
-            )
+            "dielectric" in second_atoms.info
+            and born_charges is not None
+            and born_charges.ndim == 3
+            and born_charges.shape[-2:] == (3, 3)
+            and np.any(np.abs(born_charges) > 1.0e-8)
         )
         if (
             self.ifc_interpolation == "periodic"

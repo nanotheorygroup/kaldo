@@ -47,3 +47,20 @@ def test_nac_velocity(phonons):
     velocity = HarmonicWithQ(q_point=q_point, second=phonons.forceconstants.second, is_unfolding=True).velocity
     velocity_actual = np.linalg.norm(velocity, axis=-1).flatten()
     np.testing.assert_array_almost_equal(velocity_expected, velocity_actual, decimal=2)
+
+
+def test_scalar_charges_are_not_polar_metadata():
+    """A LAMMPS-style per-atom charge column is not a Born-charge block."""
+    from ase import Atoms
+    from kaldo.observables.harmonic_with_q import _resolve_nac_activation
+
+    atoms = Atoms("NaCl", positions=[[0, 0, 0], [2.8, 0, 0]], cell=np.eye(3) * 5.6)
+    atoms.set_array("charges", np.array([1.0, -1.0]))
+    assert _resolve_nac_activation(atoms, None) is False
+
+    atoms.info["dielectric"] = np.eye(3) * 2.5
+    with pytest.raises(ValueError, match=r"has shape \(2,\)"):
+        _resolve_nac_activation(atoms, None)
+    with pytest.raises(ValueError, match=r"has shape \(2,\)"):
+        _resolve_nac_activation(atoms, True)
+    assert _resolve_nac_activation(atoms, False) is False
