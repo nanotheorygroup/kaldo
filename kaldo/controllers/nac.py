@@ -952,9 +952,15 @@ def normalize_bvk_supercell_matrix(nac_bvk_supercell_matrix):
     """
     if nac_bvk_supercell_matrix is None:
         return None
-    matrix = np.array(nac_bvk_supercell_matrix, dtype=int)
+    matrix = np.asarray(nac_bvk_supercell_matrix)
     if matrix.shape != (3, 3):
         raise ValueError("nac_bvk_supercell_matrix must be a 3x3 integer matrix.")
+    rounded = np.rint(matrix)
+    if not np.allclose(np.asarray(matrix, dtype=float), rounded, atol=1e-9):
+        raise ValueError(
+            f"nac_bvk_supercell_matrix must be integer-valued, got\n{matrix}"
+        )
+    matrix = rounded.astype(int)
     determinant = int(round(np.linalg.det(matrix)))
     if determinant == 0:
         raise ValueError("nac_bvk_supercell_matrix must be non-singular.")
@@ -1796,7 +1802,13 @@ def build_mapping(second, matrix=None):
     convention specific.
     """
     matrix = normalize_bvk_supercell_matrix(matrix)
-    fc_diagonal = np.diag(np.asarray(second.supercell, dtype=int))
+    supercell = np.asarray(second.supercell, dtype=int)
+    if supercell.ndim != 1:
+        raise NotImplementedError(
+            "the non-analytic correction supports diagonal supercells only; "
+            f"this force-constant grid uses the matrix\n{supercell}"
+        )
+    fc_diagonal = np.diag(supercell)
     if matrix is None:
         # The dedicated no-matrix builder ordered supercell atoms replica-major,
         # inconsistent with the atom-major layout _build_interleaved_fc produces.

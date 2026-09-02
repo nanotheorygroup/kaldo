@@ -453,6 +453,17 @@ class HarmonicWithQ(Observable, Storable):
             nac_bvk_supercell_matrix
         )
         self.nac_q_direction = np.array(nac_q_direction, dtype=float, copy=True)
+        if self.is_nac and np.linalg.norm(self.nac_q_direction) == 0:
+            raise ValueError(
+                "nac_q_direction must be a nonzero direction: it replaces q at "
+                "Gamma, where the non-analytic term depends on the approach "
+                "direction."
+            )
+        if self.is_nac and self.distance_threshold is not None:
+            raise ValueError(
+                "distance_threshold is not applied on the non-analytic path "
+                "yet; pass is_nac=False for a thresholded diagnostic."
+            )
         self._nac_precomputed = None
         self._nac_runtime_cache = {}
         if self.is_nac and self._nac_precomputed is None:

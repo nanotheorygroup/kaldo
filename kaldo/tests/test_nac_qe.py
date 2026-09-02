@@ -64,3 +64,43 @@ def test_scalar_charges_are_not_polar_metadata():
     with pytest.raises(ValueError, match=r"has shape \(2,\)"):
         _resolve_nac_activation(atoms, True)
     assert _resolve_nac_activation(atoms, False) is False
+
+
+def test_nac_input_guards(tmp_path):
+    """Deferred or invalid NAC inputs fail loudly instead of being ignored."""
+    from types import SimpleNamespace
+    from kaldo.controllers.nac import build_mapping, normalize_bvk_supercell_matrix
+    from kaldo.observables.harmonic_with_q import HarmonicWithQ
+
+    with pytest.raises(ValueError, match="integer-valued"):
+        normalize_bvk_supercell_matrix(np.diag([1.9, 2.0, 2.0]))
+
+    fake_second = SimpleNamespace(supercell=np.array([[3, 1, 0], [0, 3, 0], [0, 0, 3]]))
+    with pytest.raises(NotImplementedError, match="diagonal supercells only"):
+        build_mapping(fake_second)
+
+    forceconstants = ForceConstants.from_folder(
+        folder="kaldo/tests/mgo", supercell=[5, 5, 5], format="shengbte-qe", only_second=True
+    )
+    second = forceconstants.second
+    with pytest.raises(ValueError, match="nonzero direction"):
+        HarmonicWithQ(np.zeros(3), second, storage="memory", nac_q_direction=(0, 0, 0))
+    with pytest.raises(ValueError, match="distance_threshold"):
+        HarmonicWithQ(np.zeros(3), second, storage="memory", distance_threshold=15.0)
+
+
+def test_phonons_forwards_nac_q_direction():
+    """The Phonons kwarg reaches HarmonicWithQ and steers the Gamma limit."""
+    forceconstants = ForceConstants.from_folder(
+        folder="kaldo/tests/mgo", supercell=[5, 5, 5], format="shengbte-qe", only_second=True
+    )
+    phonons = Phonons(
+        forceconstants=forceconstants, kpts=[1, 1, 1], temperature=300,
+        storage="memory", nac_q_direction=(0, 1, 0),
+    )
+    direct = HarmonicWithQ(
+        np.zeros(3), forceconstants.second, storage="memory", nac_q_direction=(0, 1, 0)
+    )
+    np.testing.assert_allclose(
+        np.array(phonons.frequency).flatten(), np.array(direct.frequency).flatten(), rtol=1e-10
+    )
