@@ -955,8 +955,11 @@ def normalize_bvk_supercell_matrix(nac_bvk_supercell_matrix):
     matrix = np.asarray(nac_bvk_supercell_matrix)
     if matrix.shape != (3, 3):
         raise ValueError("nac_bvk_supercell_matrix must be a 3x3 integer matrix.")
-    rounded = np.rint(matrix)
-    if not np.allclose(np.asarray(matrix, dtype=float), rounded, atol=1e-9):
+    as_float = np.asarray(matrix, dtype=float)
+    rounded = np.rint(as_float)
+    if not np.all(np.isfinite(as_float)) or not np.allclose(
+        as_float, rounded, rtol=0.0, atol=1e-9
+    ):
         raise ValueError(
             f"nac_bvk_supercell_matrix must be integer-valued, got\n{matrix}"
         )
@@ -1807,6 +1810,10 @@ def build_mapping(second, matrix=None):
         raise NotImplementedError(
             "the non-analytic correction supports diagonal supercells only; "
             f"this force-constant grid uses the matrix\n{supercell}"
+        )
+    if supercell.shape != (3,) or np.any(supercell < 1):
+        raise ValueError(
+            f"supercell must be three positive integers, got {supercell}"
         )
     fc_diagonal = np.diag(supercell)
     if matrix is None:

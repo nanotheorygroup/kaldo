@@ -453,6 +453,13 @@ class HarmonicWithQ(Observable, Storable):
             nac_bvk_supercell_matrix
         )
         self.nac_q_direction = np.array(nac_q_direction, dtype=float, copy=True)
+        if self.is_nac and (
+            self.nac_q_direction.shape != (3,)
+            or not np.all(np.isfinite(self.nac_q_direction))
+        ):
+            raise ValueError(
+                f"nac_q_direction must be a finite 3-vector, got {nac_q_direction!r}"
+            )
         if self.is_nac and np.linalg.norm(self.nac_q_direction) == 0:
             raise ValueError(
                 "nac_q_direction must be a nonzero direction: it replaces q at "
@@ -873,6 +880,14 @@ class HarmonicWithQ(Observable, Storable):
         direction : int
             Cartesian derivative direction: 0, 1, or 2.
         """
+        if self.is_nac:
+            raise NotImplementedError(
+                "the heat-flux operator is not defined on the non-analytic "
+                "path yet: the NAC derivative is a Hermitian finite "
+                "difference while the flux projection consumes the ordinary "
+                "kernel's imaginary parts. Group velocities are unaffected. "
+                "Pass is_nac=False for sij-based diffusivity."
+            )
         q_point = self.q_point
         shape = (3 * self.atoms.positions.shape[0], 3 * self.atoms.positions.shape[0])
         if self.is_amorphous and (self.q_point == np.array([0, 0, 0])).all():

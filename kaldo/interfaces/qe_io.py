@@ -655,7 +655,9 @@ def strip_q2r_nac(source: str | Path, destination: str | Path) -> Path:
     """Copy a q2r file while disabling its macroscopic NAC header.
 
     The lattice, q grid, and IFC body are retained. Only the dielectric and
-    Born-charge block is removed and its flag is replaced by ``F``.
+    Born-charge block is removed and its flag is replaced by ``F``. When the
+    source was written with ``epsil=.true.``, the retained body is q2r's
+    dipole-subtracted short-range IFCs, not total force constants.
     """
     header = read_q2r_header(source)
     source_path, target = Path(source), Path(destination)

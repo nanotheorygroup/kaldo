@@ -93,7 +93,9 @@ class SecondOrder(ForceConstant, Storable):
         if getattr(getattr(self, "_qe_q2r_header", None), "has_zstar", False):
             # A q2r file written with epsil=.true. already contains QE's
             # short-range IFCs. Do not run Gonze subtraction or share its cache.
-            return nac._build_interleaved_fc(self)
+            if getattr(self, "_qe_interleaved_fc", None) is None:
+                self._qe_interleaved_fc = nac._build_interleaved_fc(self)
+            return self._qe_interleaved_fc
         if matrix is None:
             return self.nac_short_range_force_constants
 
@@ -166,7 +168,9 @@ class SecondOrder(ForceConstant, Storable):
         """
         self._refuse_dipole_subtracted_fc()
         if getattr(getattr(self, "_qe_q2r_header", None), "has_zstar", False):
-            return nac._build_interleaved_fc(self)
+            if getattr(self, "_qe_interleaved_fc", None) is None:
+                self._qe_interleaved_fc = nac._build_interleaved_fc(self)
+            return self._qe_interleaved_fc
         if "dielectric" not in self.atoms.info or "charges" not in self.atoms.arrays:
             raise ValueError(
                 "NAC short-range force constants require atoms.info['dielectric'] "
