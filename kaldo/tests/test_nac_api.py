@@ -393,3 +393,24 @@ def test_born_charges_without_dielectric_point_to_is_nac_false():
     atoms.set_array("charges", np.tile(np.eye(3) * 2.0, (len(atoms), 1, 1)))
     with pytest.raises(ValueError, match="is_nac=False"):
         _resolve_nac_activation(atoms, None)
+
+
+def test_nac_input_guards():
+    """Deferred or invalid NAC inputs fail loudly instead of being ignored."""
+    from types import SimpleNamespace
+    from kaldo.controllers.nac import build_mapping, normalize_bvk_supercell_matrix
+
+    with pytest.raises(ValueError, match="integer-valued"):
+        normalize_bvk_supercell_matrix(np.diag([1.9, 2.0, 2.0]))
+
+    fake_second = SimpleNamespace(supercell=np.array([[3, 1, 0], [0, 3, 0], [0, 0, 3]]))
+    with pytest.raises(NotImplementedError, match="diagonal supercells only"):
+        build_mapping(fake_second)
+
+
+def test_nac_gamma_guards(mgo_second):
+    """Zero approach direction and thresholded NAC diagnostics are rejected."""
+    with pytest.raises(ValueError, match="nonzero direction"):
+        HarmonicWithQ(np.zeros(3), mgo_second, storage="memory", nac_q_direction=(0, 0, 0))
+    with pytest.raises(ValueError, match="distance_threshold"):
+        HarmonicWithQ(np.zeros(3), mgo_second, storage="memory", distance_threshold=15.0)
