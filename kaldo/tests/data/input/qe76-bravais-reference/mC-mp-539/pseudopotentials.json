@@ -1,0 +1,12 @@
+{
+  "S": {
+    "filename": "s_pbe_v1.4.uspp.F.UPF",
+    "source": "SSSP_1.3.0_PBE_efficiency/s_pbe_v1.4.uspp.F.UPF",
+    "sha256": "84ad731864187f416f714e961c3ad2f04dcbf811618e724d277885c18cb470df"
+  },
+  "Ga": {
+    "filename": "Ga.pbe-dn-kjpaw_psl.1.0.0.UPF",
+    "source": "SSSP_1.3.0_PBE_efficiency/Ga.pbe-dn-kjpaw_psl.1.0.0.UPF",
+    "sha256": "cf8a2be9b30552dd9bb12304d2aa96978e5d10636ca562b42d5a37dc385acd15"
+  }
+}

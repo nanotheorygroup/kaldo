@@ -149,3 +149,30 @@ def test_anisotropic_diagonal_on_skewed_cell_resolves_diagonal(tmp_path):
 
     _, _, diagonal_supercell = resolve_tdep_supercell(str(tmp_path))
     assert diagonal_supercell == (3, 2, 1)
+
+
+def test_explicit_tdep_supercell_matrix_is_an_exact_contract(tmp_path, caplog):
+    """A supplied TDEP matrix that mismatches the files warns and is ignored."""
+    import ase.io
+    from ase.build import make_supercell
+    from kaldo.interfaces.tdep_io import resolve_tdep_supercell
+
+    primitive = _skewed_primitive()
+    matrix = np.array([[2, 1, 0], [0, 2, 0], [0, 0, 2]])
+    supercell = make_supercell(primitive, matrix)
+    ase.io.write(tmp_path / "infile.ucposcar", primitive, format="vasp")
+    ase.io.write(tmp_path / "infile.ssposcar", supercell, format="vasp")
+
+    # The structure files are authoritative: a mismatched supercell_matrix
+    # is warned about and ignored rather than raising.
+    import logging as _logging
+
+    with caplog.at_level(_logging.WARNING):
+        _, _, diag_mismatch = resolve_tdep_supercell(
+            str(tmp_path), supercell_matrix=np.diag([2, 2, 2])
+        )
+    assert "does not match" in caplog.text
+    assert diag_mismatch is None
+
+    _, _, diagonal = resolve_tdep_supercell(str(tmp_path), supercell_matrix=matrix)
+    assert diagonal is None

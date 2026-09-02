@@ -251,9 +251,10 @@ ForceConstants object and then use the :py:meth:`load` method of the SecondOrder
 needed.
 
 .. hint::
-   If you just want to check harmonic data first, use the "is_harmonic" argument when creating the ForceConstants object
-   to only load the second order IFCs. This can save considerable amounts of time if, for instance, you just need to
-   generate a phonon dispersion along a new path.
+   If you just want to check harmonic data first, use
+   ``ForceConstants.from_folder(..., only_second=True)``. This avoids loading
+   IFC3 and can save considerable time when, for example, generating a phonon
+   dispersion along a new path.
 
 
 .. hint::
@@ -316,10 +317,10 @@ Input Files and Formats
      - model2.fcs
      - model3.fcs
    * - tdep
-     - POSCAR/UCPOSCAR/SSPOSCAR
-     - xyz
-     - second.npy
-     - third.npz
+     - infile.ucposcar + infile.ssposcar
+     - vasp
+     - infile.forceconstant
+     - infile.forceconstant_thirdorder [#f3]_
    * - gpumd
      - gpumd_fc.npz (self-contained)
      - N/A (embedded)
@@ -332,7 +333,45 @@ Input Files and Formats
 .. [#f1] The shengbte and shengbte-qe format will look for the "CONTROL" file first, however, if it is not found it will
          look for a "POSCAR" file (ASE format "vasp"). If neither are found, it will raise an error.
 .. [#f2] ASE does not support the shengbte format (CONTROL file). You can create the atoms object manually or
-         use the ``kaldo.interfaces.shegbte_io.import_control_file`` method.
+         use the ``kaldo.interfaces.shengbte_io.import_control_file`` method.
+.. [#f3] Pass ``include_fourth=True`` to additionally load
+         ``infile.forceconstant_fourthorder``.
+
+Non-diagonal supercells
+=======================
+
+``supercell`` and ``third_supercell`` accept either diagonal repetition
+triples or integer ``3 x 3`` primitive-to-supercell expansion matrices. For
+TDEP, ``infile.ucposcar`` and ``infile.ssposcar`` define that matrix directly;
+kALDo retains literal translations from the force-constant files rather than
+collapsing them to one representative per periodic class. The optional
+``supercell_matrix`` argument can record an expected TDEP matrix, but the
+structure-derived value remains authoritative and a mismatch raises an error.
+TDEP is currently the complete non-diagonal route through
+``ForceConstants.from_folder``. Legacy compact IFC2 readers require diagonal
+repetitions; they raise a clear error rather than interpreting a matrix as a
+three-vector. The ShengBTE IFC3 interface itself also accepts an exact matrix
+when used independently.
+
+Polar harmonic inputs
+=====================
+
+By default, NAC is activated from the data loaded by
+``ForceConstants.from_folder``. Both a dielectric tensor and nonzero Born
+effective charges are required. Harmonic observables accept ``is_nac=None``
+for this automatic behavior, ``is_nac=False`` for an explicit NAC-off
+diagnostic calculation, and ``is_nac=True`` to require complete polar data.
+
+For ``qe-sheng`` and ``qe-d3q``, a polar ``espresso.ifc2`` retains the q2r
+macroscopic header. The loader records that its IFC body is already
+dipole-subtracted and selects QE's matching rigid-ion restoration. Do not
+strip that header or manually reinterpret the file as total force constants.
+
+For VASP/ShengBTE-style total IFCs, the dielectric and Born tensors may be
+read from ``CONTROL``. When only ``POSCAR`` is available, attach
+``atoms.info['dielectric']`` and ``atoms.arrays['charges']`` to the loaded
+``SecondOrder.atoms`` before constructing harmonic observables. These total
+IFCs select the generic Gonze subtraction and restoration path.
 
 ``gpumd``
     A single ``gpumd_fc.npz`` archive produced by the GPUMD
