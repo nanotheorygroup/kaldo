@@ -180,20 +180,14 @@ def test_nac_velocity_matches_dispersion_slope(gan_second, axis):
     np.testing.assert_allclose(ratio, 2 * np.pi, rtol=1e-2, atol=0.0)
 
 
-def test_nac_sij_diagonal_matches_velocity(gan_second):
-    # The QHGK flux operators consume the same NAC dynamical-matrix derivative
-    # as the group velocity: their diagonal must satisfy v_n = sij_nn / (2 omega_n).
+def test_nac_sij_is_rejected_until_a_polar_flux_operator_exists(gan_second):
+    # The NAC derivative is a Hermitian finite difference in the
+    # integer-translation gauge; the flux projection expects the ordinary
+    # kernel's pair-aware gauge. The diagonal happens to agree with the
+    # velocity normalization, but QHGK consumes off-diagonals, so sij is
+    # rejected on the polar path. Velocities bypass sij and stay correct.
     q0 = np.array([0.1, 0.1, 0.1])
     hwq = HarmonicWithQ(q_point=q0, second=gan_second, storage="memory")
-    velocity = np.array(hwq.velocity)[0]
-    frequency = np.array(hwq.frequency).flatten()
-    for axis, sij in enumerate((hwq._sij_x, hwq._sij_y, hwq._sij_z)):
-        diagonal = np.real(np.diag(np.array(sij)))
-        # kALDo normalizes the flux operator so that sij_nn = 8 pi^2 nu_n v_n
-        # (the same 1/(8 pi^2 nu) scaling the group velocity uses).
-        np.testing.assert_allclose(
-            diagonal / (8 * np.pi**2 * frequency),
-            velocity[:, axis],
-            rtol=0.0,
-            atol=1e-3,
-        )
+    assert np.all(np.isfinite(np.array(hwq.velocity)))
+    with pytest.raises(NotImplementedError, match="heat-flux operator"):
+        hwq.calculate_sij(0)
