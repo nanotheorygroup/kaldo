@@ -402,6 +402,10 @@ def test_nac_input_guards():
 
     with pytest.raises(ValueError, match="integer-valued"):
         normalize_bvk_supercell_matrix(np.diag([1.9, 2.0, 2.0]))
+    with pytest.raises(ValueError, match="integer-valued"):
+        normalize_bvk_supercell_matrix(np.diag([100000.5, 2.0, 2.0]))
+    with pytest.raises(ValueError, match="integer-valued"):
+        normalize_bvk_supercell_matrix(np.full((3, 3), np.inf))
 
     fake_second = SimpleNamespace(supercell=np.array([[3, 1, 0], [0, 3, 0], [0, 0, 3]]))
     with pytest.raises(NotImplementedError, match="diagonal supercells only"):
@@ -414,3 +418,9 @@ def test_nac_gamma_guards(mgo_second):
         HarmonicWithQ(np.zeros(3), mgo_second, storage="memory", nac_q_direction=(0, 0, 0))
     with pytest.raises(ValueError, match="distance_threshold"):
         HarmonicWithQ(np.zeros(3), mgo_second, storage="memory", distance_threshold=15.0)
+    with pytest.raises(ValueError, match="finite 3-vector"):
+        HarmonicWithQ(np.zeros(3), mgo_second, storage="memory", nac_q_direction=(1, 0))
+    with pytest.raises(NotImplementedError, match="heat-flux operator"):
+        HarmonicWithQ(
+            np.array([0.2, 0.0, 0.0]), mgo_second, storage="memory"
+        ).calculate_sij(0)
