@@ -74,6 +74,10 @@ def test_nac_input_guards(tmp_path):
 
     with pytest.raises(ValueError, match="integer-valued"):
         normalize_bvk_supercell_matrix(np.diag([1.9, 2.0, 2.0]))
+    with pytest.raises(ValueError, match="integer-valued"):
+        normalize_bvk_supercell_matrix(np.diag([100000.5, 2.0, 2.0]))
+    with pytest.raises(ValueError, match="integer-valued"):
+        normalize_bvk_supercell_matrix(np.full((3, 3), np.inf))
 
     fake_second = SimpleNamespace(supercell=np.array([[3, 1, 0], [0, 3, 0], [0, 0, 3]]))
     with pytest.raises(NotImplementedError, match="diagonal supercells only"):
@@ -87,20 +91,30 @@ def test_nac_input_guards(tmp_path):
         HarmonicWithQ(np.zeros(3), second, storage="memory", nac_q_direction=(0, 0, 0))
     with pytest.raises(ValueError, match="distance_threshold"):
         HarmonicWithQ(np.zeros(3), second, storage="memory", distance_threshold=15.0)
+    with pytest.raises(ValueError, match="finite 3-vector"):
+        HarmonicWithQ(np.zeros(3), second, storage="memory", nac_q_direction=(1, 0))
+    with pytest.raises(NotImplementedError, match="heat-flux operator"):
+        HarmonicWithQ(np.array([0.2, 0.0, 0.0]), second, storage="memory").calculate_sij(0)
 
 
-def test_phonons_forwards_nac_q_direction():
-    """The Phonons kwarg reaches HarmonicWithQ and steers the Gamma limit."""
+def test_phonons_forwards_nac_q_direction(monkeypatch):
+    """The kwarg reaches every HarmonicWithQ construction, cubic symmetry aside."""
+    import kaldo.phonons as phonons_module
+
     forceconstants = ForceConstants.from_folder(
         folder="kaldo/tests/mgo", supercell=[5, 5, 5], format="shengbte-qe", only_second=True
     )
+    captured = []
+    original = phonons_module.HarmonicWithQ
+
+    def capturing(*args, **kwargs):
+        captured.append(kwargs.get("nac_q_direction"))
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(phonons_module, "HarmonicWithQ", capturing)
     phonons = Phonons(
         forceconstants=forceconstants, kpts=[1, 1, 1], temperature=300,
         storage="memory", nac_q_direction=(0, 1, 0),
     )
-    direct = HarmonicWithQ(
-        np.zeros(3), forceconstants.second, storage="memory", nac_q_direction=(0, 1, 0)
-    )
-    np.testing.assert_allclose(
-        np.array(phonons.frequency).flatten(), np.array(direct.frequency).flatten(), rtol=1e-10
-    )
+    phonons.frequency
+    assert captured and all(tuple(d) == (0, 1, 0) for d in captured)
