@@ -57,7 +57,7 @@ Run κALDo interactively on Google Colab:
 ## Installation
 
 ```bash
-pip install kaldo
+uv pip install kaldo
 ```
 
 Docker deployment:
