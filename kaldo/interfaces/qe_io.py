@@ -651,6 +651,26 @@ def read_q2r_header(path: str | Path) -> Q2RHeader:
     )
 
 
+def strip_q2r_nac(source: str | Path, destination: str | Path) -> Path:
+    """Copy a q2r file while disabling its macroscopic NAC header.
+
+    The lattice, q grid, and IFC body are retained. Only the dielectric and
+    Born-charge block is removed and its flag is replaced by ``F``. When the
+    source was written with ``epsil=.true.``, the retained body is q2r's
+    dipole-subtracted short-range IFCs, not total force constants.
+    """
+    header = read_q2r_header(source)
+    source_path, target = Path(source), Path(destination)
+    lines = source_path.read_text(encoding="utf-8").splitlines(keepends=True)
+    output = (
+        lines[: header.macro_line_index]
+        + [f" F  {header.alpha:.17e}\n"]
+        + lines[header.qgrid_line_index :]
+    )
+    target.write_text("".join(output), encoding="utf-8")
+    return target
+
+
 __all__ = [
     "AMU_RY",
     "Q2RFormatError",
@@ -660,6 +680,7 @@ __all__ = [
     "read_q2r_header",
     "read_second_order_qe_matrix",
     "read_third_d3q",
+    "strip_q2r_nac",
     "validate_q2r_auxiliary_structure",
 ]
 
