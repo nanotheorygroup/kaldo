@@ -1,0 +1,687 @@
+{
+  "schema_version": 3,
+  "reference": "Phonopy NAC-on minus NAC-off dynamical matrices",
+  "source": "NIMS MDR PhononDB PBEsol",
+  "source_index": "https://github.com/atztogo/phonondb/blob/8cabbe0aee3dde48a19f1235864b0d3ab5cb9330/mdr/phonondb/README.md",
+  "download_base": "https://mdr.nims.go.jp/download_all/",
+  "primitive_policy": "Use source primitive_matrix when present; otherwise pass primitive_matrix='P'.",
+  "bravais_coverage": "13 of 14 three-dimensional Bravais lattices; oF is absent",
+  "cases": [
+    {
+      "id": "mp-10080",
+      "source_dataset": "https://mdr.nims.go.jp/concern/datasets/vd66w413h",
+      "source_archive": "https://mdr.nims.go.jp/download_all/vd66w413h.zip",
+      "space_group": 144,
+      "space_group_symbol": "P3_1",
+      "primitive_matrix": "P",
+      "effective_supercell_matrix": [
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          1,
+          0
+        ],
+        [
+          0,
+          0,
+          2
+        ]
+      ],
+      "yaml_sha256": "e7b9989f3c913edce898e9cac400c5604908c7abff2368eb4700e06df693cd29"
+    },
+    {
+      "id": "mp-11661",
+      "source_dataset": "https://mdr.nims.go.jp/concern/datasets/2j62s9368",
+      "source_archive": "https://mdr.nims.go.jp/download_all/2j62s9368.zip",
+      "space_group": 220,
+      "space_group_symbol": "I-43d",
+      "primitive_matrix": null,
+      "effective_supercell_matrix": [
+        [
+          0,
+          1,
+          1
+        ],
+        [
+          1,
+          0,
+          1
+        ],
+        [
+          1,
+          1,
+          0
+        ]
+      ],
+      "yaml_sha256": "84a3b7c7fed0aa667c6c75c02aa4de1556e793b1d6bd0debffc8bc118da7502b"
+    },
+    {
+      "id": "mp-1716",
+      "source_dataset": "https://mdr.nims.go.jp/concern/datasets/k0698d786",
+      "source_archive": "https://mdr.nims.go.jp/download_all/k0698d786.zip",
+      "space_group": 60,
+      "space_group_symbol": "Pbcn",
+      "primitive_matrix": "P",
+      "effective_supercell_matrix": [
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          2,
+          0
+        ],
+        [
+          0,
+          0,
+          2
+        ]
+      ],
+      "yaml_sha256": "3ea96f96a9aedab555105cf9bf2b671c6e1c860cf23a7f9ace6eb6f484122f70"
+    },
+    {
+      "id": "mp-23195",
+      "source_dataset": "https://mdr.nims.go.jp/concern/datasets/j6731768c",
+      "source_archive": "https://mdr.nims.go.jp/download_all/j6731768c.zip",
+      "space_group": 114,
+      "space_group_symbol": "P-42_1c",
+      "primitive_matrix": "P",
+      "effective_supercell_matrix": [
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          1,
+          0
+        ],
+        [
+          0,
+          0,
+          2
+        ]
+      ],
+      "yaml_sha256": "5de52211317d5c5fdcbfc87b278c04075fac15fedb55b5801314ec10b30ec11c"
+    },
+    {
+      "id": "mp-23330",
+      "source_dataset": "https://mdr.nims.go.jp/concern/datasets/cv43p226x",
+      "source_archive": "https://mdr.nims.go.jp/download_all/cv43p226x.zip",
+      "space_group": 198,
+      "space_group_symbol": "P2_13",
+      "primitive_matrix": "P",
+      "effective_supercell_matrix": [
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          1,
+          0
+        ],
+        [
+          0,
+          0,
+          1
+        ]
+      ],
+      "yaml_sha256": "d3ad445ac4faba80976c5177694c605029b47dc650eb706d6b94acc0496ba630"
+    },
+    {
+      "id": "mp-23339",
+      "source_dataset": "https://mdr.nims.go.jp/concern/datasets/br86b925z",
+      "source_archive": "https://mdr.nims.go.jp/download_all/br86b925z.zip",
+      "space_group": 198,
+      "space_group_symbol": "P2_13",
+      "primitive_matrix": "P",
+      "effective_supercell_matrix": [
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          1,
+          0
+        ],
+        [
+          0,
+          0,
+          1
+        ]
+      ],
+      "yaml_sha256": "15388bf0a0997ba50f8d06d0e707de80233b655d9f3c2274a290060458849576"
+    },
+    {
+      "id": "mp-27355",
+      "source_dataset": "https://mdr.nims.go.jp/concern/datasets/8336h518p",
+      "source_archive": "https://mdr.nims.go.jp/download_all/8336h518p.zip",
+      "space_group": 137,
+      "space_group_symbol": "P4_2/nmc",
+      "primitive_matrix": "P",
+      "effective_supercell_matrix": [
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          1,
+          0
+        ],
+        [
+          0,
+          0,
+          2
+        ]
+      ],
+      "yaml_sha256": "3920e0b3e6e7dfdfd36487999d45f43316a82736bff8d5826c74390cfbac8f5f"
+    },
+    {
+      "id": "mp-30530",
+      "source_dataset": "https://mdr.nims.go.jp/concern/datasets/tt44pt082",
+      "source_archive": "https://mdr.nims.go.jp/download_all/tt44pt082.zip",
+      "space_group": 216,
+      "space_group_symbol": "F-43m",
+      "primitive_matrix": null,
+      "effective_supercell_matrix": [
+        [
+          -1,
+          1,
+          1
+        ],
+        [
+          1,
+          -1,
+          1
+        ],
+        [
+          1,
+          1,
+          -1
+        ]
+      ],
+      "yaml_sha256": "f9f2b33e668108dc6a982232c150607c68688a2cbd9dd069015b4a4a4827671b"
+    },
+    {
+      "id": "mp-3416",
+      "source_dataset": "https://mdr.nims.go.jp/concern/datasets/0c483q91k",
+      "source_archive": "https://mdr.nims.go.jp/download_all/0c483q91k.zip",
+      "space_group": 14,
+      "space_group_symbol": "P2_1/c",
+      "primitive_matrix": "P",
+      "effective_supercell_matrix": [
+        [
+          2,
+          0,
+          0
+        ],
+        [
+          0,
+          2,
+          0
+        ],
+        [
+          0,
+          0,
+          1
+        ]
+      ],
+      "yaml_sha256": "29dc08e471d5d3d09555ea735f7bd5c3bf2c012b77b0866b1c5c6bc0eabbe521"
+    },
+    {
+      "id": "mp-4266",
+      "source_dataset": "https://mdr.nims.go.jp/concern/datasets/nz806374v",
+      "source_archive": "https://mdr.nims.go.jp/download_all/nz806374v.zip",
+      "space_group": 148,
+      "space_group_symbol": "R-3",
+      "primitive_matrix": null,
+      "effective_supercell_matrix": [
+        [
+          1,
+          -1,
+          0
+        ],
+        [
+          0,
+          1,
+          -1
+        ],
+        [
+          2,
+          2,
+          2
+        ]
+      ],
+      "yaml_sha256": "95bf4d6a22f4da4faeb92d016c6fef24d34ef5f272f3ead478c239fd7a1bcdd6"
+    },
+    {
+      "id": "mp-4608",
+      "source_dataset": "https://mdr.nims.go.jp/concern/datasets/jd4733571",
+      "source_archive": "https://mdr.nims.go.jp/download_all/jd4733571.zip",
+      "space_group": 148,
+      "space_group_symbol": "R-3",
+      "primitive_matrix": null,
+      "effective_supercell_matrix": [
+        [
+          1,
+          -1,
+          0
+        ],
+        [
+          0,
+          1,
+          -1
+        ],
+        [
+          2,
+          2,
+          2
+        ]
+      ],
+      "yaml_sha256": "87ff18434846f7d0e357793f0ab395e88408a52f316e8f98ff2851e44a8d0a6e"
+    },
+    {
+      "id": "mp-504898",
+      "source_dataset": "https://mdr.nims.go.jp/concern/datasets/7m01br350",
+      "source_archive": "https://mdr.nims.go.jp/download_all/7m01br350.zip",
+      "space_group": 55,
+      "space_group_symbol": "Pbam",
+      "primitive_matrix": "P",
+      "effective_supercell_matrix": [
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          1,
+          0
+        ],
+        [
+          0,
+          0,
+          3
+        ]
+      ],
+      "yaml_sha256": "29197814f8eb9432d90a59ac74f46dceda99316fd169a72b791119b9eeeaccb1"
+    },
+    {
+      "id": "mp-5327",
+      "source_dataset": "https://mdr.nims.go.jp/concern/datasets/w3763c75h",
+      "source_archive": "https://mdr.nims.go.jp/download_all/w3763c75h.zip",
+      "space_group": 87,
+      "space_group_symbol": "I4/m",
+      "primitive_matrix": null,
+      "effective_supercell_matrix": [
+        [
+          0,
+          1,
+          1
+        ],
+        [
+          1,
+          0,
+          1
+        ],
+        [
+          2,
+          2,
+          0
+        ]
+      ],
+      "yaml_sha256": "203180c86e3dcd07fe9f9a67a5ea8aff6bb5f1b7b0c333c64d330ba2185108d4"
+    },
+    {
+      "id": "mp-539",
+      "source_dataset": "https://mdr.nims.go.jp/concern/datasets/vd66w448m",
+      "source_archive": "https://mdr.nims.go.jp/download_all/vd66w448m.zip",
+      "space_group": 9,
+      "space_group_symbol": "Cc",
+      "primitive_matrix": null,
+      "effective_supercell_matrix": [
+        [
+          1,
+          1,
+          0
+        ],
+        [
+          -2,
+          2,
+          0
+        ],
+        [
+          0,
+          0,
+          2
+        ]
+      ],
+      "yaml_sha256": "62ecabff61b8f8e3652d2086c00e2d75465536ef347f7aa6658c1082eb73791c"
+    },
+    {
+      "id": "mp-555846",
+      "source_dataset": "https://mdr.nims.go.jp/concern/datasets/h989r763q",
+      "source_archive": "https://mdr.nims.go.jp/download_all/h989r763q.zip",
+      "space_group": 1,
+      "space_group_symbol": "P1",
+      "primitive_matrix": "P",
+      "effective_supercell_matrix": [
+        [
+          2,
+          0,
+          0
+        ],
+        [
+          0,
+          1,
+          0
+        ],
+        [
+          0,
+          0,
+          2
+        ]
+      ],
+      "yaml_sha256": "3b074b8d301314fb897f9bee257aa3f32164c84fd5e14ad1688774b8e3694a31"
+    },
+    {
+      "id": "mp-556595",
+      "source_dataset": "https://mdr.nims.go.jp/concern/datasets/mg74qr87w",
+      "source_archive": "https://mdr.nims.go.jp/download_all/mg74qr87w.zip",
+      "space_group": 12,
+      "space_group_symbol": "C2/m",
+      "primitive_matrix": null,
+      "effective_supercell_matrix": [
+        [
+          1,
+          1,
+          0
+        ],
+        [
+          -3,
+          3,
+          0
+        ],
+        [
+          0,
+          0,
+          1
+        ]
+      ],
+      "yaml_sha256": "a6331028704c5dff3a313f226e9bc7ba85169abb63e14d8c895b4d9285d0d1e7"
+    },
+    {
+      "id": "mp-562480",
+      "source_dataset": "https://mdr.nims.go.jp/concern/datasets/4f16c797d",
+      "source_archive": "https://mdr.nims.go.jp/download_all/4f16c797d.zip",
+      "space_group": 11,
+      "space_group_symbol": "P2_1/m",
+      "primitive_matrix": "P",
+      "effective_supercell_matrix": [
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          3,
+          0
+        ],
+        [
+          0,
+          0,
+          1
+        ]
+      ],
+      "yaml_sha256": "c436eadea048289d522230bc8b87a3ab4248c9c433a3f72f9e4597277253eff6"
+    },
+    {
+      "id": "mp-6040",
+      "source_dataset": "https://mdr.nims.go.jp/concern/datasets/2j62s8230",
+      "source_archive": "https://mdr.nims.go.jp/download_all/2j62s8230.zip",
+      "space_group": 154,
+      "space_group_symbol": "P3_221",
+      "primitive_matrix": "P",
+      "effective_supercell_matrix": [
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          1,
+          0
+        ],
+        [
+          0,
+          0,
+          2
+        ]
+      ],
+      "yaml_sha256": "da77f3b5ee665c449e33164b2fbb36bbafa307c88728340d8e1b49e1ad151e73"
+    },
+    {
+      "id": "mp-673245",
+      "source_dataset": "https://mdr.nims.go.jp/concern/datasets/73666800k",
+      "source_archive": "https://mdr.nims.go.jp/download_all/73666800k.zip",
+      "space_group": 1,
+      "space_group_symbol": "P1",
+      "primitive_matrix": "P",
+      "effective_supercell_matrix": [
+        [
+          4,
+          0,
+          0
+        ],
+        [
+          0,
+          2,
+          0
+        ],
+        [
+          0,
+          0,
+          2
+        ]
+      ],
+      "yaml_sha256": "9d8735deb94168b35abbf06860d7d47e2749f1254c6d47e71e6240de9c91b142"
+    },
+    {
+      "id": "mp-717",
+      "source_dataset": "https://mdr.nims.go.jp/concern/datasets/kd17d0707",
+      "source_archive": "https://mdr.nims.go.jp/download_all/kd17d0707.zip",
+      "space_group": 36,
+      "space_group_symbol": "Cmc2_1",
+      "primitive_matrix": null,
+      "effective_supercell_matrix": [
+        [
+          1,
+          1,
+          0
+        ],
+        [
+          -2,
+          2,
+          0
+        ],
+        [
+          0,
+          0,
+          2
+        ]
+      ],
+      "yaml_sha256": "b3ee9b3d44c1a8205558d8e9f49d48c5a4645f6a8f3994fbe377f33a1352230a"
+    },
+    {
+      "id": "mp-7714",
+      "source_dataset": "https://mdr.nims.go.jp/concern/datasets/t435gj52k",
+      "source_archive": "https://mdr.nims.go.jp/download_all/t435gj52k.zip",
+      "space_group": 87,
+      "space_group_symbol": "I4/m",
+      "primitive_matrix": null,
+      "effective_supercell_matrix": [
+        [
+          0,
+          1,
+          1
+        ],
+        [
+          1,
+          0,
+          1
+        ],
+        [
+          2,
+          2,
+          0
+        ]
+      ],
+      "yaml_sha256": "2c8d22657c0880122dfad051101d1d0c8a47e13bffdc8c1afa03163f9478b4ce"
+    },
+    {
+      "id": "mp-8187",
+      "source_dataset": "https://mdr.nims.go.jp/concern/datasets/4m90f090q",
+      "source_archive": "https://mdr.nims.go.jp/download_all/4m90f090q.zip",
+      "space_group": 72,
+      "space_group_symbol": "Ibam",
+      "primitive_matrix": null,
+      "effective_supercell_matrix": [
+        [
+          0,
+          2,
+          2
+        ],
+        [
+          1,
+          0,
+          1
+        ],
+        [
+          2,
+          2,
+          0
+        ]
+      ],
+      "yaml_sha256": "07a99cc82575e87154cab95e72802776a8eeb0c4b08d4c036b5a139ae7e2c41c"
+    },
+    {
+      "id": "mp-8257",
+      "source_dataset": "https://mdr.nims.go.jp/concern/datasets/tm70n0843",
+      "source_archive": "https://mdr.nims.go.jp/download_all/tm70n0843.zip",
+      "space_group": 72,
+      "space_group_symbol": "Ibam",
+      "primitive_matrix": null,
+      "effective_supercell_matrix": [
+        [
+          0,
+          2,
+          2
+        ],
+        [
+          1,
+          0,
+          1
+        ],
+        [
+          2,
+          2,
+          0
+        ]
+      ],
+      "yaml_sha256": "a4a331fa83f7db799ef495fc8a5da5828b125336841275978c07b3395fef13fe"
+    },
+    {
+      "id": "mp-8352",
+      "source_dataset": "https://mdr.nims.go.jp/concern/datasets/76537522v",
+      "source_archive": "https://mdr.nims.go.jp/download_all/76537522v.zip",
+      "space_group": 227,
+      "space_group_symbol": "Fd-3m",
+      "primitive_matrix": null,
+      "effective_supercell_matrix": [
+        [
+          -1,
+          1,
+          1
+        ],
+        [
+          1,
+          -1,
+          1
+        ],
+        [
+          1,
+          1,
+          -1
+        ]
+      ],
+      "yaml_sha256": "90e2586c48510e132afcb0329895c4cc3b2b27b7031fe4c00767f51a1eb19abe"
+    },
+    {
+      "id": "mp-8624",
+      "source_dataset": "https://mdr.nims.go.jp/concern/datasets/hh63t2934",
+      "source_archive": "https://mdr.nims.go.jp/download_all/hh63t2934.zip",
+      "space_group": 199,
+      "space_group_symbol": "I2_13",
+      "primitive_matrix": null,
+      "effective_supercell_matrix": [
+        [
+          0,
+          1,
+          1
+        ],
+        [
+          1,
+          0,
+          1
+        ],
+        [
+          1,
+          1,
+          0
+        ]
+      ],
+      "yaml_sha256": "cbd2cbe0a039d8b69eb44747c75056223378e9ca8dfeb71b7fe2950ccc11e6a4"
+    },
+    {
+      "id": "mp-989613",
+      "source_dataset": "https://mdr.nims.go.jp/concern/datasets/qv33s135f",
+      "source_archive": "https://mdr.nims.go.jp/download_all/qv33s135f.zip",
+      "space_group": 38,
+      "space_group_symbol": "Amm2",
+      "primitive_matrix": null,
+      "effective_supercell_matrix": [
+        [
+          4,
+          0,
+          0
+        ],
+        [
+          0,
+          2,
+          -2
+        ],
+        [
+          0,
+          1,
+          1
+        ]
+      ],
+      "yaml_sha256": "f4644e25e28a4e4a75f3c73b650d1d77a18405fd6cc03fc422a1a7bd55be38b6"
+    }
+  ]
+}

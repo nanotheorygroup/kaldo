@@ -1,0 +1,87 @@
+{
+  "description": "Diamond-Si geometry with analytic nearest-neighbour IFC2/IFC3",
+  "reference_kind": "exact analytic test model; not a material-property reference",
+  "supercell_matrix": [
+    [
+      1,
+      -1,
+      1
+    ],
+    [
+      1,
+      1,
+      -1
+    ],
+    [
+      -1,
+      1,
+      1
+    ]
+  ],
+  "determinant": 4,
+  "primitive_atoms": 2,
+  "supercell_atoms": 8,
+  "ifc2_records": 10,
+  "ifc3_records": 26,
+  "translation_support": [
+    [
+      0,
+      0,
+      0
+    ],
+    [
+      -1,
+      0,
+      0
+    ],
+    [
+      0,
+      -1,
+      0
+    ],
+    [
+      0,
+      0,
+      -1
+    ],
+    [
+      0,
+      0,
+      1
+    ],
+    [
+      0,
+      1,
+      0
+    ],
+    [
+      1,
+      0,
+      0
+    ]
+  ],
+  "harmonic_stiffness_eV_per_A2": 5.0,
+  "cubic_stiffness_eV_per_A3": 1.0,
+  "nearest_neighbor_translations": [
+    [
+      0,
+      0,
+      0
+    ],
+    [
+      -1,
+      0,
+      0
+    ],
+    [
+      0,
+      -1,
+      0
+    ],
+    [
+      0,
+      0,
+      -1
+    ]
+  ]
+}

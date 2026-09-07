@@ -1,0 +1,5 @@
+&INPUTPH
+  prefix='aP-mp-555846', outdir='./out', fildyn='aP-mp-555846.gamma', tr2_ph=1.0d-14,
+  epsil=.true., ldisp=.false.
+/
+0.0 0.0 0.0

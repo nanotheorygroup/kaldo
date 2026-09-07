@@ -1,0 +1,18 @@
+! QE 7.6 long-wavelength acoustic oracle for test_elastic_qe.py.
+! From this directory, generate with:
+! $QE_ROOT/run-qe.sh $QE_ROOT/bin/matdyn.x -in matdyn_elastic_reference.in
+! The first three q points are Cartesian [100] wavevectors of magnitude
+! 1e-3, 2e-3, and 3e-3 /angstrom. The final three lie along [110].
+&input
+  flfrc = 'espresso.ifc2'
+  flfrq = 'matdyn_elastic_reference.freq'
+  asr = 'simple'
+  q_in_cryst_coord = .true.
+/
+6
+ -0.00042966821413  0.00000000000000 -0.00042966821413
+ -0.00085933642827  0.00000000000000 -0.00085933642827
+ -0.00128900464240  0.00000000000000 -0.00128900464240
+ -0.00030382130787  0.00030382130787  0.00000000000000
+ -0.00060764261575  0.00060764261575  0.00000000000000
+ -0.00091146392362  0.00091146392362  0.00000000000000

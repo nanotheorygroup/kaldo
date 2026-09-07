@@ -1,0 +1,7 @@
+&input
+  flfrc='hP-mp-6040.without-nac.fc', flfrq='hP-mp-6040.off.freq', fldyn='hP-mp-6040.off.dyn',
+  asr='no', q_in_cryst_coord=.true.
+/
+2
+0.0 0.0 0.0
+0.0001 0.0 0.0

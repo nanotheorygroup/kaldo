@@ -1,0 +1,5 @@
+&INPUTPH
+  prefix='oP-mp-1716', outdir='./out', fildyn='oP-mp-1716.gamma', tr2_ph=1.0d-14,
+  epsil=.true., ldisp=.false.
+/
+0.0 0.0 0.0

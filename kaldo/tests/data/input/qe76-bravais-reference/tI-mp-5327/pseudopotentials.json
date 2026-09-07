@@ -1,0 +1,17 @@
+{
+  "O": {
+    "filename": "O.pbe-n-kjpaw_psl.0.1.UPF",
+    "source": "SSSP_1.3.0_PBE_efficiency/O.pbe-n-kjpaw_psl.0.1.UPF",
+    "sha256": "7c4b6ed541f83d0afdf5c1d3a8c611340f073f3e2b11e95b7963bb2ee26929aa"
+  },
+  "Na": {
+    "filename": "na_pbe_v1.5.uspp.F.UPF",
+    "source": "SSSP_1.3.0_PBE_efficiency/na_pbe_v1.5.uspp.F.UPF",
+    "sha256": "f84820c4280d21603bd50ae76a08e15c26864391ea055cf50affc4aedefc8f87"
+  },
+  "U": {
+    "filename": "U.paw.z_14.ld1.uni-marburg.v0.upf",
+    "source": "SSSP_1.3.0_PBE_efficiency/U.paw.z_14.ld1.uni-marburg.v0.upf",
+    "sha256": "93edc03742fddf3f1b6676de2a4bb6a853ee00dc8ac9fdae7adf5e99e125ba2d"
+  }
+}

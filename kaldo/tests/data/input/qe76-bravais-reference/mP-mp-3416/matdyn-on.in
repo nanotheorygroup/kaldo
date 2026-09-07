@@ -1,0 +1,7 @@
+&input
+  flfrc='mP-mp-3416.fc', flfrq='mP-mp-3416.on.freq', fldyn='mP-mp-3416.on.dyn',
+  asr='no', q_in_cryst_coord=.true.
+/
+2
+0.0 0.0 0.0
+0.0001 0.0 0.0

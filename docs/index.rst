@@ -57,6 +57,7 @@ Read the κALDo 2.0 paper in `Computer Physics Communications <https://doi.org/1
    :maxdepth: 1
 
    docsource/contributing.md
+   docsource/ifc_interpolation_design.md
 
 
 Acknowledgements

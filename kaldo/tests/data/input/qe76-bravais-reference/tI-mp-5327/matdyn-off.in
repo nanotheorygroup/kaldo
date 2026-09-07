@@ -1,0 +1,7 @@
+&input
+  flfrc='tI-mp-5327.without-nac.fc', flfrq='tI-mp-5327.off.freq', fldyn='tI-mp-5327.off.dyn',
+  asr='no', q_in_cryst_coord=.true.
+/
+2
+0.0 0.0 0.0
+0.0001 0.0 0.0
