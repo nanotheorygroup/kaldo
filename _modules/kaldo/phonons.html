@@ -1289,6 +1289,12 @@
 <span class="sd">        unfolding now use pair-dependent Wigner--Seitz images of each atom</span>
 <span class="sd">        pair, and sources that provide literal translations keep them.</span>
 <span class="sd">        Default: False</span>
+<span class="sd">    is_nac : bool or None, optional</span>
+<span class="sd">        Controls the harmonic long-range correction. ``None`` automatically</span>
+<span class="sd">        activates it when the loaded atoms have a dielectric tensor and</span>
+<span class="sd">        nonzero Born effective charges. ``False`` explicitly evaluates the</span>
+<span class="sd">        NAC-off model; ``True`` requires complete polar metadata.</span>
+<span class="sd">        Default: None</span>
 <span class="sd">    g_factor : (n_atoms) array , optional</span>
 <span class="sd">        It contains the isotopic g factor for each atom of the unit cell. </span>
 <span class="sd">        g factor is the natural isotopic distributions of each element. </span>
@@ -1324,6 +1330,18 @@
 <span class="sd">        Directory used for restartable per-q projection checkpoints. If it is</span>
 <span class="sd">        omitted, completed per-q results are retained in memory instead.</span>
 <span class="sd">        Default: None</span>
+<span class="sd">    nac_bvk_supercell_matrix : array-like (3, 3), optional</span>
+<span class="sd">        Born--von Karman grid used by the harmonic long-range correction.</span>
+<span class="sd">        It must describe the defining force-constant supercell because NAC</span>
+<span class="sd">        remeshing is not implemented. The same value is propagated to</span>
+<span class="sd">        frequencies, eigenvectors, thermodynamics, and transport. NAC is active</span>
+<span class="sd">        when the loaded atoms contain both a dielectric tensor and nonzero Born</span>
+<span class="sd">        effective charges; this argument does not enable it.</span>
+<span class="sd">        Default: None</span>
+<span class="sd">    nac_q_direction : array-like (3,), optional</span>
+<span class="sd">        Reduced reciprocal direction used to evaluate the non-analytic term</span>
+<span class="sd">        exactly at Gamma, where it depends on the approach direction.</span>
+<span class="sd">        Default: (1, 0, 0)</span>
 <span class="sd">    use_q_symmetry : bool, optional</span>
 <span class="sd">        Reduce the per-k-point projection cost by computing only the</span>
 <span class="sd">        irreducible Brillouin zone (IBZ) representatives via spglib and</span>
@@ -1399,6 +1417,9 @@
                  <span class="n">n_workers</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
                  <span class="n">projection_output_dir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                  <span class="n">use_q_symmetry</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                 <span class="n">is_nac</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">nac_bvk_supercell_matrix</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">nac_q_direction</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
                  <span class="n">_ifc_interpolation</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                  <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span> <span class="o">=</span> <span class="n">forceconstants</span>
@@ -1423,6 +1444,12 @@
             <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">is_unfolding</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="n">is_unfolding</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">ifc_interpolation</span> <span class="o">=</span> <span class="n">_ifc_interpolation</span>
+        <span class="k">if</span> <span class="n">is_nac</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">is_nac</span><span class="p">,</span> <span class="p">(</span><span class="nb">bool</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">bool_</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+                <span class="s2">&quot;is_nac must be True, False, or None for automatic detection&quot;</span>
+            <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">is_nac</span> <span class="o">=</span> <span class="kc">None</span> <span class="k">if</span> <span class="n">is_nac</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="nb">bool</span><span class="p">(</span><span class="n">is_nac</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_nac_requested</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_nac</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">ifc_interpolation</span> <span class="o">!=</span> <span class="s2">&quot;auto&quot;</span><span class="p">:</span>
             <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Using IFC interpolation mode </span><span class="si">%s</span><span class="s2">.&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ifc_interpolation</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">min_frequency</span> <span class="o">=</span> <span class="n">min_frequency</span>
@@ -1441,10 +1468,38 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">is_symmetrizing_frequency</span> <span class="o">=</span> <span class="n">is_symmetrizing_frequency</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">is_antisymmetrizing_velocity</span> <span class="o">=</span> <span class="n">is_antisymmetrizing_velocity</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">is_balanced</span> <span class="o">=</span> <span class="n">is_balanced</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nac_bvk_supercell_matrix</span> <span class="o">=</span> <span class="n">nac_bvk_supercell_matrix</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nac_q_direction</span> <span class="o">=</span> <span class="n">nac_q_direction</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">atoms</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">atoms</span>
+        <span class="n">second_atoms</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second</span><span class="o">.</span><span class="n">atoms</span>
+        <span class="n">born_charges</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">second_atoms</span><span class="o">.</span><span class="n">get_array</span><span class="p">(</span><span class="s2">&quot;charges&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="s2">&quot;charges&quot;</span> <span class="ow">in</span> <span class="n">second_atoms</span><span class="o">.</span><span class="n">arrays</span>
+            <span class="k">else</span> <span class="kc">None</span>
+        <span class="p">)</span>
+        <span class="n">has_polar_data</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="s2">&quot;dielectric&quot;</span> <span class="ow">in</span> <span class="n">second_atoms</span><span class="o">.</span><span class="n">info</span>
+            <span class="ow">and</span> <span class="n">born_charges</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+            <span class="ow">and</span> <span class="n">born_charges</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">3</span>
+            <span class="ow">and</span> <span class="n">born_charges</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">:]</span> <span class="o">==</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+            <span class="ow">and</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">born_charges</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mf">1.0e-8</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ifc_interpolation</span> <span class="o">==</span> <span class="s2">&quot;periodic&quot;</span>
+            <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_nac</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">False</span>
+            <span class="ow">and</span> <span class="n">has_polar_data</span>
+        <span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;the periodic interpolation diagnostic cannot be used with &quot;</span>
+                <span class="s2">&quot;active NAC; set is_nac=False for a periodic-path diagnostic.&quot;</span>
+            <span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">ifc_interpolation</span> <span class="o">==</span> <span class="s2">&quot;auto&quot;</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">ifc_interpolation_resolved</span> <span class="o">=</span> <span class="n">resolve_ifc_interpolation</span><span class="p">(</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ifc_interpolation</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ifc_interpolation_resolved</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="s2">&quot;wigner-seitz&quot;</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_nac</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">False</span> <span class="ow">and</span> <span class="n">has_polar_data</span>
+                <span class="k">else</span> <span class="n">resolve_ifc_interpolation</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">forceconstants</span><span class="o">.</span><span class="n">second</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ifc_interpolation</span>
+                <span class="p">)</span>
             <span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">ifc_interpolation_resolved</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ifc_interpolation</span>
@@ -1652,6 +1707,9 @@
                 <span class="n">is_nw</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_nw</span><span class="p">,</span>
                 <span class="n">ifc_interpolation</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ifc_interpolation</span><span class="p">,</span>
                 <span class="n">is_amorphous</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_is_amorphous</span><span class="p">,</span>
+                <span class="n">is_nac</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_nac</span><span class="p">,</span>
+                <span class="n">nac_bvk_supercell_matrix</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">nac_bvk_supercell_matrix</span><span class="p">,</span>
+                <span class="n">nac_q_direction</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">nac_q_direction</span><span class="p">,</span>
             <span class="p">)</span>
 
             <span class="n">physical_mode</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span> <span class="o">=</span> <span class="n">phonon</span><span class="o">.</span><span class="n">physical_mode</span>
@@ -1685,6 +1743,9 @@
                 <span class="n">is_nw</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_nw</span><span class="p">,</span>
                 <span class="n">ifc_interpolation</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ifc_interpolation</span><span class="p">,</span>
                 <span class="n">is_amorphous</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_is_amorphous</span><span class="p">,</span>
+                <span class="n">is_nac</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_nac</span><span class="p">,</span>
+                <span class="n">nac_bvk_supercell_matrix</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">nac_bvk_supercell_matrix</span><span class="p">,</span>
+                <span class="n">nac_q_direction</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">nac_q_direction</span><span class="p">,</span>
             <span class="p">)</span>
 
             <span class="n">frequency</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span> <span class="o">=</span> <span class="n">phonon</span><span class="o">.</span><span class="n">frequency</span>
@@ -1717,6 +1778,9 @@
                 <span class="n">is_nw</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_nw</span><span class="p">,</span>
                 <span class="n">ifc_interpolation</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ifc_interpolation</span><span class="p">,</span>
                 <span class="n">is_amorphous</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_is_amorphous</span><span class="p">,</span>
+                <span class="n">is_nac</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_nac</span><span class="p">,</span>
+                <span class="n">nac_bvk_supercell_matrix</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">nac_bvk_supercell_matrix</span><span class="p">,</span>
+                <span class="n">nac_q_direction</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">nac_q_direction</span><span class="p">,</span>
             <span class="p">)</span>
 
             <span class="n">participation_ratio</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span> <span class="o">=</span> <span class="n">phonon</span><span class="o">.</span><span class="n">participation_ratio</span>
@@ -1749,6 +1813,9 @@
                 <span class="n">is_nw</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_nw</span><span class="p">,</span>
                 <span class="n">ifc_interpolation</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ifc_interpolation</span><span class="p">,</span>
                 <span class="n">is_amorphous</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_is_amorphous</span><span class="p">,</span>
+                <span class="n">is_nac</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_nac</span><span class="p">,</span>
+                <span class="n">nac_bvk_supercell_matrix</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">nac_bvk_supercell_matrix</span><span class="p">,</span>
+                <span class="n">nac_q_direction</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">nac_q_direction</span><span class="p">,</span>
             <span class="p">)</span>
 
             <span class="n">velocity</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span> <span class="o">=</span> <span class="n">phonon</span><span class="o">.</span><span class="n">velocity</span>
@@ -1785,6 +1852,9 @@
                 <span class="n">is_nw</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_nw</span><span class="p">,</span>
                 <span class="n">ifc_interpolation</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ifc_interpolation</span><span class="p">,</span>
                 <span class="n">is_amorphous</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_is_amorphous</span><span class="p">,</span>
+                <span class="n">is_nac</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_nac</span><span class="p">,</span>
+                <span class="n">nac_bvk_supercell_matrix</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">nac_bvk_supercell_matrix</span><span class="p">,</span>
+                <span class="n">nac_q_direction</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">nac_q_direction</span><span class="p">,</span>
             <span class="p">)</span>
 
             <span class="n">eigensystem</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span> <span class="o">=</span> <span class="n">phonon</span><span class="o">.</span><span class="n">_eigensystem</span>
@@ -1821,6 +1891,9 @@
                 <span class="n">is_nw</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_nw</span><span class="p">,</span>
                 <span class="n">ifc_interpolation</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ifc_interpolation</span><span class="p">,</span>
                 <span class="n">is_amorphous</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_is_amorphous</span><span class="p">,</span>
+                <span class="n">is_nac</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_nac</span><span class="p">,</span>
+                <span class="n">nac_bvk_supercell_matrix</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">nac_bvk_supercell_matrix</span><span class="p">,</span>
+                <span class="n">nac_q_direction</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">nac_q_direction</span><span class="p">,</span>
             <span class="p">)</span>
             <span class="n">c_v</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span> <span class="o">=</span> <span class="n">phonon</span><span class="o">.</span><span class="n">heat_capacity</span>
         <span class="k">return</span> <span class="n">c_v</span>
@@ -1854,6 +1927,9 @@
                 <span class="n">is_nw</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_nw</span><span class="p">,</span>
                 <span class="n">ifc_interpolation</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ifc_interpolation</span><span class="p">,</span>
                 <span class="n">is_amorphous</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_is_amorphous</span><span class="p">,</span>
+                <span class="n">is_nac</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_nac</span><span class="p">,</span>
+                <span class="n">nac_bvk_supercell_matrix</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">nac_bvk_supercell_matrix</span><span class="p">,</span>
+                <span class="n">nac_q_direction</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">nac_q_direction</span><span class="p">,</span>
             <span class="p">)</span>
 
             <span class="n">heat_capacity_2d</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span> <span class="o">=</span> <span class="n">phonon</span><span class="o">.</span><span class="n">heat_capacity_2d</span>
@@ -1891,6 +1967,9 @@
                 <span class="n">is_nw</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_nw</span><span class="p">,</span>
                 <span class="n">ifc_interpolation</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ifc_interpolation</span><span class="p">,</span>
                 <span class="n">is_amorphous</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_is_amorphous</span><span class="p">,</span>
+                <span class="n">is_nac</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">is_nac</span><span class="p">,</span>
+                <span class="n">nac_bvk_supercell_matrix</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">nac_bvk_supercell_matrix</span><span class="p">,</span>
+                <span class="n">nac_q_direction</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">nac_q_direction</span><span class="p">,</span>
             <span class="p">)</span>
 
             <span class="n">population</span><span class="p">[</span><span class="n">ik</span><span class="p">]</span> <span class="o">=</span> <span class="n">phonon</span><span class="o">.</span><span class="n">population</span>

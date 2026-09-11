@@ -1817,9 +1817,9 @@ Default is <code class="docutils literal notranslate"><span class="pre">'formatt
 <dt class="sig sig-object highlight py" id="kaldo.conductivity.Conductivity.calculate_conductivity_and_diffusivity_qhgk">
 <span class="sig-name descname"><span class="pre">calculate_conductivity_and_diffusivity_qhgk</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kaldo/conductivity.html#Conductivity.calculate_conductivity_and_diffusivity_qhgk"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kaldo.conductivity.Conductivity.calculate_conductivity_and_diffusivity_qhgk" title="Link to this definition">¶</a></dt>
 <dd><p>Compute QHGK conductivity and diffusivity from mode-pair fluxes.</p>
-<p>The temporary harmonic objects share <code class="docutils literal notranslate"><span class="pre">self.phonons</span></code>’ interpolation
-settings so their frequencies, eigenvectors, heat capacities, and
-flux operators stay on one dynamical-matrix definition.</p>
+<p>The temporary harmonic objects receive the same NAC BvK convention as
+<code class="docutils literal notranslate"><span class="pre">self.phonons</span></code>. This keeps their frequencies, eigenvectors, heat
+capacities, and flux operators on one dynamical-matrix definition.</p>
 </dd></dl>
 
 <dl class="py method objdesc">

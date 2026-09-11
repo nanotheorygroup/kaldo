@@ -834,6 +834,8 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.parallel</span><span class="w"> </span><span class="kn">import</span> <span class="n">is_parallel</span><span class="p">,</span> <span class="n">validate_parallel_calculator</span><span class="p">,</span> <span class="n">maybe_warn_ml_delta_shift</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">ase.units</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">units</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.helpers.logger</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_logger</span><span class="p">,</span> <span class="n">log_size</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">kaldo.storable</span><span class="w"> </span><span class="kn">import</span> <span class="n">Storable</span><span class="p">,</span> <span class="n">lazy_property</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">kaldo.controllers.nac</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">nac</span>
 
 <span class="n">logging</span> <span class="o">=</span> <span class="n">get_logger</span><span class="p">()</span>
 
@@ -849,8 +851,12 @@
     <span class="k">return</span> <span class="n">dynmat</span>
 
 
-<span class="k">class</span><span class="w"> </span><span class="nc">SecondOrder</span><span class="p">(</span><span class="n">ForceConstant</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Second-order IFC observable.&quot;&quot;&quot;</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">SecondOrder</span><span class="p">(</span><span class="n">ForceConstant</span><span class="p">,</span> <span class="n">Storable</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Second-order IFC observable with format-aware NAC preparation caches.&quot;&quot;&quot;</span>
+
+    <span class="n">_store_formats</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;nac_short_range_force_constants&quot;</span><span class="p">:</span> <span class="s2">&quot;numpy&quot;</span><span class="p">,</span>
+    <span class="p">}</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">ArrayLike</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n">is_acoustic_sum</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="o">*</span><span class="n">kargs</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize IFCs and optionally enforce the translational sum rule.&quot;&quot;&quot;</span>
@@ -864,7 +870,172 @@
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="n">value</span><span class="p">,</span> <span class="o">*</span><span class="n">kargs</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">n_modes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">positions</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="mi">3</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_nac_precomputed_cache</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_nac_short_range_force_constants_cache</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">storage</span> <span class="o">=</span> <span class="s2">&quot;numpy&quot;</span>
+
+    <span class="nd">@lazy_property</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;numpy&quot;</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">nac_short_range_force_constants</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return cached Gonze short-range IFCs for the default BvK grid.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">calculate_nac_short_range_force_constants</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_refuse_dipole_subtracted_fc</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Reject short-range IFCs whose matching restoration is unavailable.</span>
+
+<span class="sd">        Exactly one dipole term must be removed and restored. A parsed q2r</span>
+<span class="sd">        header supplies the QE restoration convention; a bare legacy marker</span>
+<span class="sd">        proves subtraction occurred but does not contain enough native data to</span>
+<span class="sd">        reconstruct it safely.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;dipole_subtracted_fc&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">getattr</span><span class="p">(</span>
+            <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;_qe_q2r_header&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span> <span class="s2">&quot;has_zstar&quot;</span><span class="p">,</span> <span class="kc">False</span>
+        <span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+                <span class="s2">&quot;These force constants are marked as QE dipole-subtracted, but &quot;</span>
+                <span class="s2">&quot;their native q2r lattice, q-grid, and Ewald metadata are missing. &quot;</span>
+                <span class="s2">&quot;The QE rigid-ion term cannot be reconstructed safely, while the &quot;</span>
+                <span class="s2">&quot;generic Gonze path would subtract the dipole part a second time. &quot;</span>
+                <span class="s2">&quot;Reload the original .fc file through a QE interface, or re-run &quot;</span>
+                <span class="s2">&quot;q2r.x without epsil and provide dielectric/Born tensors separately &quot;</span>
+                <span class="s2">&quot;with total force constants.&quot;</span>
+            <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_nac_short_range_force_constants</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nac_bvk_supercell_matrix</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return convention-correct short-range IFCs for harmonic NAC.</span>
+
+<span class="sd">        QE q2r IFCs are already short range, so they are converted only to the</span>
+<span class="sd">        controller&#39;s compact atom-major ordering without another subtraction.</span>
+<span class="sd">        Total-IFC inputs are converted once through the Gonze</span>
+<span class="sd">        commensurate-mesh subtraction and cached by BvK matrix.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_refuse_dipole_subtracted_fc</span><span class="p">()</span>
+        <span class="n">matrix</span> <span class="o">=</span> <span class="n">nac</span><span class="o">.</span><span class="n">normalize_bvk_supercell_matrix</span><span class="p">(</span><span class="n">nac_bvk_supercell_matrix</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;_qe_q2r_header&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span> <span class="s2">&quot;has_zstar&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
+            <span class="c1"># A q2r file written with epsil=.true. already contains QE&#39;s</span>
+            <span class="c1"># short-range IFCs. Do not run Gonze subtraction or share its cache.</span>
+            <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;_qe_interleaved_fc&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_qe_interleaved_fc</span> <span class="o">=</span> <span class="n">nac</span><span class="o">.</span><span class="n">_build_interleaved_fc</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_qe_interleaved_fc</span>
+        <span class="k">if</span> <span class="n">matrix</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">nac_short_range_force_constants</span>
+
+        <span class="n">key</span> <span class="o">=</span> <span class="n">nac</span><span class="o">.</span><span class="n">bvk_supercell_matrix_key</span><span class="p">(</span><span class="n">matrix</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_nac_short_range_force_constants_cache</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_nac_short_range_force_constants_cache</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+
+        <span class="n">property_name</span> <span class="o">=</span> <span class="s2">&quot;nac_short_range_force_constants_&quot;</span> <span class="o">+</span> <span class="n">key</span>
+        <span class="n">folder</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_folder_from_label</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">loaded</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_load_property</span><span class="p">(</span><span class="n">property_name</span><span class="p">,</span> <span class="n">folder</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;numpy&quot;</span><span class="p">)</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Loading &quot;</span> <span class="o">+</span> <span class="n">folder</span> <span class="o">+</span> <span class="s2">&quot;/&quot;</span> <span class="o">+</span> <span class="n">property_name</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_nac_short_range_force_constants_cache</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">loaded</span>
+            <span class="k">return</span> <span class="n">loaded</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">FileNotFoundError</span><span class="p">,</span> <span class="ne">OSError</span><span class="p">,</span> <span class="ne">KeyError</span><span class="p">):</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="n">folder</span>
+                <span class="o">+</span> <span class="s2">&quot;/&quot;</span>
+                <span class="o">+</span> <span class="n">property_name</span>
+                <span class="o">+</span> <span class="s2">&quot; not found in numpy format, calculating &quot;</span>
+                <span class="o">+</span> <span class="n">property_name</span>
+            <span class="p">)</span>
+            <span class="n">force_constants</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calculate_nac_short_range_force_constants</span><span class="p">(</span><span class="n">matrix</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_save_property</span><span class="p">(</span><span class="n">property_name</span><span class="p">,</span> <span class="n">folder</span><span class="p">,</span> <span class="n">force_constants</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;numpy&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_nac_short_range_force_constants_cache</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">force_constants</span>
+            <span class="k">return</span> <span class="n">force_constants</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_build_nac_static_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">matrix</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Delegate construction of q-independent NAC physics to the controller.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">nac</span><span class="o">.</span><span class="n">build_static_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">matrix</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_build_nac_mapping</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">matrix</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Build the Wigner--Seitz map for this IFC supercell.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">nac</span><span class="o">.</span><span class="n">build_mapping</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">matrix</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_nac_precomputed</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nac_bvk_supercell_matrix</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return cached NAC kernel data and any convention-required mapping.&quot;&quot;&quot;</span>
+        <span class="n">matrix</span> <span class="o">=</span> <span class="n">nac</span><span class="o">.</span><span class="n">normalize_bvk_supercell_matrix</span><span class="p">(</span><span class="n">nac_bvk_supercell_matrix</span><span class="p">)</span>
+        <span class="n">key</span> <span class="o">=</span> <span class="n">nac</span><span class="o">.</span><span class="n">bvk_supercell_matrix_key</span><span class="p">(</span><span class="n">matrix</span><span class="p">)</span> <span class="k">if</span> <span class="n">matrix</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="s2">&quot;default&quot;</span>
+        <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_nac_precomputed_cache</span><span class="p">:</span>
+            <span class="n">static_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_nac_static_data</span><span class="p">(</span><span class="n">matrix</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">static_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;convention&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;qe_q2r&quot;</span><span class="p">:</span>
+                <span class="c1"># QE q2r IFCs are already short range, but matdyn.x still uses</span>
+                <span class="c1"># Wigner--Seitz shortest-vector weighting to interpolate their</span>
+                <span class="c1"># finite-supercell images away from the commensurate mesh. A</span>
+                <span class="c1"># different BvK lattice would require resampling those IFCs;</span>
+                <span class="c1"># the defining diagonal matrix is the only supported mapping.</span>
+                <span class="n">expected</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">supercell</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">))</span>
+                <span class="k">if</span> <span class="n">matrix</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">array_equal</span><span class="p">(</span><span class="n">matrix</span><span class="p">,</span> <span class="n">expected</span><span class="p">):</span>
+                    <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+                        <span class="s2">&quot;nac_bvk_supercell_matrix cannot remesh QE q2r force &quot;</span>
+                        <span class="sa">f</span><span class="s2">&quot;constants; expected diag(supercell)=</span><span class="si">{</span><span class="n">expected</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span><span class="si">}</span><span class="s2">, &quot;</span>
+                        <span class="sa">f</span><span class="s2">&quot;got </span><span class="si">{</span><span class="n">matrix</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span>
+                    <span class="p">)</span>
+                <span class="n">mapping</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_nac_mapping</span><span class="p">(</span><span class="n">matrix</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">mapping</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_nac_mapping</span><span class="p">(</span><span class="n">matrix</span><span class="p">)</span>
+            <span class="n">static_data</span><span class="p">,</span> <span class="n">mapping</span> <span class="o">=</span> <span class="n">nac</span><span class="o">.</span><span class="n">ensure_kernel_cache</span><span class="p">(</span><span class="n">static_data</span><span class="p">,</span> <span class="n">mapping</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_nac_precomputed_cache</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;static_data&quot;</span><span class="p">:</span> <span class="n">static_data</span><span class="p">,</span>
+                <span class="s2">&quot;mapping&quot;</span><span class="p">:</span> <span class="n">mapping</span><span class="p">,</span>
+            <span class="p">}</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_nac_precomputed_cache</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">calculate_nac_short_range_force_constants</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nac_bvk_supercell_matrix</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Remove the Gonze dipole term once and inverse-transform the remainder.</span>
+
+<span class="sd">        Polar q2r inputs bypass this operation because q2r already performed</span>
+<span class="sd">        the corresponding QE subtraction before writing the IFC body.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_refuse_dipole_subtracted_fc</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;_qe_q2r_header&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span> <span class="s2">&quot;has_zstar&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;_qe_interleaved_fc&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_qe_interleaved_fc</span> <span class="o">=</span> <span class="n">nac</span><span class="o">.</span><span class="n">_build_interleaved_fc</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_qe_interleaved_fc</span>
+        <span class="k">if</span> <span class="s2">&quot;dielectric&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">info</span> <span class="ow">or</span> <span class="s2">&quot;charges&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">arrays</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;NAC short-range force constants require atoms.info[&#39;dielectric&#39;] &quot;</span>
+                <span class="s2">&quot;and atoms.arrays[&#39;charges&#39;].&quot;</span>
+            <span class="p">)</span>
+        <span class="n">matrix</span> <span class="o">=</span> <span class="n">nac</span><span class="o">.</span><span class="n">normalize_bvk_supercell_matrix</span><span class="p">(</span><span class="n">nac_bvk_supercell_matrix</span><span class="p">)</span>
+        <span class="n">supercell</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">supercell</span> <span class="k">if</span> <span class="n">matrix</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">matrix</span>
+        <span class="n">bundle</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_nac_precomputed</span><span class="p">(</span><span class="n">matrix</span><span class="p">)</span>
+        <span class="n">static_data</span> <span class="o">=</span> <span class="n">bundle</span><span class="p">[</span><span class="s2">&quot;static_data&quot;</span><span class="p">]</span>
+        <span class="n">mapping</span> <span class="o">=</span> <span class="n">bundle</span><span class="p">[</span><span class="s2">&quot;mapping&quot;</span><span class="p">]</span>
+        <span class="n">qpoints</span> <span class="o">=</span> <span class="n">nac</span><span class="o">.</span><span class="n">_commensurate_points</span><span class="p">(</span><span class="n">supercell</span><span class="p">,</span> <span class="n">static_data</span><span class="p">[</span><span class="s2">&quot;reciprocal_lattice&quot;</span><span class="p">])</span>
+        <span class="n">dynmats</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span>
+            <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">qpoints</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="p">)</span> <span class="o">*</span> <span class="mi">3</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">atoms</span><span class="p">)</span> <span class="o">*</span> <span class="mi">3</span><span class="p">),</span>
+            <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">complex128</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s2">&quot;Calculating NAC short-range force constants from &quot;</span>
+            <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">qpoints</span><span class="p">))</span>
+            <span class="o">+</span> <span class="s2">&quot; commensurate q-points.&quot;</span>
+        <span class="p">)</span>
+        <span class="n">fc_full</span> <span class="o">=</span> <span class="n">nac</span><span class="o">.</span><span class="n">_build_interleaved_fc</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="n">conversion</span> <span class="o">=</span> <span class="n">units</span><span class="o">.</span><span class="n">mol</span> <span class="o">/</span> <span class="p">(</span><span class="mi">10</span> <span class="o">*</span> <span class="n">units</span><span class="o">.</span><span class="n">J</span><span class="p">)</span>
+        <span class="n">svecs</span> <span class="o">=</span> <span class="n">mapping</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;phase_svecs&quot;</span><span class="p">,</span> <span class="n">mapping</span><span class="p">[</span><span class="s2">&quot;svecs&quot;</span><span class="p">])</span>
+        <span class="n">fc_full_converted</span> <span class="o">=</span> <span class="n">fc_full</span> <span class="o">*</span> <span class="n">conversion</span>
+        <span class="k">for</span> <span class="n">i_q</span><span class="p">,</span> <span class="n">q_point</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">qpoints</span><span class="p">):</span>
+            <span class="n">dynmat</span> <span class="o">=</span> <span class="n">nac</span><span class="o">.</span><span class="n">_short_range_dynamical_matrix</span><span class="p">(</span>
+                <span class="n">fc_full_converted</span><span class="p">,</span>
+                <span class="n">q_point</span><span class="p">,</span>
+                <span class="n">svecs</span><span class="p">,</span>
+                <span class="n">mapping</span><span class="p">[</span><span class="s2">&quot;multi&quot;</span><span class="p">],</span>
+                <span class="n">static_data</span><span class="p">[</span><span class="s2">&quot;masses&quot;</span><span class="p">],</span>
+                <span class="n">mapping</span><span class="p">[</span><span class="s2">&quot;s2p_map&quot;</span><span class="p">],</span>
+                <span class="n">mapping</span><span class="p">[</span><span class="s2">&quot;p2s_map&quot;</span><span class="p">],</span>
+                <span class="n">phase_weights</span><span class="o">=</span><span class="n">mapping</span><span class="p">[</span><span class="s2">&quot;phase_weights&quot;</span><span class="p">],</span>
+                <span class="n">target_mask</span><span class="o">=</span><span class="n">mapping</span><span class="p">[</span><span class="s2">&quot;target_mask&quot;</span><span class="p">],</span>
+            <span class="p">)</span>
+            <span class="n">dynmat</span> <span class="o">-=</span> <span class="n">nac</span><span class="o">.</span><span class="n">_dipole_dipole_dynamical_matrix</span><span class="p">(</span>
+                <span class="n">q_point</span><span class="p">,</span>
+                <span class="n">static_data</span><span class="p">,</span>
+                <span class="n">mapping</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="n">dynmats</span><span class="p">[</span><span class="n">i_q</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">dynmat</span> <span class="o">+</span> <span class="n">dynmat</span><span class="o">.</span><span class="n">conj</span><span class="p">()</span><span class="o">.</span><span class="n">T</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span>
+        <span class="k">return</span> <span class="n">nac</span><span class="o">.</span><span class="n">_inverse_transform_dynmats_to_force_constants</span><span class="p">(</span>
+            <span class="n">dynmats</span><span class="p">,</span> <span class="n">qpoints</span><span class="p">,</span> <span class="n">mapping</span><span class="p">,</span> <span class="n">static_data</span><span class="p">[</span><span class="s2">&quot;masses&quot;</span><span class="p">]</span>
+        <span class="p">)</span>
 
     <span class="nd">@classmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">from_supercell</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span>
@@ -1064,6 +1235,10 @@
                         <span class="k">if</span> <span class="n">qe_header</span><span class="o">.</span><span class="n">has_zstar</span><span class="p">:</span>
                             <span class="n">atoms</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s1">&#39;dielectric&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">charges</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:]</span>
                             <span class="n">atoms</span><span class="o">.</span><span class="n">set_array</span><span class="p">(</span><span class="s1">&#39;charges&#39;</span><span class="p">,</span> <span class="n">charges</span><span class="p">[</span><span class="mi">1</span><span class="p">:,</span> <span class="p">:,</span> <span class="p">:],</span> <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
+                            <span class="c1"># q2r subtracts the dipole-dipole part before the back</span>
+                            <span class="c1"># transform when the file carries Born charges, so these</span>
+                            <span class="c1"># force constants are already short-range.</span>
+                            <span class="n">atoms</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;dipole_subtracted_fc&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
                         <span class="k">elif</span> <span class="n">control_dielectric</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">control_charges</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                             <span class="n">atoms</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;dielectric&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">control_dielectric</span>
                             <span class="n">atoms</span><span class="o">.</span><span class="n">set_array</span><span class="p">(</span><span class="s2">&quot;charges&quot;</span><span class="p">,</span> <span class="n">control_charges</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
@@ -1101,6 +1276,8 @@
                     <span class="p">),</span>
                     <span class="n">folder</span><span class="o">=</span><span class="n">folder</span><span class="p">,</span>
                 <span class="p">)</span>
+                <span class="k">if</span> <span class="n">qe_header</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">second_order</span><span class="o">.</span><span class="n">_qe_q2r_header</span> <span class="o">=</span> <span class="n">qe_header</span>
 
             <span class="k">case</span> <span class="s2">&quot;hiphive&quot;</span><span class="p">:</span>
                 <span class="n">filename</span> <span class="o">=</span> <span class="s2">&quot;atom_prim.xyz&quot;</span>

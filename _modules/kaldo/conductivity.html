@@ -1173,9 +1173,9 @@
     <span class="k">def</span><span class="w"> </span><span class="nf">calculate_conductivity_and_diffusivity_qhgk</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute QHGK conductivity and diffusivity from mode-pair fluxes.</span>
 
-<span class="sd">        The temporary harmonic objects share ``self.phonons``&#39; interpolation</span>
-<span class="sd">        settings so their frequencies, eigenvectors, heat capacities, and</span>
-<span class="sd">        flux operators stay on one dynamical-matrix definition.</span>
+<span class="sd">        The temporary harmonic objects receive the same NAC BvK convention as</span>
+<span class="sd">        ``self.phonons``. This keeps their frequencies, eigenvectors, heat</span>
+<span class="sd">        capacities, and flux operators on one dynamical-matrix definition.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">phonons</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">phonons</span>
         <span class="n">omega</span> <span class="o">=</span> <span class="n">phonons</span><span class="o">.</span><span class="n">omega</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="n">phonons</span><span class="o">.</span><span class="n">n_k_points</span><span class="p">,</span> <span class="n">phonons</span><span class="o">.</span><span class="n">n_modes</span><span class="p">))</span>
@@ -1222,6 +1222,8 @@
                 <span class="n">is_nw</span><span class="o">=</span><span class="n">phonons</span><span class="o">.</span><span class="n">is_nw</span><span class="p">,</span>
                 <span class="n">ifc_interpolation</span><span class="o">=</span><span class="n">phonons</span><span class="o">.</span><span class="n">ifc_interpolation</span><span class="p">,</span>
                 <span class="n">is_amorphous</span><span class="o">=</span><span class="n">phonons</span><span class="o">.</span><span class="n">_is_amorphous</span><span class="p">,</span>
+                <span class="n">is_nac</span><span class="o">=</span><span class="n">phonons</span><span class="o">.</span><span class="n">is_nac</span><span class="p">,</span>
+                <span class="n">nac_bvk_supercell_matrix</span><span class="o">=</span><span class="n">phonons</span><span class="o">.</span><span class="n">nac_bvk_supercell_matrix</span><span class="p">,</span>
             <span class="p">)</span>
             <span class="n">heat_capacity_2d</span> <span class="o">=</span> <span class="n">phonon</span><span class="o">.</span><span class="n">heat_capacity_2d</span>
             <span class="k">if</span> <span class="n">phonons</span><span class="o">.</span><span class="n">n_modes</span> <span class="o">&gt;</span> <span class="mi">100</span><span class="p">:</span>
