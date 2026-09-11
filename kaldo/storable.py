@@ -197,7 +197,7 @@ class Storable:
         return base_folder
     
     def _add_grid_components(self, base_folder):
-        """Add reciprocal-grid and IFC-model cache components."""
+        """Add reciprocal-grid, NAC-model, and IFC-model cache components."""
         # Check if this is a multi-kpoint system
         if hasattr(self, 'kpts') and np.prod(self.kpts) > 1:
             kpts = self.kpts
@@ -206,6 +206,11 @@ class Storable:
         elif hasattr(self, 'q_point'):
             q_point = self.q_point
             base_folder += '/single_q/' + str(q_point[0]) + '_' + str(q_point[1]) + '_' + str(q_point[2])
+        # An explicit NAC-off calculation is a distinct harmonic model. Keep
+        # it out of the automatic/NAC-on namespace so a diagnostic comparison
+        # cannot silently reuse polar frequencies, velocities, or flux data.
+        if getattr(self, "_nac_requested", None) is False:
+            base_folder += "/nac_off"
         # IFC interpolation changes every downstream harmonic and anharmonic
         # observable. Always use a versioned, support-specific namespace so
         # pre-refactor periodic caches cannot be read as Wigner--Seitz data.

@@ -467,6 +467,12 @@ class Phonons(Storable):
         unfolding now use pair-dependent Wigner--Seitz images of each atom
         pair, and sources that provide literal translations keep them.
         Default: False
+    is_nac : bool or None, optional
+        Controls the harmonic long-range correction. ``None`` automatically
+        activates it when the loaded atoms have a dielectric tensor and
+        nonzero Born effective charges. ``False`` explicitly evaluates the
+        NAC-off model; ``True`` requires complete polar metadata.
+        Default: None
     g_factor : (n_atoms) array , optional
         It contains the isotopic g factor for each atom of the unit cell. 
         g factor is the natural isotopic distributions of each element. 
@@ -502,6 +508,18 @@ class Phonons(Storable):
         Directory used for restartable per-q projection checkpoints. If it is
         omitted, completed per-q results are retained in memory instead.
         Default: None
+    nac_bvk_supercell_matrix : array-like (3, 3), optional
+        Born--von Karman grid used by the harmonic long-range correction.
+        It must describe the defining force-constant supercell because NAC
+        remeshing is not implemented. The same value is propagated to
+        frequencies, eigenvectors, thermodynamics, and transport. NAC is active
+        when the loaded atoms contain both a dielectric tensor and nonzero Born
+        effective charges; this argument does not enable it.
+        Default: None
+    nac_q_direction : array-like (3,), optional
+        Reduced reciprocal direction used to evaluate the non-analytic term
+        exactly at Gamma, where it depends on the approach direction.
+        Default: (1, 0, 0)
     use_q_symmetry : bool, optional
         Reduce the per-k-point projection cost by computing only the
         irreducible Brillouin zone (IBZ) representatives via spglib and
@@ -577,6 +595,9 @@ class Phonons(Storable):
                  n_workers: int = 1,
                  projection_output_dir: str | None = None,
                  use_q_symmetry: bool = False,
+                 is_nac: bool | None = None,
+                 nac_bvk_supercell_matrix=None,
+                 nac_q_direction=(1, 0, 0),
                  _ifc_interpolation: str | None = None,
                  **kwargs):
         self.forceconstants = forceconstants
@@ -601,6 +622,12 @@ class Phonons(Storable):
             )
         self.is_unfolding = bool(is_unfolding)
         self.ifc_interpolation = _ifc_interpolation
+        if is_nac is not None and not isinstance(is_nac, (bool, np.bool_)):
+            raise TypeError(
+                "is_nac must be True, False, or None for automatic detection"
+            )
+        self.is_nac = None if is_nac is None else bool(is_nac)
+        self._nac_requested = self.is_nac
         if self.ifc_interpolation != "auto":
             logging.info("Using IFC interpolation mode %s.", self.ifc_interpolation)
         self.min_frequency = min_frequency
@@ -619,10 +646,38 @@ class Phonons(Storable):
         self.is_symmetrizing_frequency = is_symmetrizing_frequency
         self.is_antisymmetrizing_velocity = is_antisymmetrizing_velocity
         self.is_balanced = is_balanced
+        self.nac_bvk_supercell_matrix = nac_bvk_supercell_matrix
+        self.nac_q_direction = nac_q_direction
         self.atoms = self.forceconstants.atoms
+        second_atoms = self.forceconstants.second.atoms
+        born_charges = (
+            second_atoms.get_array("charges")
+            if "charges" in second_atoms.arrays
+            else None
+        )
+        has_polar_data = (
+            "dielectric" in second_atoms.info
+            and born_charges is not None
+            and born_charges.ndim == 3
+            and born_charges.shape[-2:] == (3, 3)
+            and np.any(np.abs(born_charges) > 1.0e-8)
+        )
+        if (
+            self.ifc_interpolation == "periodic"
+            and self.is_nac is not False
+            and has_polar_data
+        ):
+            raise ValueError(
+                "the periodic interpolation diagnostic cannot be used with "
+                "active NAC; set is_nac=False for a periodic-path diagnostic."
+            )
         if self.ifc_interpolation == "auto":
-            self.ifc_interpolation_resolved = resolve_ifc_interpolation(
-                self.forceconstants.second, self.ifc_interpolation
+            self.ifc_interpolation_resolved = (
+                "wigner-seitz"
+                if self.is_nac is not False and has_polar_data
+                else resolve_ifc_interpolation(
+                    self.forceconstants.second, self.ifc_interpolation
+                )
             )
         else:
             self.ifc_interpolation_resolved = self.ifc_interpolation
@@ -830,6 +885,9 @@ class Phonons(Storable):
                 is_nw=self.is_nw,
                 ifc_interpolation=self.ifc_interpolation,
                 is_amorphous=self._is_amorphous,
+                is_nac=self.is_nac,
+                nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix,
+                nac_q_direction=self.nac_q_direction,
             )
 
             physical_mode[ik] = phonon.physical_mode
@@ -863,6 +921,9 @@ class Phonons(Storable):
                 is_nw=self.is_nw,
                 ifc_interpolation=self.ifc_interpolation,
                 is_amorphous=self._is_amorphous,
+                is_nac=self.is_nac,
+                nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix,
+                nac_q_direction=self.nac_q_direction,
             )
 
             frequency[ik] = phonon.frequency
@@ -895,6 +956,9 @@ class Phonons(Storable):
                 is_nw=self.is_nw,
                 ifc_interpolation=self.ifc_interpolation,
                 is_amorphous=self._is_amorphous,
+                is_nac=self.is_nac,
+                nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix,
+                nac_q_direction=self.nac_q_direction,
             )
 
             participation_ratio[ik] = phonon.participation_ratio
@@ -927,6 +991,9 @@ class Phonons(Storable):
                 is_nw=self.is_nw,
                 ifc_interpolation=self.ifc_interpolation,
                 is_amorphous=self._is_amorphous,
+                is_nac=self.is_nac,
+                nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix,
+                nac_q_direction=self.nac_q_direction,
             )
 
             velocity[ik] = phonon.velocity
@@ -963,6 +1030,9 @@ class Phonons(Storable):
                 is_nw=self.is_nw,
                 ifc_interpolation=self.ifc_interpolation,
                 is_amorphous=self._is_amorphous,
+                is_nac=self.is_nac,
+                nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix,
+                nac_q_direction=self.nac_q_direction,
             )
 
             eigensystem[ik] = phonon._eigensystem
@@ -999,6 +1069,9 @@ class Phonons(Storable):
                 is_nw=self.is_nw,
                 ifc_interpolation=self.ifc_interpolation,
                 is_amorphous=self._is_amorphous,
+                is_nac=self.is_nac,
+                nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix,
+                nac_q_direction=self.nac_q_direction,
             )
             c_v[ik] = phonon.heat_capacity
         return c_v
@@ -1032,6 +1105,9 @@ class Phonons(Storable):
                 is_nw=self.is_nw,
                 ifc_interpolation=self.ifc_interpolation,
                 is_amorphous=self._is_amorphous,
+                is_nac=self.is_nac,
+                nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix,
+                nac_q_direction=self.nac_q_direction,
             )
 
             heat_capacity_2d[ik] = phonon.heat_capacity_2d
@@ -1069,6 +1145,9 @@ class Phonons(Storable):
                 is_nw=self.is_nw,
                 ifc_interpolation=self.ifc_interpolation,
                 is_amorphous=self._is_amorphous,
+                is_nac=self.is_nac,
+                nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix,
+                nac_q_direction=self.nac_q_direction,
             )
 
             population[ik] = phonon.population
