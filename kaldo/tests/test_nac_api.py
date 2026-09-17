@@ -424,3 +424,37 @@ def test_nac_gamma_guards(mgo_second):
         HarmonicWithQ(
             np.array([0.2, 0.0, 0.0]), mgo_second, storage="memory"
         ).calculate_sij(0)
+
+
+def test_nac_dispersion_pins_a_degenerate_pair(mgo_second):
+    """MgO at q=(0.3, 0, 0.3): one acoustic and one optical degenerate pair."""
+    q_point = np.array([0.3, 0.0, 0.3])
+    frequency_expected = np.array(
+        [7.18794357, 7.18794363, 11.02311516, 12.67918914, 12.67918918, 17.46740768]
+    )
+    frequency = HarmonicWithQ(q_point, mgo_second, storage="memory", is_unfolding=True).frequency
+    np.testing.assert_array_almost_equal(frequency_expected, frequency.flatten(), decimal=2)
+
+
+def test_phonons_forwards_nac_q_direction(monkeypatch):
+    """The kwarg reaches every HarmonicWithQ construction, cubic symmetry aside."""
+    import kaldo.phonons as phonons_module
+    from kaldo.phonons import Phonons
+
+    forceconstants = ForceConstants.from_folder(
+        folder="kaldo/tests/mgo", supercell=[5, 5, 5], format="qe-d3q", only_second=True
+    )
+    captured = []
+    original = phonons_module.HarmonicWithQ
+
+    def capturing(*args, **kwargs):
+        captured.append(kwargs.get("nac_q_direction"))
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(phonons_module, "HarmonicWithQ", capturing)
+    phonons = Phonons(
+        forceconstants=forceconstants, kpts=[1, 1, 1], temperature=300,
+        storage="memory", nac_q_direction=(0, 1, 0),
+    )
+    phonons.frequency
+    assert captured and all(tuple(d) == (0, 1, 0) for d in captured)

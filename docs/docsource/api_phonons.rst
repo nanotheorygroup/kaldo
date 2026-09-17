@@ -102,9 +102,10 @@ The optional
 the force constants when it cannot be inferred as
 ``diag(forceconstants.second.supercell)``. It is not a remeshing request and
 should normally be omitted. A different matrix is rejected for QE q2r data.
-For a directional Gamma calculation, construct
-``HarmonicWithQ(..., nac_q_direction=(h, k, l))``; a ``Phonons`` grid uses the
-default reduced reciprocal direction ``(1, 0, 0)`` at exact Gamma.
+At exact Gamma the non-analytic term depends on the approach direction.
+``nac_q_direction=(h, k, l)`` (reduced reciprocal coordinates, default
+``(1, 0, 0)``) sets it, on ``HarmonicWithQ`` for a single point and on
+``Phonons`` for every Gamma point of the grid.
 
 ***************
 Classical Limit
