@@ -127,6 +127,7 @@ def test_nac_cache_keys_follow_their_inputs(phonons):
     second = phonons.forceconstants.second
     assert nac_cache_suffix(False, (1, 0, 0)) == ""
     assert nac_cache_suffix(True, (1, 0, 0)) != nac_cache_suffix(True, (0, 0, 1))
+    assert nac_cache_suffix(True, (1, 0, 1e-9)) != nac_cache_suffix(True, (1, 0, 2e-9))
     assert phonons.ifc_cache_key.endswith(nac_cache_suffix(True, (1, 0, 0)))
     assert HarmonicWithQ(np.zeros(3), second, storage="memory").ifc_cache_key.endswith(
         nac_cache_suffix(True, (1, 0, 0))

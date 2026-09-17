@@ -979,7 +979,7 @@ def nac_cache_suffix(is_active, nac_q_direction):
     if not is_active:
         return ""
     direction = np.asarray(nac_q_direction, dtype=float).ravel()
-    return "_nac2-" + "_".join(f"{value:g}".replace("-", "m") for value in direction)
+    return "_nac2-" + "_".join(f"{value:.17g}".replace("-", "m") for value in direction)
 
 
 def bvk_supercell_matrix_key(nac_bvk_supercell_matrix):
