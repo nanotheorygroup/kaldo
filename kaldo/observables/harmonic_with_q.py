@@ -13,6 +13,7 @@ import tensorflow as tf
 from kaldo.helpers.logger import get_logger, log_size
 from kaldo.controllers.nac import (
     normalize_bvk_supercell_matrix,
+    nac_cache_suffix,
     ensure_kernel_cache,
     dynamical_matrices,
     NAC_VELOCITY_Q_LENGTH,
@@ -446,6 +447,7 @@ class HarmonicWithQ(Observable, Storable):
             + self.ifc_interpolation_resolved
             + "_"
             + self.second.translation_support.digest[:16]
+            + nac_cache_suffix(self.is_nac, nac_q_direction)
         )
         self._ifc_interpolation_plan = None
         self._ifc_matrices = None

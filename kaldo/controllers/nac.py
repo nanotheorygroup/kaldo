@@ -970,6 +970,18 @@ def normalize_bvk_supercell_matrix(nac_bvk_supercell_matrix):
     return matrix
 
 
+def nac_cache_suffix(is_active, nac_q_direction):
+    """Cache-key component for the NAC engine and its Gamma direction.
+
+    Empty when NAC is off, so non-polar caches keep their names. Polar caches
+    written by the pre-#307 engine lack the component and are never reused.
+    """
+    if not is_active:
+        return ""
+    direction = np.asarray(nac_q_direction, dtype=float).ravel()
+    return "_nac2-" + "_".join(f"{value:g}".replace("-", "m") for value in direction)
+
+
 def bvk_supercell_matrix_key(nac_bvk_supercell_matrix):
     """Return a filesystem-safe cache key for a BvK supercell matrix.
 

@@ -20,6 +20,7 @@ from kaldo.observables.harmonic_with_q import (
 from kaldo.observables.harmonic_with_q_temp import HarmonicWithQTemp, CLASSICAL_HBAR_SCALE
 from kaldo.forceconstants import ForceConstants
 import kaldo.controllers.anharmonic as aha
+from kaldo.controllers.nac import nac_cache_suffix
 import tensorflow as tf
 import kaldo.controllers.isotopic as isotopic
 from concurrent.futures import as_completed
@@ -671,10 +672,11 @@ class Phonons(Storable):
                 "the periodic interpolation diagnostic cannot be used with "
                 "active NAC; set is_nac=False for a periodic-path diagnostic."
             )
+        self._nac_active = self.is_nac is not False and has_polar_data
         if self.ifc_interpolation == "auto":
             self.ifc_interpolation_resolved = (
                 "wigner-seitz"
-                if self.is_nac is not False and has_polar_data
+                if self._nac_active
                 else resolve_ifc_interpolation(
                     self.forceconstants.second, self.ifc_interpolation
                 )
@@ -786,6 +788,7 @@ class Phonons(Storable):
             + str(third_hint or "source")
             + "_"
             + "_".join(digest[:16] for digest in digests)
+            + nac_cache_suffix(self._nac_active, self.nac_q_direction)
         )
 
     def _get_folder_path_components(self, label):

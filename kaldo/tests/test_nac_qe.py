@@ -118,3 +118,36 @@ def test_phonons_forwards_nac_q_direction(monkeypatch):
     )
     phonons.frequency
     assert captured and all(tuple(d) == (0, 1, 0) for d in captured)
+
+
+def test_nac_cache_keys_follow_their_inputs(phonons):
+    """Stale NAC caches cannot be reused: keys carry the direction and the inputs."""
+    from kaldo.controllers.nac import nac_cache_suffix
+
+    second = phonons.forceconstants.second
+    assert nac_cache_suffix(False, (1, 0, 0)) == ""
+    assert nac_cache_suffix(True, (1, 0, 0)) != nac_cache_suffix(True, (0, 0, 1))
+    assert phonons.ifc_cache_key.endswith(nac_cache_suffix(True, (1, 0, 0)))
+    assert HarmonicWithQ(np.zeros(3), second, storage="memory").ifc_cache_key.endswith(
+        nac_cache_suffix(True, (1, 0, 0))
+    )
+    assert "nac2" not in HarmonicWithQ(np.zeros(3), second, storage="memory", is_nac=False).ifc_cache_key
+
+    key = second._nac_short_range_cache_key(None)
+    charges = second.atoms.get_array("charges")
+    second.atoms.set_array("charges", charges * 1.01)
+    try:
+        assert second._nac_short_range_cache_key(None) != key
+    finally:
+        second.atoms.set_array("charges", charges)
+    assert second._nac_short_range_cache_key(None) == key
+
+
+def test_conductivity_folder_splits_nac_off(phonons):
+    """Conductivity inherits the NAC-off namespace instead of the polar one."""
+    off = Phonons(
+        forceconstants=phonons.forceconstants, kpts=[3, 3, 3], temperature=300,
+        is_unfolding=True, storage="memory", is_nac=False,
+    )
+    assert "/nac_off" in Conductivity(phonons=off, method="rta", storage="memory").get_folder_from_label("")
+    assert "/nac_off" not in Conductivity(phonons=phonons, method="rta", storage="memory").get_folder_from_label("")
