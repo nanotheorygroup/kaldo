@@ -156,6 +156,8 @@ class Conductivity(Storable):
         self.third_bandwidth = self.phonons.third_bandwidth
         self.include_isotopes = self.phonons.include_isotopes
         self.ifc_cache_key = self.phonons.ifc_cache_key
+        # Keeps NAC-off transport out of the NAC-on folder (see Storable).
+        self._nac_requested = getattr(self.phonons, "_nac_requested", None)
 
         # initalize QHGK method
         self.diffusivity_bandwidth = diffusivity_bandwidth

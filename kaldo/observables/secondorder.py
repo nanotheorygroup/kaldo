@@ -1,5 +1,6 @@
 from kaldo.observables.forceconstant import ForceConstant
 from ase import Atoms
+import hashlib
 import os
 import tensorflow as tf
 import ase.io
@@ -54,10 +55,24 @@ class SecondOrder(ForceConstant, Storable):
         self._nac_short_range_force_constants_cache = {}
         self.storage = "numpy"
 
-    @lazy_property(label="", format="numpy")
+    @property
     def nac_short_range_force_constants(self):
         """Return cached Gonze short-range IFCs for the default BvK grid."""
-        return self.calculate_nac_short_range_force_constants()
+        return self.get_nac_short_range_force_constants()
+
+    def _nac_short_range_cache_key(self, matrix):
+        """Key the short-range cache on every input of the subtraction.
+
+        The BvK matrix alone let a corrected Born tensor or a replaced IFC
+        file reuse a stale file in the same folder.
+        """
+        payload = [np.ascontiguousarray(self.value).tobytes(),
+                   np.ascontiguousarray(self.atoms.get_array("charges"), dtype=float).tobytes(),
+                   np.ascontiguousarray(self.atoms.info["dielectric"], dtype=float).tobytes(),
+                   np.ascontiguousarray(self.supercell).tobytes()]
+        digest = hashlib.sha256(b"".join(payload)).hexdigest()[:16]
+        bvk = nac.bvk_supercell_matrix_key(matrix) if matrix is not None else "default"
+        return bvk + "_" + digest
 
     def _refuse_dipole_subtracted_fc(self):
         """Reject short-range IFCs whose matching restoration is unavailable.
@@ -96,10 +111,12 @@ class SecondOrder(ForceConstant, Storable):
             if getattr(self, "_qe_interleaved_fc", None) is None:
                 self._qe_interleaved_fc = nac._build_interleaved_fc(self)
             return self._qe_interleaved_fc
-        if matrix is None:
-            return self.nac_short_range_force_constants
-
-        key = nac.bvk_supercell_matrix_key(matrix)
+        if "dielectric" not in self.atoms.info or "charges" not in self.atoms.arrays:
+            raise ValueError(
+                "NAC short-range force constants require atoms.info['dielectric'] "
+                "and atoms.arrays['charges']."
+            )
+        key = self._nac_short_range_cache_key(matrix)
         if key in self._nac_short_range_force_constants_cache:
             return self._nac_short_range_force_constants_cache[key]
 
