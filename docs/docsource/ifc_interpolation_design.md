@@ -1,6 +1,6 @@
 # IFC interpolation design and migration
 
-At the highest level, kALDo constructs a harmonic dynamical matrix as $D(\mathbf q)=\mathrm{FT}[\Phi^{\mathrm{short}}](\mathbf q)+D^{\mathrm{long\ range}}(\mathbf q)$. Here $\Phi$ is a real-space interatomic force-constant tensor, $\mathrm{FT}$ is its Fourier sum over lattice translations, and $D^{\mathrm{long\ range}}$ is the optional macroscopic dipole contribution for a polar material. This PR fixes how the first term assigns real-space images and Fourier phases, applies that representation to second-order derivatives (IFC2) and both translation legs of the third-order tensor (IFC3), and preserves the matching source convention required by the optional second term.
+At the highest level, kALDo constructs a harmonic dynamical matrix as $D(\mathbf q)=\mathrm{FT}[\Phi^{\mathrm{short}}](\mathbf q)+D^{\mathrm{long\ range}}(\mathbf q)$. Here $\Phi$ is a real-space interatomic force-constant tensor, $\mathrm{FT}$ is its Fourier sum over lattice translations, and $D^{\mathrm{long\ range}}$ is the optional macroscopic dipole contribution for a polar material. The interpolation core (#306) fixes how the first term assigns real-space images and Fourier phases, applies that representation to second-order derivatives (IFC2) and both translation legs of the third-order tensor (IFC3), and preserves the matching source convention required by the optional second term.
 
 ## The issue
 
@@ -32,7 +32,7 @@ On a q point commensurate with the defining supercell, periodically equivalent t
 
 ## Resolution
 
-This PR rebuilds IFC interpolation from explicit lattice topology and source provenance. It adds exact supercell quotient arithmetic, preserves literal file translations, constructs pair-dependent shortest images with correct tie weights, generalizes the IFC3 projection to its actual translation support, fixes the ShengBTE IFC3 data-loss path, and validates the result from geometry-level identities through complete RTA transport.
+The interpolation core rebuilds IFC interpolation from explicit lattice topology and source provenance. It adds exact supercell quotient arithmetic, preserves literal file translations, constructs pair-dependent shortest images with correct tie weights, generalizes the IFC3 projection to its actual translation support, fixes the ShengBTE IFC3 data-loss path, and validates the result from geometry-level identities through complete RTA transport.
 
 | Root problem | Why it is wrong | Observable consequence |
 |---|---|---|
@@ -108,7 +108,7 @@ $$\mathcal I_{ij}(\mathbf R)=\left\{\mathbf R+\mathbf n\mathbf M:\left\|\left(\m
 
 `Pair image` means one member of $\mathcal I_{ij}(\mathbf R)$: a periodic copy of the same IFC block chosen using the full geometry of the specific atom pair. It does not create a new interaction or change the force constant. If several images are tied, the block is partitioned among them with normalized weights $w=1/\lvert\mathcal I_{ij}\rvert$. Selecting only one tied image would introduce an arbitrary symmetry and origin dependence.
 
-“Wigner–Seitz” in this PR refers only to this real-space shortest-image construction for a finite supercell. It is unrelated to the Wigner transport equation or the coherence contribution to thermal conductivity.
+“Wigner–Seitz” in this document refers only to this real-space shortest-image construction for a finite supercell. It is unrelated to the Wigner transport equation or the coherence contribution to thermal conductivity.
 
 ### Direct periodic and pair-image Fourier sums
 
@@ -148,7 +148,7 @@ Changing the periodic representative therefore leaves the Gamma frequencies unch
 
 $$M^{(1)}_{ij,\alpha}=\sum_{\mathbf R}\Phi^{(2)}_{ij}(\mathbf R)d_{ij,\alpha}(\mathbf R).$$
 
-Two atoms at $x=9.5$ and $0.5$ Å in a 10 Å cell are separated by 1 Å across the periodic boundary, not by $-9$ Å through the cell. Both vectors give the same zeroth-moment Gamma matrix; they give heat-flux elements with different magnitude and sign. Amorphous frequencies alone therefore cannot validate this PR.
+Two atoms at $x=9.5$ and $0.5$ Å in a 10 Å cell are separated by 1 Å across the periodic boundary, not by $-9$ Å through the cell. Both vectors give the same zeroth-moment Gamma matrix; they give heat-flux elements with different magnitude and sign. Amorphous frequencies alone therefore cannot validate the interpolation.
 
 | System | Reciprocal sampling | Pair-image observable most likely to expose the bug |
 |---|---|---|
@@ -268,7 +268,7 @@ The final exact-commit run on two `debug-cpu` cores completed with `477 passed, 
 
 The pair-image interpolation changes the absolute numbers pinned by several regression tests. These pins are labeled snapshots at deliberately under-converged settings (coarse q meshes, fixed broadening); they are regression anchors, not converged conductivities. The headline movements, all at each test's own settings:
 
-| Test | Quantity | 2.2.1 pin | This PR | Cause |
+| Test | Quantity | 2.2.1 pin | after #306 | Cause |
 |---|---|---|---|---|
 | `test_crystal_qe_vasp.py` | QE/Sheng Si RTA trace | 4.500 | 14.864 | pair-image interpolation, then the fixture basis correction above |
 | `test_crystal_qe_vasp.py` | QE/Sheng Si inverse trace | 5.049 | 17.667 | same |
@@ -285,16 +285,8 @@ The harmonic assembly is now a vectorized scatter over a flattened per-image pla
 
 ## Scope boundaries and current limitations
 
-- This PR fixes real-space translation topology, pair-image interpolation, source preservation, and the resulting harmonic/anharmonic/elastic integration. It does not change the Gaussian-width convention or the three-phonon delta-function integration scheme.
+- The interpolation core fixes real-space translation topology, pair-image interpolation, source preservation, and the resulting harmonic/anharmonic/elastic integration. It does not change the Gaussian-width convention or the three-phonon delta-function integration scheme.
 - Wigner–Seitz interpolation is currently limited to fully three-dimensionally periodic cells. The code raises rather than inventing images through a nonperiodic direction. `is_nw=True` changes only the four-mode Gamma acoustic mask; true axis-only nanowire interpolation and effective-area normalization are deferred and diagnosed separately.
 - q-symmetry replication is not yet validated when compiled IFC3 support has $S\ne N$. That combination logs a warning and falls back to the full q-point grid for the anharmonic projection: the result is correct, only slower, and the cleared flag is what cache labels record.
 - The direct-calculator test exercises the same callable ASE-calculator boundary used by MLIPs with a self-contained Lennard–Jones model. CI does not depend on a particular external MLIP framework or model file, so this should not be described as framework-specific MLIP validation.
 - Most cross-format origin tests regauge a successfully loaded object so that every parser feeds the same invariant calculation. Loader-level shifted-representation parsing is additionally tested directly for ShengBTE offsets, TDEP literal translations, and QE header/auxiliary geometry.
-
-## Suggested review order
-
-1. Read the four data-model classes in [`kaldo/grid.py`](kaldo/grid.py): they establish the distinction between q points, periodic classes, stored translations, and pair images.
-2. Review the harmonic formula and derivative together in [`kaldo/observables/harmonic_with_q.py`](kaldo/observables/harmonic_with_q.py), then the IFC3 Cartesian-product compilation in [`kaldo/observables/thirdorder.py`](kaldo/observables/thirdorder.py).
-3. Check that IFC3 support size is propagated without falling back to `n_replicas` in [`Phonons._project_crystal`](kaldo/phonons.py#L1932) and [`sparse_potential_mu`](kaldo/controllers/anharmonic.py#L112).
-4. Review source boundaries in [`tdep_io.py`](kaldo/interfaces/tdep_io.py), [`shengbte_io.py`](kaldo/interfaces/shengbte_io.py), and [`qe_io.py`](kaldo/interfaces/qe_io.py).
-5. Finish with the origin-invariance, external ShengBTE, non-diagonal TDEP, and cache-identity tests listed above; these are the integration contracts that motivated the refactor.
