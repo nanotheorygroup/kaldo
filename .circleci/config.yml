@@ -13,6 +13,9 @@ jobs:
     steps:
       - checkout
       - run:
+          name: Install phonopy for the pinned NAC references
+          command: pip install --quiet phonopy
+      - run:
           command: python -m pytest -n auto -v --cov=kaldo --cov-report=xml --color=yes kaldo/tests/
           name: Test
       - codecov/upload:
