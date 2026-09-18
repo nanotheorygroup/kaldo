@@ -371,7 +371,11 @@ For VASP/ShengBTE-style total IFCs, the dielectric and Born tensors may be
 read from ``CONTROL``. When only ``POSCAR`` is available, attach
 ``atoms.info['dielectric']`` and ``atoms.arrays['charges']`` to the loaded
 ``SecondOrder.atoms`` before constructing harmonic observables. These total
-IFCs select the generic Gonze subtraction and restoration path.
+IFCs select the VASP/phonopy Gonze subtraction and restoration path.
+
+See :doc:`Non-analytic corrections for polar crystals
+<non_analytic_corrections>` for the data contract, provenance-selected
+conventions, and the underlying long-range electrostatics.
 
 ``gpumd``
     A single ``gpumd_fc.npz`` archive produced by the GPUMD

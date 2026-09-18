@@ -69,7 +69,7 @@ For example, the following evaluates the NAC-off spectrum of a polar input:
    )
 
 The force-constant provenance determines the numerical convention. Total
-finite-supercell IFCs use the generic Gonze construction: kALDo removes the
+finite-supercell IFCs use the VASP/phonopy Gonze construction: kALDo removes the
 long-range dipole term on the commensurate q mesh and restores the matching
 term after short-range interpolation. A polar QE ``espresso.ifc2`` file is
 different because q2r has already removed its rigid-ion term. The QE loader
@@ -87,8 +87,14 @@ pair-dependent Wigner--Seitz reconstruction validated against ``matdyn.x``,
 whether or not the optional polar metadata is present; for a polar q2r file,
 those same weights keep the short-range body consistent with QE's long-range
 restoration. QE d3q IFC3 files retain d3q's native direct-periodic
-third-order gauge. ``is_unfolding=True`` folds the stored translations by
-periodic class first and then applies the same pair-dependent images.
+third-order gauge. The default ``ifc_interpolation="auto"`` preserves these
+source-aware choices. ``"wigner-seitz"`` explicitly folds translations by
+periodic class and applies pair-dependent shortest images, while
+``"periodic"`` selects the historical direct-periodic diagnostic.
+
+See :doc:`Choosing IFC interpolation <ifc_interpolation>` for user-facing
+guidance, examples, source-specific behavior, and migration from
+``is_unfolding``.
 
 A periodically repeated amorphous simulation cell follows the same geometry
 without assuming any space-group symmetry: the entire disordered cell is the
@@ -106,6 +112,10 @@ At exact Gamma the non-analytic term depends on the approach direction.
 ``nac_q_direction=(h, k, l)`` (reduced reciprocal coordinates, default
 ``(1, 0, 0)``) sets it, on ``HarmonicWithQ`` for a single point and on
 ``Phonons`` for every Gamma point of the grid.
+
+See :doc:`Non-analytic corrections for polar crystals
+<non_analytic_corrections>` for the physical model, supported input
+conventions, examples, validation, and limitations.
 
 ***************
 Classical Limit
@@ -149,7 +159,7 @@ cases the :doc:`Introduction <introduction>` section.
      - is_symmetrizing_frequency
      - is_antisymmetrizing_velocity
    * - is_balanced
-     - is_unfolding
+     - ifc_interpolation
      - is_nac
      - is_nw
    * - g_factor
