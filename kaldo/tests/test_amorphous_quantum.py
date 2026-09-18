@@ -112,11 +112,9 @@ def test_gamma_projection_chunked_workers_and_resume(phonons, tmp_path, monkeypa
     parallel = Phonons(**kwargs)
     np.testing.assert_allclose(parallel.bandwidth, phonons.bandwidth, rtol=1e-10, atol=1e-12)
     assert len(list(tmp_path.rglob("gamma_*.done"))) == 7
-    # A different temperature must not reuse these rows.
-    other = Phonons(**{**kwargs, "temperature": 400})
-    assert len(list(tmp_path.rglob("gamma_*.done"))) == 7
-    assert not np.allclose(other.bandwidth, phonons.bandwidth)
-    assert len(list(tmp_path.rglob("gamma_*.done"))) == 14
+    # Fresh in-memory reference at another temperature, before the fail guard.
+    serial_400 = Phonons(**{**kwargs, "temperature": 400, "n_workers": 1, "projection_output_dir": None})
+    bandwidth_400 = np.array(serial_400.bandwidth)
 
     def fail(*args, **kwargs):
         raise AssertionError("resume should not recompute any chunk")
@@ -124,3 +122,9 @@ def test_gamma_projection_chunked_workers_and_resume(phonons, tmp_path, monkeypa
     monkeypatch.setattr(phonons_module, "_compute_gamma_mode_chunk", fail)
     resumed = Phonons(**kwargs)
     np.testing.assert_allclose(resumed.bandwidth, phonons.bandwidth, rtol=1e-10, atol=1e-12)
+    # The checkpointed pairs are temperature-independent: a sweep reduces from
+    # the same files without recomputing the projection.
+    other = Phonons(**{**kwargs, "temperature": 400})
+    np.testing.assert_allclose(other.bandwidth, bandwidth_400, rtol=1e-10, atol=1e-12)
+    assert not np.allclose(other.bandwidth, phonons.bandwidth)
+    assert len(list(tmp_path.rglob("gamma_*.done"))) == 7

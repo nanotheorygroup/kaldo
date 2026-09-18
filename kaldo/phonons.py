@@ -319,13 +319,13 @@ def _compute_kpoint_projection(
 
 
 # Modes per Gamma-projection work unit. Fixed so resume does not depend on
-# n_workers; small enough that a chunk's rows stay a few MB even with the
-# gamma tensor.
+# n_workers. Checkpointed chunks hold the sparse projection pairs, so their
+# size scales with the broadening window, not with the reduced output.
 GAMMA_MODE_CHUNK = 256
 
 
 def _gamma_chunk_path(output_dir, chunk_id):
-    return os.path.join(output_dir, f'gamma_{chunk_id:05d}.npy')
+    return os.path.join(output_dir, f'gamma_{chunk_id:05d}.npz')
 
 
 def _compute_gamma_mode_chunk(
@@ -333,10 +333,12 @@ def _compute_gamma_mode_chunk(
     third_coords, third_data, sigma, broadening_shape, hbar, population,
     is_balanced, is_gamma_tensor_enabled, hbar_factor, output_dir,
 ):
-    """Project and reduce one chunk of Gamma modes; see Phonons._project_amorphous.
+    """Project one chunk of Gamma modes; see Phonons._project_amorphous.
 
-    Returns the chunk's ``ps_and_gamma`` rows, or ``None`` after writing them
-    under ``output_dir`` when resume checkpoints are requested.
+    Returns the chunk's reduced ``ps_and_gamma`` rows, or ``None`` after
+    writing the temperature-independent (indices, phase, potential) pairs
+    under ``output_dir`` when checkpoints are requested; the caller then
+    reduces those pairs with the current population.
     """
     evect_tf = tf.convert_to_tensor(evect_np, dtype=tf.float64)
     third_tf = tf.SparseTensor(
@@ -350,7 +352,8 @@ def _compute_gamma_mode_chunk(
     first = chunk_id * chunk_size
     modes = range(first, min(first + chunk_size, n_phonons))
     rows = np.zeros((len(modes), 2 + n_phonons if is_gamma_tensor_enabled else 2), dtype=np.float64)
-    for row, nu_single in zip(rows, modes):
+    pairs = []  # (local_mode, is_plus, indices, phase, pot) when checkpointing
+    for local, nu_single in enumerate(modes):
         if nu_single % 200 == 0:
             logging.info("calculating third " + f"{nu_single}" + ": " + \
                          f"{100 * nu_single / n_phonons:.2f}%")
@@ -376,19 +379,65 @@ def _compute_gamma_mode_chunk(
             pot_times_dirac /= tf.gather(omega[0], mup_vec) * tf.gather(omega[0], mupp_vec)
             pot_times_dirac *= np.pi * hbar / 4.0 * GAMMA_TO_THZ / omega.flatten()[nu_single]
 
+            if output_dir is not None:
+                pairs.append((local, is_plus,
+                              np.asarray(dirac_delta_result.indices, dtype=np.int64),
+                              np.asarray(dirac_delta_result.values, dtype=np.float64),
+                              np.asarray(pot_times_dirac, dtype=np.float64)))
+                continue
             sparse_potential_tensor = tf.SparseTensor(
                 indices=dirac_delta_result.indices,
                 values=pot_times_dirac,
                 dense_shape=dirac_delta_result.dense_shape
             )
             aha.accumulate_ps_and_gamma_mode(
-                row, nu_single, is_plus, dirac_delta_result, sparse_potential_tensor,
+                rows[local], nu_single, is_plus, dirac_delta_result, sparse_potential_tensor,
                 population, is_balanced, n_phonons, is_gamma_tensor_enabled, hbar_factor,
             )
     if output_dir is None:
         return rows
-    np.save(_gamma_chunk_path(output_dir, chunk_id), rows)
+    counts = np.zeros((len(modes), 2), dtype=np.int64)
+    for local, is_plus, indices, phase, pot in pairs:
+        counts[local, is_plus] = phase.shape[0]
+    np.savez(
+        _gamma_chunk_path(output_dir, chunk_id),
+        counts=counts,
+        indices=(np.concatenate([p[2] for p in pairs])
+                 if pairs else np.zeros((0, 2), dtype=np.int64)),
+        phase=(np.concatenate([p[3] for p in pairs])
+               if pairs else np.zeros(0, dtype=np.float64)),
+        pot=(np.concatenate([p[4] for p in pairs])
+             if pairs else np.zeros(0, dtype=np.float64)),
+    )
     return None
+
+
+def _reduce_gamma_chunk_from_disk(
+    ps_and_gamma, chunk_id, chunk_size, output_dir, population,
+    is_balanced, n_phonons, is_gamma_tensor_enabled, hbar_factor,
+):
+    """Reduce one checkpointed chunk of projection pairs with the current population."""
+    with np.load(_gamma_chunk_path(output_dir, chunk_id)) as data:
+        counts = data["counts"]
+        indices = data["indices"]
+        phase = data["phase"]
+        pot = data["pot"]
+    first = chunk_id * chunk_size
+    offset = 0
+    for local in range(counts.shape[0]):
+        for is_plus in (0, 1):
+            m = int(counts[local, is_plus])
+            if m == 0:
+                continue
+            entry = slice(offset, offset + m)
+            offset += m
+            dense_shape = (n_phonons, n_phonons)
+            phase_tensor = tf.SparseTensor(indices[entry], phase[entry], dense_shape)
+            pot_tensor = tf.SparseTensor(indices[entry], pot[entry], dense_shape)
+            aha.accumulate_ps_and_gamma_mode(
+                ps_and_gamma[first + local], first + local, is_plus, phase_tensor, pot_tensor,
+                population, is_balanced, n_phonons, is_gamma_tensor_enabled, hbar_factor,
+            )
 
 
 def _save_kpoint_projection(output_dir, index_k, results):
@@ -580,7 +629,11 @@ class Phonons(Storable):
         Default: 1
     projection_output_dir : str, optional
         Directory used for restartable projection checkpoints (per q point,
-        or per mode chunk at Gamma). If it is omitted, completed results are
+        or per mode chunk at Gamma). At Gamma the checkpoints hold the
+        temperature-independent projection, so later runs at other
+        temperatures or statistics reuse them and rerun only the population
+        reduction; their disk size scales with the number of pairs inside
+        the broadening window. If it is omitted, completed results are
         retained in memory instead.
         Default: None
     nac_bvk_supercell_matrix : array-like (3, 3), optional
@@ -1891,8 +1944,11 @@ class Phonons(Storable):
         O(n_modes^2) instead of the O(n_modes^3) retained by keeping every
         mode's sparse pairs until the end (issue #314). Modes are dispatched in
         chunks through the same executor as the crystal path, so ``n_workers``
-        and ``projection_output_dir`` (resume) apply here too. The projection
-        is therefore recomputed for every temperature.
+        and ``projection_output_dir`` (resume) apply here too. Checkpoints
+        hold the temperature-independent projection pairs, so a temperature
+        or statistics sweep over one ``projection_output_dir`` computes the
+        projection once and reruns only the population reduction; without a
+        checkpoint directory the projection is recomputed per temperature.
 
         Returns
         -------
@@ -1943,17 +1999,16 @@ class Phonons(Storable):
         )
         output_dir = self.projection_output_dir
         if output_dir is not None:
-            # Resume files are reduced numerical rows, so they belong to one
-            # temperature, statistics, broadening, IFC identity and output
-            # shape. Reuse the storage label machinery for the namespace.
+            # Checkpoints hold the temperature-independent projection pairs:
+            # temperature, statistics, balance and the tensor mode all enter
+            # only in the reduction below, so they stay out of the namespace
+            # and a sweep reuses one set of files. The pairs still belong to
+            # one broadening, chunk layout and IFC identity.
             output_dir = self.get_folder_from_label(
-                '<temperature>/<statistics>/<third_bandwidth>/<broadening_shape>/<is_balanced>',
+                '<third_bandwidth>/<broadening_shape>',
                 base_folder=output_dir,
             )
-            output_dir = os.path.join(
-                output_dir,
-                ("gamma_tensor" if is_gamma_tensor_enabled else "scalar") + f"_chunk{chunk_size}",
-            )
+            output_dir = os.path.join(output_dir, f"chunk{chunk_size}")
         shared["output_dir"] = output_dir
         worker_fn = functools.partial(_compute_gamma_mode_chunk, **shared)
         ps_and_gamma = np.zeros((n_phonons, n_columns))
@@ -1973,9 +2028,14 @@ class Phonons(Storable):
                 place(chunk_id, rows)
             logging.info(f'Completed Gamma mode chunk {n_done}/{n_chunks}')
         if output_dir is not None:
-            # Resumed chunks are never yielded: read every chunk back from disk.
+            # Resumed chunks are never yielded, and checkpointed chunks hold
+            # unreduced pairs: reduce every chunk from disk with the current
+            # population.
             for chunk_id in range(n_chunks):
-                place(chunk_id, np.load(_gamma_chunk_path(output_dir, chunk_id)))
+                _reduce_gamma_chunk_from_disk(
+                    ps_and_gamma, chunk_id, chunk_size, output_dir, shared["population"],
+                    self.is_balanced, n_phonons, is_gamma_tensor_enabled, hbar_factor,
+                )
         return ps_and_gamma
 
 
