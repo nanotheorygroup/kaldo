@@ -145,6 +145,8 @@ For detailed theoretical background on anharmonic lattice dynamics, the Boltzman
 
 Detailed examples for various materials and workflows are available [in a stand-alone repository](https://github.com/nanotheorygroup/kaldo-examples).
 
+A recipe on phonon uncertainty quantification with `PhononsEnsemble` and PET-MAD committee models is on the [Atomistic Cookbook](https://atomistic-cookbook.org/examples/kaldo-phonons-uq/kaldo-phonons-uq.html).
+
 ## Citations
 
 If you use κALDo, please cite:
