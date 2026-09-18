@@ -338,16 +338,18 @@ def _compute_gamma_mode_chunk(
     Returns the chunk's ``ps_and_gamma`` rows, or ``None`` after writing them
     under ``output_dir`` when resume checkpoints are requested.
     """
-    evect_tf = tf.convert_to_tensor(evect_np)
+    evect_tf = tf.convert_to_tensor(evect_np, dtype=tf.float64)
     third_tf = tf.SparseTensor(
-        tf.convert_to_tensor(third_coords), third_data, (n_modes, n_modes, n_modes)
+        tf.convert_to_tensor(third_coords),
+        tf.convert_to_tensor(third_data, dtype=tf.float64),
+        (n_modes, n_modes, n_modes),
     )
     third_tf = tf.sparse.reorder(third_tf)
     third_tf = tf.sparse.reshape(third_tf, (n_modes**2, n_modes))
     sigma_tf = tf.constant(sigma, dtype=tf.float64)
     first = chunk_id * chunk_size
     modes = range(first, min(first + chunk_size, n_phonons))
-    rows = np.zeros((len(modes), 2 + n_phonons if is_gamma_tensor_enabled else 2))
+    rows = np.zeros((len(modes), 2 + n_phonons if is_gamma_tensor_enabled else 2), dtype=np.float64)
     for row, nu_single in zip(rows, modes):
         if nu_single % 200 == 0:
             logging.info("calculating third " + f"{nu_single}" + ": " + \
@@ -355,8 +357,9 @@ def _compute_gamma_mode_chunk(
         if not physical_mode[0, nu_single]:
             continue
         for is_plus in (0, 1):
-            dirac_delta_result = aha.calculate_dirac_delta_amorphous(is_plus, nu_single, omega, physical_mode, sigma_tf,
-                                                                 broadening_shape, n_phonons)
+            dirac_delta_result = aha.calculate_dirac_delta_amorphous(
+                is_plus, nu_single, omega, physical_mode, sigma_tf, broadening_shape, n_phonons
+            )
             if not dirac_delta_result:
                 continue
             mup_vec, mupp_vec = tf.unstack(dirac_delta_result.indices, axis=1)
@@ -1895,6 +1898,11 @@ class Phonons(Storable):
         -------
         ps_and_gamma : np.ndarray (n_phonons, 2) or (n_phonons, 2 + n_phonons)
         """
+        if self.third_bandwidth is None:
+            raise ValueError(
+                "third_bandwidth is required at Gamma: adaptive broadening needs "
+                "a q grid, so pass a fixed width (THz) for kpts=(1, 1, 1)."
+            )
         n_modes = self.n_modes
         n_phonons = self.n_phonons
         frequency = self.frequency
@@ -1933,6 +1941,20 @@ class Phonons(Storable):
             is_balanced=self.is_balanced, is_gamma_tensor_enabled=is_gamma_tensor_enabled,
             hbar_factor=hbar_factor, output_dir=self.projection_output_dir,
         )
+        output_dir = self.projection_output_dir
+        if output_dir is not None:
+            # Resume files are reduced numerical rows, so they belong to one
+            # temperature, statistics, broadening, IFC identity and output
+            # shape. Reuse the storage label machinery for the namespace.
+            output_dir = self.get_folder_from_label(
+                '<temperature>/<statistics>/<third_bandwidth>/<broadening_shape>/<is_balanced>',
+                base_folder=output_dir,
+            )
+            output_dir = os.path.join(
+                output_dir,
+                ("gamma_tensor" if is_gamma_tensor_enabled else "scalar") + f"_chunk{chunk_size}",
+            )
+        shared["output_dir"] = output_dir
         worker_fn = functools.partial(_compute_gamma_mode_chunk, **shared)
         ps_and_gamma = np.zeros((n_phonons, n_columns))
 
@@ -1943,17 +1965,17 @@ class Phonons(Storable):
         for n_done, (chunk_id, rows) in enumerate(dispatch_with_resume(
             range(n_chunks), worker_fn,
             n_workers=self.n_workers,
-            output_dir=self.projection_output_dir,
+            output_dir=output_dir,
             sentinel_prefix="gamma_",
             log_progress=False,
         ), start=1):
             if rows is not None:
                 place(chunk_id, rows)
             logging.info(f'Completed Gamma mode chunk {n_done}/{n_chunks}')
-        if self.projection_output_dir is not None:
+        if output_dir is not None:
             # Resumed chunks are never yielded: read every chunk back from disk.
             for chunk_id in range(n_chunks):
-                place(chunk_id, np.load(_gamma_chunk_path(self.projection_output_dir, chunk_id)))
+                place(chunk_id, np.load(_gamma_chunk_path(output_dir, chunk_id)))
         return ps_and_gamma
 
 

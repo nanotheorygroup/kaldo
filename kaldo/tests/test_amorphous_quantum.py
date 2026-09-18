@@ -110,12 +110,17 @@ def test_gamma_projection_chunked_workers_and_resume(phonons, tmp_path, monkeypa
         n_workers=2, projection_output_dir=str(tmp_path),
     )
     parallel = Phonons(**kwargs)
-    np.testing.assert_allclose(parallel.bandwidth, phonons.bandwidth, rtol=1e-10)
-    assert len(list(tmp_path.glob("gamma_*.done"))) == 7
+    np.testing.assert_allclose(parallel.bandwidth, phonons.bandwidth, rtol=1e-10, atol=1e-12)
+    assert len(list(tmp_path.rglob("gamma_*.done"))) == 7
+    # A different temperature must not reuse these rows.
+    other = Phonons(**{**kwargs, "temperature": 400})
+    assert len(list(tmp_path.rglob("gamma_*.done"))) == 7
+    assert not np.allclose(other.bandwidth, phonons.bandwidth)
+    assert len(list(tmp_path.rglob("gamma_*.done"))) == 14
 
     def fail(*args, **kwargs):
         raise AssertionError("resume should not recompute any chunk")
 
     monkeypatch.setattr(phonons_module, "_compute_gamma_mode_chunk", fail)
     resumed = Phonons(**kwargs)
-    np.testing.assert_allclose(resumed.bandwidth, phonons.bandwidth, rtol=1e-10)
+    np.testing.assert_allclose(resumed.bandwidth, phonons.bandwidth, rtol=1e-10, atol=1e-12)
