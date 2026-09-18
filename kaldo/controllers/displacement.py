@@ -363,10 +363,6 @@ def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=Fal
     if n_workers is not None and n_workers < 1:
         raise ValueError(f"n_workers must be >= 1 or None, got {n_workers}")
     if is_parallel(n_workers):
-        if calculator is not None:
-            validate_parallel_calculator(calculator, method='calculate_second')
-        elif getattr(replicated_atoms, 'calc', None) is not None:
-            validate_parallel_calculator(replicated_atoms.calc, method='calculate_second')
         # Memory-safe worker resolution (kaldo.parallel.memory): auto-select
         # when n_workers is None, raise before dispatch when an explicit
         # request would exhaust memory and swap-thrash.
@@ -377,6 +373,13 @@ def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=Fal
             replicated_atoms=replicated_atoms,
             mode='second',
         )
+        # Validate after the probe: it ran one force call on the instance, and
+        # lazily initialised calculators (CPUNEP) stop pickling after that call.
+        # Workers receive the instance in this state.
+        if calculator is not None:
+            validate_parallel_calculator(calculator, method='calculate_second')
+        elif getattr(replicated_atoms, 'calc', None) is not None:
+            validate_parallel_calculator(replicated_atoms.calc, method='calculate_second')
     if use_symmetry and scratch_dir is not None:
         raise ValueError(
             "use_symmetry=True is not compatible with scratch_dir. "
@@ -684,10 +687,6 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
     if n_workers is not None and n_workers < 1:
         raise ValueError(f"n_workers must be >= 1 or None, got {n_workers}")
     if is_parallel(n_workers):
-        if calculator is not None:
-            validate_parallel_calculator(calculator, method='calculate_third')
-        elif getattr(replicated_atoms, 'calc', None) is not None:
-            validate_parallel_calculator(replicated_atoms.calc, method='calculate_third')
         # Memory-safe worker resolution (kaldo.parallel.memory): auto-select
         # when n_workers is None, raise before dispatch when an explicit
         # request would exhaust memory and swap-thrash.
@@ -699,6 +698,13 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
             mode='third',
             jat_flush_every=jat_flush_every,
         )
+        # Validate after the probe: it ran one force call on the instance, and
+        # lazily initialised calculators (CPUNEP) stop pickling after that call.
+        # Workers receive the instance in this state.
+        if calculator is not None:
+            validate_parallel_calculator(calculator, method='calculate_third')
+        elif getattr(replicated_atoms, 'calc', None) is not None:
+            validate_parallel_calculator(replicated_atoms.calc, method='calculate_third')
     if use_symmetry and scratch_dir is not None:
         raise ValueError(
             "use_symmetry=True is not compatible with scratch_dir. "
