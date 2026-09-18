@@ -2008,7 +2008,12 @@ class Phonons(Storable):
                 '<third_bandwidth>/<broadening_shape>',
                 base_folder=output_dir,
             )
-            output_dir = os.path.join(output_dir, f"chunk{chunk_size}")
+            # The frequency window sets physical_mode, which decides which
+            # pairs exist; n_phonons fixes the chunk layout and dense shape.
+            output_dir = os.path.join(
+                output_dir,
+                f"f{float(self.min_frequency):.17g}-{self.max_frequency}_n{n_phonons}_chunk{chunk_size}",
+            )
         shared["output_dir"] = output_dir
         worker_fn = functools.partial(_compute_gamma_mode_chunk, **shared)
         ps_and_gamma = np.zeros((n_phonons, n_columns))
