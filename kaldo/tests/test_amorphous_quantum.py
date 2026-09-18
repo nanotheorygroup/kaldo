@@ -97,3 +97,25 @@ def test_eigensystem_shape(phonons):
     sij_x = phonon._sij_x
     assert sij_x.shape == (phonon.n_modes, phonon.n_modes), \
         f"Expected sij_x shape ({phonon.n_modes}, {phonon.n_modes}), got {sij_x.shape}"
+
+
+def test_gamma_projection_chunked_workers_and_resume(phonons, tmp_path, monkeypatch):
+    """Chunked parallel Gamma projection matches serial, and resumes from disk."""
+    import kaldo.phonons as phonons_module
+
+    monkeypatch.setattr(phonons_module, "GAMMA_MODE_CHUNK", 100)
+    kwargs = dict(
+        forceconstants=phonons.forceconstants, is_classic=False, temperature=300,
+        third_bandwidth=0.05 / 4.135, broadening_shape="triangle", storage="memory",
+        n_workers=2, projection_output_dir=str(tmp_path),
+    )
+    parallel = Phonons(**kwargs)
+    np.testing.assert_allclose(parallel.bandwidth, phonons.bandwidth, rtol=1e-10)
+    assert len(list(tmp_path.glob("gamma_*.done"))) == 7
+
+    def fail(*args, **kwargs):
+        raise AssertionError("resume should not recompute any chunk")
+
+    monkeypatch.setattr(phonons_module, "_compute_gamma_mode_chunk", fail)
+    resumed = Phonons(**kwargs)
+    np.testing.assert_allclose(resumed.bandwidth, phonons.bandwidth, rtol=1e-10)
