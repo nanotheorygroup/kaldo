@@ -18,6 +18,7 @@ Covers:
 """
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import numpy as np
@@ -28,6 +29,8 @@ import pytest
 # See kaldo/tests/_paths.py for details on env-var-gated test fixtures.
 from kaldo.tests._paths import SI_PROD
 SI_TDEP_DIR = Path(__file__).parent / "si-tdep"
+SI_CONVENTIONAL_DIR = Path(__file__).parent / "data" / "input" / "tdep-si-conventional"
+SI_CONVENTIONAL_MATRIX = np.array([[1, -1, 1], [1, 1, -1], [-1, 1, 1]], dtype=int)
 SI_MASS_AMU = 28.0855
 
 
@@ -396,3 +399,324 @@ def test_tdep_snf_acoustic_sum_rule_targets_home_cell(tmp_path):
     got = np.sort(np.asarray(hq.frequency).ravel())
     ref = np.sort(_per_pair_frequencies_thz(uc, entries_clean, q))
     np.testing.assert_allclose(got, ref, atol=1e-8)
+
+
+def test_lazy_forceconstants_preserve_nondiagonal_topology(tmp_path):
+    """Lazy empty IFC2/IFC3 objects must retain the full integer matrix."""
+    from ase.build import bulk
+    from kaldo.forceconstants import ForceConstants
+
+    atoms = bulk("Si", "diamond", a=5.43)
+    matrix = np.array([[2, 1, 0], [0, 2, 0], [0, 0, 1]], dtype=int)
+    forceconstants = ForceConstants(
+        atoms=atoms,
+        supercell=matrix,
+        third_supercell=matrix,
+        folder=str(tmp_path),
+    )
+
+    np.testing.assert_array_equal(forceconstants.second.supercell_grid.matrix, matrix)
+    np.testing.assert_array_equal(forceconstants.third.supercell_grid.matrix, matrix)
+    assert forceconstants.second.n_replicas == 4
+    assert forceconstants.third.n_replicas == 4
+
+
+def test_from_folder_accepts_compact_nondiagonal_si():
+    """ForceConstants.from_folder with supercell_matrix=M must load non-diagonal
+    TDEP without raising the diagonal guard.
+
+    The two-atom rhombohedral primitive maps to one eight-atom conventional
+    cubic cell with determinant four.
+    """
+    from kaldo.forceconstants import ForceConstants
+
+    fc = ForceConstants.from_folder(
+        folder=str(SI_CONVENTIONAL_DIR),
+        supercell_matrix=SI_CONVENTIONAL_MATRIX,
+        format="tdep",
+        only_second=True,
+    )
+    assert fc.n_atoms == 2
+    assert fc.n_replicas == 4
+    # Seven literal bond translations are retained on the IFC2 axis.
+    assert fc.second.value.shape == (1, 2, 3, 7, 2, 3)
+
+
+def test_compact_fixture_manifest_and_acoustic_sum_rules():
+    """Generated topology and exact IFC2/IFC3 sum rules must remain intact."""
+    from kaldo.forceconstants import ForceConstants
+
+    manifest = json.loads((SI_CONVENTIONAL_DIR / "expected.json").read_text())
+    fc = ForceConstants.from_folder(
+        folder=str(SI_CONVENTIONAL_DIR),
+        supercell_matrix=SI_CONVENTIONAL_MATRIX,
+        format="tdep",
+    )
+
+    assert manifest["determinant"] == fc.n_replicas == 4
+    assert manifest["supercell_atoms"] == len(fc.second.replicated_atoms) == 8
+    expected_support = np.asarray(manifest["translation_support"])
+    np.testing.assert_array_equal(
+        fc.second.translation_support.translations, expected_support
+    )
+    np.testing.assert_array_equal(
+        fc.third.translation_support.translations, expected_support
+    )
+
+    ifc2 = np.asarray(fc.second.value)[0]
+    # Sum over every translated partner atom for each central atom and pair
+    # of Cartesian components.
+    np.testing.assert_allclose(ifc2.sum(axis=(2, 3)), 0.0, atol=1e-14)
+
+    ifc3 = np.asarray(fc.third.value.todense())
+    # Translating either partner index rigidly cannot change the bond energy.
+    np.testing.assert_allclose(ifc3.sum(axis=(2, 3)), 0.0, atol=1e-14)
+    np.testing.assert_allclose(ifc3.sum(axis=(5, 6)), 0.0, atol=1e-14)
+
+
+def test_physical_replicas_and_ifc_support_remain_distinct():
+    """Physical quotient representatives and IFC Fourier support must differ."""
+    from kaldo.forceconstants import ForceConstants
+
+    fc = ForceConstants.from_folder(
+        folder=str(SI_CONVENTIONAL_DIR),
+        supercell_matrix=SI_CONVENTIONAL_MATRIX,
+        format="tdep",
+        only_second=True,
+    )
+    assert fc.second.n_replicas == 4
+    assert fc.second.replica_translations.shape == (4, 3)
+    assert fc.second.n_translations == 7
+    expected = fc.second.translation_support.translations @ np.asarray(fc.atoms.cell)
+    np.testing.assert_allclose(fc.second.list_of_replicas, expected, atol=1e-10)
+
+
+# ---------------------------------------------------------------------------
+# Per-pair Fourier phases on a non-diagonal TDEP supercell
+# ---------------------------------------------------------------------------
+
+_PER_PAIR_SUPERCELL = np.array([[1, -1, 0], [0, 1, -1], [3, 3, 3]], dtype=int)
+
+
+def _write_per_pair_tdep_model(folder, onsite_defect=0.0):
+    """Write a stable TDEP IFC2 model carrying literal pair translations.
+
+    The determinant-nine, anisotropic supercell has several shortest pair
+    vectors in the same periodic class.  TDEP writes those vectors literally;
+    replacing them with one representative per class therefore changes the
+    Fourier phases away from the commensurate supercell grid.
+    """
+    import ase.io
+    from ase import Atoms
+    from ase.build import make_supercell
+
+    cell = np.array([[3.0, 0.0, 0.0], [0.3, 3.3, 0.0], [0.0, 0.2, 3.7]])
+    primitive = Atoms(
+        "SiGe",
+        cell=cell,
+        scaled_positions=[[0, 0, 0], [0.5, 0.5, 0.5]],
+        pbc=True,
+    )
+    supercell = make_supercell(primitive, _PER_PAIR_SUPERCELL)
+    ase.io.write(folder / "infile.ucposcar", primitive, format="vasp")
+    ase.io.write(folder / "infile.ssposcar", supercell, format="vasp")
+
+    # Build central springs between strict minimum-image pairs. Boundary ties
+    # are skipped so every record has one unambiguous literal translation.
+    cutoff = 4.6
+    neighboring_shifts = np.array(
+        [
+            [a, b, c]
+            for a in (-1, 0, 1)
+            for b in (-1, 0, 1)
+            for c in (-1, 0, 1)
+            if (a, b, c) != (0, 0, 0)
+        ]
+    )
+    positions = primitive.positions
+    entries = []
+    onsite = np.zeros((2, 3, 3))
+    for atom_i in range(2):
+        for atom_j in range(2):
+            for r_a in range(-4, 5):
+                for r_b in range(-4, 5):
+                    for r_c in range(-4, 5):
+                        translation = np.array([r_a, r_b, r_c])
+                        displacement = (
+                            positions[atom_j] + translation @ cell - positions[atom_i]
+                        )
+                        distance = np.linalg.norm(displacement)
+                        if distance < 1.0e-9 or distance > cutoff:
+                            continue
+                        alternative_distances = np.linalg.norm(
+                            positions[atom_j]
+                            + (translation - neighboring_shifts @ _PER_PAIR_SUPERCELL)
+                            @ cell
+                            - positions[atom_i],
+                            axis=1,
+                        )
+                        if not np.all(distance <= alternative_distances - 1.0e-9):
+                            continue
+                        spring = 4.0 * np.exp(-distance / 1.8)
+                        entries.append(
+                            (atom_i, atom_j, translation.copy(), -spring * np.eye(3))
+                        )
+                        onsite[atom_i] += spring * np.eye(3)
+    for atom_i in range(2):
+        entries.append(
+            (
+                atom_i,
+                atom_i,
+                np.zeros(3, dtype=int),
+                onsite[atom_i] + onsite_defect * np.eye(3),
+            )
+        )
+
+    with (folder / "infile.forceconstant").open("w") as stream:
+        stream.write("2\n100.0\n")
+        for atom_i in range(2):
+            atom_entries = [entry for entry in entries if entry[0] == atom_i]
+            stream.write(f"{len(atom_entries)}\n")
+            for _, atom_j, translation, tensor in atom_entries:
+                stream.write(f"{atom_j + 1}\n")
+                stream.write(" ".join(str(value) for value in translation) + "\n")
+                for row in tensor:
+                    stream.write(" ".join(f"{value:.12f}" for value in row) + "\n")
+    return primitive, entries
+
+
+def _direct_per_pair_frequencies(primitive, entries, q_point):
+    """Evaluate the literal ``sum_R Phi(R) exp(2 pi i q.R)`` oracle."""
+    from ase import units
+
+    masses = primitive.get_masses()
+    n_atoms = len(primitive)
+    dynamical = np.zeros((n_atoms, 3, n_atoms, 3), dtype=complex)
+    for atom_i, atom_j, translation, tensor in entries:
+        phase = np.exp(2j * np.pi * np.dot(q_point, translation))
+        dynamical[atom_i, :, atom_j, :] += (
+            phase * tensor / np.sqrt(masses[atom_i] * masses[atom_j])
+        )
+    eigenvalues = np.linalg.eigvalsh(
+        dynamical.reshape(3 * n_atoms, 3 * n_atoms) * units.mol / (10 * units.J)
+    )
+    return np.sign(eigenvalues) * np.sqrt(np.abs(eigenvalues)) / (2 * np.pi)
+
+
+def test_tdep_nondiagonal_matches_literal_per_pair_phases(tmp_path):
+    """Literal TDEP vectors must control dispersion off the BvK q mesh.
+
+    Folding the vectors to one representative per periodic class is exactly
+    equivalent on the commensurate grid, which allowed the historical bug to
+    evade frequency tests.  At incommensurate q it gives a different spectrum;
+    ``auto`` must instead reproduce an independent direct Fourier sum.
+    """
+    from kaldo.forceconstants import ForceConstants
+    from kaldo.observables.harmonic_with_q import HarmonicWithQ
+
+    primitive, entries = _write_per_pair_tdep_model(tmp_path)
+    forceconstants = ForceConstants.from_folder(
+        str(tmp_path), format="tdep", only_second=True
+    )
+    assert forceconstants.second.translation_support.provenance == "file"
+    # The file happens to contain nine distinct vectors for a determinant-nine
+    # supercell, but they are not one-per-class: several vectors share a class
+    # while other classes are absent. Equal axis lengths must not be mistaken
+    # for a compact periodic representation.
+    class_ids = forceconstants.second.translation_support.class_ids
+    assert len(np.unique(class_ids)) < len(class_ids)
+
+    collapse_errors = []
+    for q_point in (
+        np.array([0.6667, 0.3333, 0.1111]),
+        np.array([0.1234, 0.4321, 0.2468]),
+    ):
+        literal = HarmonicWithQ(
+            q_point=q_point,
+            second=forceconstants.second,
+            ifc_interpolation="auto",
+            storage="memory",
+        )
+        collapsed = HarmonicWithQ(
+            q_point=q_point,
+            second=forceconstants.second,
+            ifc_interpolation="periodic",
+            storage="memory",
+        )
+        expected = np.sort(_direct_per_pair_frequencies(primitive, entries, q_point))
+        actual = np.sort(np.asarray(literal.frequency).ravel())
+        np.testing.assert_allclose(actual, expected, rtol=0.0, atol=1.0e-8)
+        collapse_errors.append(
+            np.max(np.abs(actual - np.sort(np.asarray(collapsed.frequency).ravel())))
+        )
+    # One point is accidentally isospectral for this central-force model; the
+    # other exposes the historical class-representative error by >1 THz.
+    assert max(collapse_errors) > 1.0
+
+
+def test_tdep_per_pair_and_periodic_agree_on_commensurate_grid(tmp_path):
+    """Class folding must remain exactly equivalent at BvK q-points."""
+    from kaldo.forceconstants import ForceConstants
+    from kaldo.observables.harmonic_with_q import HarmonicWithQ
+
+    _write_per_pair_tdep_model(tmp_path)
+    forceconstants = ForceConstants.from_folder(
+        str(tmp_path), format="tdep", only_second=True
+    )
+    # M @ q is integer, so exp(2*pi*i*q.(R+nM)) is independent of the
+    # representative chosen for each periodic translation class.
+    q_point = np.linalg.solve(_PER_PAIR_SUPERCELL, np.array([1.0, 0.0, 0.0]))
+    literal = HarmonicWithQ(
+        q_point=q_point,
+        second=forceconstants.second,
+        ifc_interpolation="auto",
+        storage="memory",
+    )
+    collapsed = HarmonicWithQ(
+        q_point=q_point,
+        second=forceconstants.second,
+        ifc_interpolation="periodic",
+        storage="memory",
+    )
+    np.testing.assert_allclose(
+        np.sort(np.asarray(literal.frequency).ravel()),
+        np.sort(np.asarray(collapsed.frequency).ravel()),
+        rtol=0.0,
+        atol=1.0e-12,
+    )
+
+
+def test_tdep_acoustic_sum_rule_corrects_literal_home_cell(tmp_path):
+    """The acoustic correction must be attached to the literal ``R=0`` slot."""
+    from kaldo.forceconstants import ForceConstants
+    from kaldo.observables.harmonic_with_q import HarmonicWithQ
+
+    primitive, _ = _write_per_pair_tdep_model(tmp_path, onsite_defect=0.05)
+    clean_folder = tmp_path / "clean"
+    clean_folder.mkdir()
+    _, clean_entries = _write_per_pair_tdep_model(clean_folder)
+
+    forceconstants = ForceConstants.from_folder(
+        str(tmp_path),
+        format="tdep",
+        only_second=True,
+        is_acoustic_sum=True,
+    )
+    np.testing.assert_array_equal(
+        forceconstants.second.translation_support.translations[0],
+        np.zeros(3, dtype=int),
+    )
+    q_point = np.array([0.1234, 0.4321, 0.2468])
+    harmonic = HarmonicWithQ(
+        q_point=q_point,
+        second=forceconstants.second,
+        ifc_interpolation="auto",
+        storage="memory",
+    )
+    expected = np.sort(_direct_per_pair_frequencies(primitive, clean_entries, q_point))
+    np.testing.assert_allclose(
+        np.sort(np.asarray(harmonic.frequency).ravel()),
+        expected,
+        rtol=0.0,
+        atol=1.0e-8,
+    )

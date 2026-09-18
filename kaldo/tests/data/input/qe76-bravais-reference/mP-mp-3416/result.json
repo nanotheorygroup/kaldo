@@ -1,0 +1,32 @@
+{
+  "alpha": 2.63551218908962,
+  "comparison": "QE matdyn NAC-on minus macro-header-disabled NAC-off vs QERigidIonNAC",
+  "gamma_direction_crystal": [
+    1.0,
+    0.0,
+    0.0
+  ],
+  "has_zstar": true,
+  "natoms": 20,
+  "q2r": "mP-mp-3416.fc",
+  "q_crystal": [
+    0.0,
+    0.0,
+    0.0
+  ],
+  "q_grid": [
+    2,
+    2,
+    2
+  ],
+  "qe_bridge_vs_matdyn_directional_gamma": {
+    "hermiticity_actual": 5.991339728971787e-17,
+    "hermiticity_reference": 0.0,
+    "max_abs_ry_bohr2": 9.292852247259897e-09,
+    "reference_frobenius_ry_bohr2": 1.1660403564762454,
+    "relative_frobenius": 2.1305577013391224e-07,
+    "rms_ry_bohr2": 4.140527102604469e-09
+  },
+  "qe_on_minus_off_frobenius_ry_bohr2": 1.1660403564762454,
+  "schema_version": 1
+}
