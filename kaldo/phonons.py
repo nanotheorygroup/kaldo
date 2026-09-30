@@ -508,6 +508,12 @@ class Phonons(Storable):
         Directory used for restartable per-q projection checkpoints. If it is
         omitted, completed per-q results are retained in memory instead.
         Default: None
+    interpolator : object, optional
+        Optional linewidth interpolator used by QHGK conductivity calculations.
+        Attaching an interpolator does not replace, overwrite, or invalidate
+        :attr:`bandwidth`, which remains the explicitly calculated anharmonic
+        linewidth.
+        Default: None
     nac_bvk_supercell_matrix : array-like (3, 3), optional
         Born--von Karman grid used by the harmonic long-range correction.
         It must describe the defining force-constant supercell because NAC
@@ -595,6 +601,7 @@ class Phonons(Storable):
                  n_workers: int = 1,
                  projection_output_dir: str | None = None,
                  use_q_symmetry: bool = False,
+                 interpolator=None,
                  is_nac: bool | None = None,
                  nac_bvk_supercell_matrix=None,
                  nac_q_direction=(1, 0, 0),
@@ -605,6 +612,7 @@ class Phonons(Storable):
             raise ValueError(f"n_workers must be >= 1 or None, got {n_workers}")
         self.n_workers = n_workers
         self.projection_output_dir = projection_output_dir
+        self.interpolator = interpolator
         self.is_classic = is_classic
         if temperature is not None:
             self.temperature = float(temperature)
