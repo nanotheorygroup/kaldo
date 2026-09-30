@@ -40,6 +40,7 @@ Read the κALDo 2.0 paper in `Computer Physics Communications <https://doi.org/1
    docsource/api_forceconstants
    docsource/api_phonons
    docsource/api_conductivity
+   docsource/api_interpolation
 
 
 .. toctree::
