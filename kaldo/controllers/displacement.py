@@ -9,6 +9,17 @@ from sparse import COO
 logging = get_logger()
 
 
+PROGRESS_LOG_INTERVAL = 200
+
+
+def _log_force_constant_progress(order, step, total_steps, force=False):
+    """Log finite-difference progress at a consistent, low-noise cadence."""
+    if not force and step % PROGRESS_LOG_INTERVAL != 0:
+        return
+    percentage = 100.0 if total_steps == 0 else 100.0 * step / total_steps
+    logging.info(f'calculating {order} {step}: {percentage:.2f}%')
+
+
 def get_equivalent_ifc_indices(atoms, supercell, symprec=1e-5, order=2):
     """Determine symmetrically equivalent IFC block indices for 2nd and 3rd order.
 
@@ -380,6 +391,7 @@ def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=Fal
         _compute_iat_second,
         calculator=calculator,
         scratch_dir=scratch_dir,
+        total_steps=n_atoms,
     )
 
     with get_executor(backend=backend, n_workers=executor_workers) as executor:
@@ -393,6 +405,8 @@ def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=Fal
                 logging.info('calculating forces on atom ' + str(atom_id))
             if not use_scratch:
                 second[atom_id] = second_per_atom
+
+    _log_force_constant_progress('second', n_atoms, n_atoms, force=True)
 
     if use_scratch:
         second = _assemble_from_scratch_second(scratch_dir, n_atoms, n_replicated_atoms, keep_scratch)
@@ -417,12 +431,14 @@ def calculate_second(atoms, replicated_atoms, second_order_delta, is_verbose=Fal
 
 
 def _compute_iat_second(atom_id, replicated_atoms, second_order_delta, calculator=None,
-                        scratch_dir=None):
+                        scratch_dir=None, total_steps=None):
     """Compute second-order force constants for a single unit cell atom.
 
     Uses central difference: (forward force - backward force) for each
     Cartesian direction.
     """
+    if total_steps is not None:
+        _log_force_constant_progress('second', atom_id, total_steps)
     if calculator is not None:
         replicated_atoms = replicated_atoms.copy()
         replicated_atoms.calc = calculator() if callable(calculator) else calculator
@@ -614,12 +630,8 @@ def calculate_third(atoms, replicated_atoms, third_order_delta, distance_thresho
                 value_sparse.extend(local_value)
             n_forces_done += n_done
             n_forces_skipped += n_skipped
-            if use_parallel:
-                logging.info(f'Completed atom {iat}: '
-                             f'{int((n_forces_done + n_forces_skipped) / n_forces_to_calculate * 100)}% done')
-            elif (n_forces_done + n_forces_skipped) % 300 == 0:
-                logging.info('Calculate third derivatives ' + str(
-                    int((n_forces_done + n_forces_skipped) / n_forces_to_calculate * 100)) + '%')
+    n_third_steps = n_atoms * n_replicas * n_atoms
+    _log_force_constant_progress('third', n_third_steps, n_third_steps, force=True)
     logging.info('total forces to calculate third : ' + str(n_forces_to_calculate))
     logging.info('forces calculated : ' + str(n_forces_done))
     logging.info('forces skipped (outside distance threshold) : ' + str(n_forces_skipped))
@@ -739,6 +751,8 @@ def _compute_iat_third(iat, atoms, replicated_atoms, third_order_delta, distance
         replicated_atoms.calc = calculator() if callable(calculator) else calculator
     n_atoms = len(atoms.numbers)
     n_replicas = int(replicated_atoms.positions.shape[0] / n_atoms)
+    n_replicated_atoms = n_replicas * n_atoms
+    total_steps = n_atoms * n_replicated_atoms
     n_done = 0
     n_skipped = 0
 
@@ -748,7 +762,9 @@ def _compute_iat_third(iat, atoms, replicated_atoms, third_order_delta, distance
     chunk_coords = []
     chunk_values = []
 
-    for jat in range(n_replicas * n_atoms):
+    for jat in range(n_replicated_atoms):
+        step = iat * n_replicated_atoms + jat
+        _log_force_constant_progress('third', step, total_steps)
         is_computing = True
         if allowed_jat is not None and jat not in allowed_jat:
             is_computing = False
