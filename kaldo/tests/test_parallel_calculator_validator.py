@@ -15,11 +15,15 @@ Covers:
    both auto-resolve ``scratch_dir`` in parallel runs only.
 5. ``maybe_warn_ml_delta_shift`` heuristic fires for orb/MACE/MatterSim/
    calorine calculators below 1e-2 and stays silent for analytical ones.
+6. Calculators that become non-picklable only after their first force call
+   (CPUNEP builds its C++ handle lazily) are rejected with the same hint,
+   before any worker pool is created.
 """
 
 import functools
 import os
 import tempfile
+import threading
 import warnings
 
 import numpy as np
@@ -42,6 +46,15 @@ class _UnpicklableCalculator(EMT):
 
     def __reduce__(self):
         raise TypeError("this calculator is intentionally non-picklable (test stand-in)")
+
+
+class _LazyHandleCalculator(EMT):
+    """EMT subclass that mimics CPUNEP: picklable while pristine, but the
+    first force call creates a native handle that cannot be pickled."""
+
+    def calculate(self, *args, **kwargs):
+        self._handle = threading.Lock()  # not picklable
+        super().calculate(*args, **kwargs)
 
 
 @pytest.fixture(scope="module")
@@ -99,6 +112,26 @@ def test_parallel_rejects_non_picklable_atoms_calc(al_atoms):
     replicated.calc = _UnpicklableCalculator()
     with pytest.raises(TypeError, match='make_calculator'):
         calculate_second(atoms, replicated, 1e-5, n_workers=2, calculator=None)
+
+
+@pytest.mark.parametrize('calculate_fn', [calculate_second, calculate_third],
+                         ids=['second', 'third'])
+def test_parallel_rejects_lazily_non_picklable_instance(al_atoms, calculate_fn, monkeypatch):
+    """The memory probe runs one force call on the user's instance before
+    dispatch. A calculator that only becomes non-picklable after that call
+    must still get the factory hint, not a raw pickling error from inside
+    the worker pool."""
+    from kaldo.controllers import displacement
+
+    def no_pool(*args, **kwargs):
+        raise AssertionError('reached the worker pool with a non-picklable calculator')
+
+    monkeypatch.setattr(displacement, 'dispatch_with_resume', no_pool)
+    atoms, replicated = al_atoms
+    with pytest.raises(TypeError, match='make_calculator'):
+        calculate_fn(atoms, replicated, 1e-5,
+                     n_workers=2,
+                     calculator=_LazyHandleCalculator())
 
 
 # -- Parallel correctness: non-picklable calc via functools.partial ---------
