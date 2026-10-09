@@ -120,10 +120,11 @@ def test_missing_born_charges_warn(caplog):
 
 
 def test_nac_off_q2r_header_uses_generic_gonze_if_polar_data_is_supplied(
-    monkeypatch,
+    monkeypatch, tmp_path,
 ):
     """A q2r header without Z* is provenance, not a QE-rigid-ion request."""
     gan_second = _load_gan_second()
+    gan_second.folder = str(tmp_path)
     gan_second.atoms.info["dielectric"] = np.eye(3)
     gan_second.atoms.set_array(
         "charges", np.full((len(gan_second.atoms), 3, 3), 0.1), shape=(3, 3)

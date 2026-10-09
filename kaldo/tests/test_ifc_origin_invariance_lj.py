@@ -18,7 +18,10 @@ from functools import partial
 import numpy as np
 from ase import Atoms
 from ase.calculators.lj import LennardJones
-from ase.filters import FrechetCellFilter
+try:
+    from ase.filters import FrechetCellFilter as CellFilter  # ASE >= 3.23
+except ImportError:
+    from ase.constraints import ExpCellFilter as CellFilter  # ASE 3.22
 from ase.optimize import LBFGS
 
 from kaldo.conductivity import Conductivity
@@ -50,7 +53,7 @@ def _relaxed_argon_reference():
         pbc=True,
     )
     atoms.calc = LennardJones(sigma=3.4, epsilon=0.01, rc=9.0, smooth=True)
-    LBFGS(FrechetCellFilter(atoms), logfile=None).run(fmax=1e-4, steps=300)
+    LBFGS(CellFilter(atoms), logfile=None).run(fmax=1e-4, steps=300)
     atoms.calc = None
     return atoms
 

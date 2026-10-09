@@ -17,3 +17,16 @@ location. Download the 26 authoritative ZIP files using the `source_archive`
 URLs recorded in [manifest.json](manifest.json), extract
 `phonopy_params.yaml.xz` from each, and decompress it
 to the checked-in `<material-id>/phonopy_params.yaml` path.
+
+## Pinned Phonopy references
+
+Each case directory also holds `reference.npz`: Phonopy's NAC-on minus NAC-off
+dynamical matrices at the test q points, with the primitive and supercell
+structures, Born charges, dielectric tensor, and NAC factor that kALDo needs
+to evaluate the same quantity. The test reads only these files, so Phonopy
+and PyYAML are not test dependencies. The Phonopy version used is stored in
+each file. With Phonopy and PyYAML installed, regenerate all 26 files with:
+
+```bash
+python kaldo/tests/data/input/gonze-phonopy/generate_reference.py
+```

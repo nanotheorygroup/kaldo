@@ -7,7 +7,6 @@ from kaldo.forceconstants import ForceConstants
 import numpy as np
 from kaldo.phonons import Phonons
 from kaldo.conductivity import Conductivity
-from kaldo.observables.thirdorder import _rank8_ifc3
 from kaldo.tests.test_ifc_format_origin_invariance import _move_origin
 import pytest
 

@@ -1,4 +1,10 @@
-"""Compare kALDo's Gonze NAC kernel with 26 pinned Phonopy references."""
+"""Compare kALDo's Gonze NAC kernel with 26 pinned Phonopy references.
+
+The Phonopy NAC-on minus NAC-off dynamical matrices are stored per case in
+``data/input/gonze-phonopy/<material-id>/reference.npz`` together with the
+structures and dielectric data, so this test needs neither Phonopy nor PyYAML.
+Regenerate the references with ``generate_reference.py`` in that directory.
+"""
 
 from __future__ import annotations
 
@@ -7,12 +13,6 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-
-# Optional cross-check dependencies: kaldo itself never imports them, and
-# they are deliberately not test requirements. The 26 reference cases only
-# run where phonopy happens to be installed.
-phonopy = pytest.importorskip("phonopy")
-yaml = pytest.importorskip("yaml")
 from ase import Atoms, units
 
 from kaldo.controllers import nac
@@ -20,65 +20,24 @@ from kaldo.controllers import nac
 DATA = Path(__file__).parent / "data" / "input" / "gonze-phonopy"
 MANIFEST = json.loads((DATA / "manifest.json").read_text(encoding="utf-8"))
 CASES = tuple(MANIFEST["cases"])
-QCART_ANGSTROM_INV = np.array(
-    [
-        [0.04, 0.02, 0.0],
-        [0.2, 0.2, 1.0 / 3.0],
-    ]
-)
 DOCUMENTED_REGRESSION_BOUND = 1.0e-5
 CANCELLATION_REFERENCE_NORM = 1.0e-8
 CANCELLATION_ABSOLUTE_BOUND = 1.0e-9
 
 
-def _atoms(cell) -> Atoms:
-    """Convert a Phonopy cell to the ASE representation used by kALDo."""
+def _atoms(reference, prefix: str) -> Atoms:
+    """Rebuild the ASE cell stored for ``prefix`` (primitive or supercell)."""
 
     return Atoms(
-        symbols=cell.symbols,
-        scaled_positions=cell.scaled_positions,
-        cell=cell.cell,
-        masses=cell.masses,
+        numbers=reference[f"{prefix}_numbers"],
+        scaled_positions=reference[f"{prefix}_scaled_positions"],
+        cell=reference[f"{prefix}_cell"],
+        masses=reference[f"{prefix}_masses"],
         pbc=True,
     )
 
 
-def _effective_supercell_matrix(ph) -> np.ndarray:
-    """Recover the integer supercell matrix represented by a Phonopy object."""
-
-    matrix_float = np.asarray(ph.supercell.cell) @ np.linalg.inv(
-        np.asarray(ph.primitive.cell)
-    )
-    matrix = np.rint(matrix_float).astype(int)
-    np.testing.assert_allclose(matrix_float, matrix, rtol=0, atol=1e-7)
-    return matrix
-
-
-def _commensurate_qpoint(matrix: np.ndarray) -> np.ndarray | None:
-    """Return one finite commensurate q point, if the supercell has one."""
-
-    candidates = []
-    signed_axes = np.vstack((np.eye(3, dtype=int), -np.eye(3, dtype=int)))
-    for integer in signed_axes:
-        qpoint = np.linalg.solve(matrix.T, integer)
-        qpoint -= np.rint(qpoint)
-        if np.linalg.norm(qpoint) > 1e-12:
-            candidates.append(qpoint)
-    if not candidates:
-        assert abs(round(np.linalg.det(matrix))) == 1
-        return None
-
-    qpoint = min(candidates, key=np.linalg.norm)
-    np.testing.assert_allclose(
-        matrix.T @ qpoint,
-        np.rint(matrix.T @ qpoint),
-        rtol=0,
-        atol=1e-12,
-    )
-    return qpoint
-
-
-def _prepare_isolated_gonze_delta(ph, matrix: np.ndarray):
+def _prepare_isolated_gonze_delta(reference, matrix: np.ndarray):
     """Build the production Gonze kernel with zero total force constants.
 
     kALDo stores a short-range force-constant body. For this isolated NAC
@@ -91,16 +50,12 @@ def _prepare_isolated_gonze_delta(ph, matrix: np.ndarray):
         """Minimal SecondOrder-like container required by the NAC controller."""
 
     second = Second()
-    second.atoms = _atoms(ph.primitive)
-    second.replicated_atoms = _atoms(ph.supercell)
+    second.atoms = _atoms(reference, "primitive")
+    second.replicated_atoms = _atoms(reference, "supercell")
     second.supercell = (abs(round(np.linalg.det(matrix))), 1, 1)
-    second.atoms.set_array(
-        "charges", np.asarray(ph.nac_params["born"], dtype=float).copy()
-    )
-    second.atoms.info["dielectric"] = np.asarray(
-        ph.nac_params["dielectric"], dtype=float
-    ).copy()
-    second.atoms.info["nac_factor"] = float(ph.nac_params["factor"])
+    second.atoms.set_array("charges", np.array(reference["born"], dtype=np.float64))
+    second.atoms.info["dielectric"] = np.array(reference["dielectric"], dtype=np.float64)
+    second.atoms.info["nac_factor"] = float(reference["nac_factor"])
 
     static_data = nac.build_static_data(second, matrix)
     mapping = nac._build_supercell_matrix_mapping(
@@ -128,10 +83,10 @@ def _prepare_isolated_gonze_delta(ph, matrix: np.ndarray):
     return static_data, mapping, short_range_fc
 
 
-def _kaldo_isolated_delta(ph, matrix: np.ndarray, qpoints: np.ndarray) -> np.ndarray:
+def _kaldo_isolated_delta(reference, matrix: np.ndarray, qpoints: np.ndarray) -> np.ndarray:
     """Evaluate the isolated Gonze NAC delta through the shared controller."""
 
-    static_data, mapping, short_range_fc = _prepare_isolated_gonze_delta(ph, matrix)
+    static_data, mapping, short_range_fc = _prepare_isolated_gonze_delta(reference, matrix)
     qpoint_carts = np.einsum(
         "ab,qb->qa",
         static_data["reciprocal_lattice"],
@@ -152,35 +107,17 @@ def _kaldo_isolated_delta(ph, matrix: np.ndarray, qpoints: np.ndarray) -> np.nda
 def test_gonze_isolated_delta_matches_phonopy(case: dict) -> None:
     """Match Phonopy NAC-on minus NAC-off for one pinned polar material."""
 
-    source = DATA / case["id"] / "phonopy_params.yaml"
-    metadata = yaml.safe_load(source.read_text(encoding="utf-8"))
-    load_kwargs = {"produce_fc": True, "fc_calculator": "traditional"}
-    if "primitive_matrix" not in metadata:
-        load_kwargs["primitive_matrix"] = "P"
-    ph = phonopy.load(source, **load_kwargs)
-    assert ph.nac_params is not None
-
-    matrix = _effective_supercell_matrix(ph)
+    with np.load(DATA / case["id"] / "reference.npz") as stored:
+        reference = {key: stored[key] for key in stored.files}
+    matrix = np.asarray(reference["supercell_matrix"], dtype=int)
     np.testing.assert_array_equal(matrix, case["effective_supercell_matrix"])
-    qpoints = QCART_ANGSTROM_INV @ np.asarray(ph.primitive.cell).T / (2 * np.pi)
-    commensurate = _commensurate_qpoint(matrix)
-    if commensurate is not None:
-        qpoints = np.vstack((qpoints, commensurate))
+    qpoints = reference["qpoints"]
+    expected = reference["expected_delta"]
 
-    nac_params = ph.nac_params
-    ph.nac_params = None
-    ph.run_qpoints(qpoints, with_dynamical_matrices=True)
-    nac_off = np.array(ph.qpoints.dynamical_matrices, copy=True)
-    ph.nac_params = nac_params
-    ph.run_qpoints(qpoints, with_dynamical_matrices=True)
-    nac_on = np.array(ph.qpoints.dynamical_matrices, copy=True)
-
-    conversion = units.mol / (10 * units.J)
-    expected = (nac_on - nac_off) * conversion
-    actual = _kaldo_isolated_delta(ph, matrix, qpoints)
-    for q_index, (candidate, reference) in enumerate(zip(actual, expected)):
-        absolute = float(np.linalg.norm(candidate - reference))
-        reference_norm = float(np.linalg.norm(reference))
+    actual = _kaldo_isolated_delta(reference, matrix, qpoints)
+    for q_index, (candidate, target) in enumerate(zip(actual, expected)):
+        absolute = float(np.linalg.norm(candidate - target))
+        reference_norm = float(np.linalg.norm(target))
         if reference_norm < CANCELLATION_REFERENCE_NORM:
             assert (
                 absolute <= CANCELLATION_ABSOLUTE_BOUND
