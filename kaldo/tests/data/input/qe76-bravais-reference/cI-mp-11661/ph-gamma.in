@@ -1,0 +1,5 @@
+&INPUTPH
+  prefix='cI-mp-11661', outdir='./out', fildyn='cI-mp-11661.gamma', tr2_ph=1.0d-14,
+  epsil=.true., ldisp=.false.
+/
+0.0 0.0 0.0

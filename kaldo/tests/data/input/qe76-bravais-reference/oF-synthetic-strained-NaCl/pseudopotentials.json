@@ -1,0 +1,12 @@
+{
+  "Na": {
+    "filename": "na_pbe_v1.5.uspp.F.UPF",
+    "source": "SSSP_1.3.0_PBE_efficiency/na_pbe_v1.5.uspp.F.UPF",
+    "sha256": "f84820c4280d21603bd50ae76a08e15c26864391ea055cf50affc4aedefc8f87"
+  },
+  "Cl": {
+    "filename": "cl_pbe_v1.4.uspp.F.UPF",
+    "source": "SSSP_1.3.0_PBE_efficiency/cl_pbe_v1.4.uspp.F.UPF",
+    "sha256": "5b1ebdea1e5ba743fba0100806206287e1f7f00460c7e6f19791446beaee0655"
+  }
+}

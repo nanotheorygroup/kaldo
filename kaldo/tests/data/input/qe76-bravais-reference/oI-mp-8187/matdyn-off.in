@@ -1,0 +1,7 @@
+&input
+  flfrc='oI-mp-8187.without-nac.fc', flfrq='oI-mp-8187.off.freq', fldyn='oI-mp-8187.off.dyn',
+  asr='no', q_in_cryst_coord=.true.
+/
+2
+0.0 0.0 0.0
+0.0001 0.0 0.0

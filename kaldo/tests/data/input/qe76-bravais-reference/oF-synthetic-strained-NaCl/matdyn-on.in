@@ -1,0 +1,7 @@
+&input
+  flfrc='oF-synthetic-strained-NaCl.fc', flfrq='oF-synthetic-strained-NaCl.on.freq', fldyn='oF-synthetic-strained-NaCl.on.dyn',
+  asr='no', q_in_cryst_coord=.true.
+/
+2
+0.0 0.0 0.0
+0.0001 0.0 0.0

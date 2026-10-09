@@ -1,0 +1,32 @@
+{
+  "alpha": 6.01518314637937,
+  "comparison": "QE matdyn NAC-on minus macro-header-disabled NAC-off vs QERigidIonNAC",
+  "gamma_direction_crystal": [
+    1.0,
+    0.0,
+    0.0
+  ],
+  "has_zstar": true,
+  "natoms": 20,
+  "q2r": "benchmark-artifacts/phonondb26-qe-nac-sssp/cases/tP-mp-27355/tP-mp-27355.fc",
+  "q_crystal": [
+    0.0,
+    0.0,
+    0.0
+  ],
+  "q_grid": [
+    2,
+    2,
+    2
+  ],
+  "qe_bridge_vs_matdyn_directional_gamma": {
+    "hermiticity_actual": 2.777555821348951e-17,
+    "hermiticity_reference": 0.0,
+    "max_abs_ry_bohr2": 9.534631414259698e-09,
+    "reference_frobenius_ry_bohr2": 0.7842819888369477,
+    "relative_frobenius": 2.6762898304827853e-07,
+    "rms_ry_bohr2": 3.498276518258559e-09
+  },
+  "qe_on_minus_off_frobenius_ry_bohr2": 0.7842819888369477,
+  "schema_version": 1
+}

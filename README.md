@@ -35,7 +35,7 @@ The QHGK formalism uniquely extends thermal transport predictions beyond crystal
 
 ### Physical Corrections
 - **Isotopic scattering** via Tamura perturbation theory
-- **Non-analytical corrections (NAC)** for polar materials (LO-TO splitting)
+- **[Non-analytical corrections (NAC)](https://github.com/nanotheorygroup/kaldo/blob/main/docs/docsource/non_analytic_corrections.md)** for polar materials (LO-TO splitting)
 - **Finite-size effects** and boundary scattering
 - **Anharmonicity quantification** (σ_A score)
 

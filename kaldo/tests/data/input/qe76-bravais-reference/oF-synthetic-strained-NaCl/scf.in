@@ -1,0 +1,22 @@
+        &CONTROL
+          calculation='scf', prefix='oF-synthetic-strained-NaCl', outdir='./out', pseudo_dir='./pseudo', disk_io='low'
+        /
+        &SYSTEM
+          ibrav=0, nat=2, ntyp=2, ecutwfc=120, ecutrho=960,
+          occupations='fixed', nosym=.true., noinv=.true.
+        /
+        &ELECTRONS
+          conv_thr=1.0d-10, mixing_beta=0.3
+        /
+        ATOMIC_SPECIES
+        Na 22.98977000 na_pbe_v1.5.uspp.F.UPF
+Cl 35.45300000 cl_pbe_v1.4.uspp.F.UPF
+        CELL_PARAMETERS angstrom
+        0.000000000000 2.890000000000 2.960000000000
+2.820000000000 0.000000000000 2.960000000000
+2.820000000000 2.890000000000 0.000000000000
+        ATOMIC_POSITIONS crystal
+        Na 0.000000000000 0.000000000000 0.000000000000
+Cl 0.500000000000 0.500000000000 0.500000000000
+        K_POINTS automatic
+        2 2 2 0 0 0

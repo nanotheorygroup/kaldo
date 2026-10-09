@@ -1,0 +1,5 @@
+&INPUTPH
+  prefix='oF-synthetic-strained-NaCl', outdir='./out', fildyn='oF-synthetic-strained-NaCl.gamma', tr2_ph=1.0d-14,
+  epsil=.true., ldisp=.false.
+/
+0.0 0.0 0.0

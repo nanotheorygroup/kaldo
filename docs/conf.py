@@ -16,6 +16,7 @@
 import os
 import sys
 from sphinx.ext import imgmath
+from recommonmark.transform import AutoStructify
 
 sys.path.insert(0, os.path.abspath('..'))
 
@@ -80,6 +81,22 @@ source_suffix = {
     '.md': 'markdown',
     # do not add '.ipynb' here, jupyter notebook should be added in the toctree, which would parsed by nbsphinx
 }
+
+recommonmark_config = {
+    'enable_math': True,
+    'enable_inline_math': True,
+}
+
+mathjax3_config = {
+    'tex': {
+        'inlineMath': [['\\(', '\\)'], ['$', '$']],
+    },
+}
+
+
+def setup(app):
+    """Enable recommonmark's fenced ``math`` blocks in Markdown pages."""
+    app.add_transform(AutoStructify)
 
 needs_sphinx = '8.0'
 

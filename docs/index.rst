@@ -34,6 +34,15 @@ Read the κALDo 2.0 paper in `Computer Physics Communications <https://doi.org/1
 
 .. toctree::
    :glob:
+   :caption: Theory and Methods
+   :maxdepth: 1
+
+   docsource/ifc_interpolation.md
+   docsource/non_analytic_corrections.md
+
+
+.. toctree::
+   :glob:
    :caption: API Reference
    :maxdepth: 2
 

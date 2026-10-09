@@ -1,0 +1,5 @@
+&INPUTPH
+  prefix='mP-mp-3416', outdir='./out', fildyn='mP-mp-3416.gamma', tr2_ph=1.0d-14,
+  epsil=.true., ldisp=.false.
+/
+0.0 0.0 0.0

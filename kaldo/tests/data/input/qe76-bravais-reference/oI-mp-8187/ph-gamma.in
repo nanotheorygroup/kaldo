@@ -1,0 +1,5 @@
+&INPUTPH
+  prefix='oI-mp-8187', outdir='./out', fildyn='oI-mp-8187.gamma', tr2_ph=1.0d-14,
+  epsil=.true., ldisp=.false.
+/
+0.0 0.0 0.0

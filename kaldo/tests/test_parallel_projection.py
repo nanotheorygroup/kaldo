@@ -6,6 +6,7 @@ identical sparse_phase and sparse_potential tensors as the serial path.
 
 import numpy as np
 import pytest
+import tensorflow as tf
 from kaldo.forceconstants import ForceConstants
 from kaldo.phonons import Phonons
 
@@ -113,3 +114,46 @@ def test_n_workers_zero_raises():
     fc = ForceConstants.from_folder("kaldo/tests/si-crystal", supercell=(3, 3, 3), format="eskm")
     with pytest.raises(ValueError, match="n_workers must be >= 1"):
         Phonons(forceconstants=fc, kpts=(3, 3, 3), temperature=300, n_workers=0)
+
+
+def test_sparse_worker_and_storage_payload_round_trip():
+    """Workers and NumPy persistence share one lossless sparse boundary."""
+    phase = tf.SparseTensor(
+        indices=[[0, 1], [2, 0]],
+        values=[1.25, -0.5],
+        dense_shape=[3, 2],
+    )
+    potential = tf.SparseTensor(
+        indices=phase.indices,
+        values=[0.75, 2.5],
+        dense_shape=phase.dense_shape,
+    )
+    payload = Phonons._sparse_tensor_to_numpy(phase)
+    restored = Phonons._numpy_to_sparse_tensor(payload)
+
+    np.testing.assert_array_equal(restored.indices.numpy(), phase.indices.numpy())
+    np.testing.assert_allclose(restored.values.numpy(), phase.values.numpy())
+    np.testing.assert_array_equal(
+        restored.dense_shape.numpy(), phase.dense_shape.numpy()
+    )
+
+    phonons = object.__new__(Phonons)
+    stored = phonons._convert_sparse_tensors_to_per_mu_arrays(
+        [[phase, None]], [[potential, None]]
+    )
+    restored_phase, restored_potential = phonons._convert_per_mu_arrays_to_sparse_tensors(
+        stored
+    )
+    np.testing.assert_array_equal(
+        restored_phase[0][0].indices.numpy(), phase.indices.numpy()
+    )
+    np.testing.assert_allclose(
+        restored_phase[0][0].values.numpy(), phase.values.numpy()
+    )
+    np.testing.assert_allclose(
+        restored_potential[0][0].values.numpy(), potential.values.numpy()
+    )
+    assert restored_phase[0][1] is None
+    assert restored_potential[0][1] is None
+    assert Phonons._sparse_tensor_to_numpy(None) is None
+    assert Phonons._numpy_to_sparse_tensor(None) is None

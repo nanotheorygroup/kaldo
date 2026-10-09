@@ -1,0 +1,19 @@
+! QE 7.6 off-grid central-difference oracle for test_gan_hex_qe.py.
+! Generate from this directory with:
+! $QE_ROOT/run-qe.sh $QE_ROOT/bin/matdyn.x \
+!   -in matdyn_velocity_reference.in
+! q0=(0.13, 0.07, 0.11), dk=1e-3 /angstrom in Cartesian x/y/z.
+! dq_red = cell_rows @ dk_cart / (2*pi), using q2r's header cell.
+&input
+  flfrc = 'espresso.ifc2'
+  flfrq = 'matdyn_velocity_reference.freq'
+  asr = 'simple'
+  q_in_cryst_coord = .true.
+/
+6
+ 0.13051196  0.06974402  0.11000000
+ 0.12948804  0.07025598  0.11000000
+ 0.13000000  0.07044337  0.11000000
+ 0.13000000  0.06955663  0.11000000
+ 0.13000000  0.07000000  0.11083399
+ 0.13000000  0.07000000  0.10916601

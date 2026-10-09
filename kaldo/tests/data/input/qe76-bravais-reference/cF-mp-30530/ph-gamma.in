@@ -1,0 +1,5 @@
+&INPUTPH
+  prefix='cF-mp-30530', outdir='./out', fildyn='cF-mp-30530.gamma', tr2_ph=1.0d-14,
+  epsil=.true., ldisp=.false.
+/
+0.0 0.0 0.0

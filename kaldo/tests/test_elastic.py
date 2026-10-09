@@ -70,3 +70,51 @@ def test_elastic_prop_invariant_under_grid_relabeling(tmp_path):
 
     np.testing.assert_allclose(fc_f.elastic_prop(), fc_c.elastic_prop(),
                                rtol=1e-10, atol=1e-10)
+
+
+def test_elastic_prop_is_invariant_to_basis_image_in_skew_cell(tmp_path):
+    """Choosing another periodic image of one basis atom cannot change C.
+
+    An identity supercell makes the stored IFC tensor identical in both
+    gauges.  Only the pair displacement changes from ``r_j-r_i`` to an
+    equivalent ``R+r_j-r_i``.  This directly detects the former elasticity
+    path that used one raw replica vector instead of pair-shortest images.
+    """
+    from ase import Atoms
+    from kaldo.observables.secondorder import SecondOrder
+
+    cell = np.array([[3.0, 0.0, 0.0], [1.5, 2.6, 0.0], [0.2, 0.1, 4.0]])
+    atoms = Atoms(
+        "Si2",
+        scaled_positions=[[0.0, 0.0, 0.0], [0.22, 0.17, 0.11]],
+        cell=cell,
+        pbc=True,
+    )
+    spring = np.diag([4.0, 5.0, 6.0])
+    value = np.zeros((1, 2, 3, 1, 2, 3))
+    value[0, 0, :, 0, 0, :] = spring
+    value[0, 1, :, 0, 1, :] = spring
+    value[0, 0, :, 0, 1, :] = -spring
+    value[0, 1, :, 0, 0, :] = -spring
+
+    def make_forceconstants(current_atoms, name):
+        second = SecondOrder.from_supercell(
+            current_atoms,
+            supercell=(1, 1, 1),
+            grid_type="C",
+            value=value.copy(),
+            folder=str(tmp_path / name),
+        )
+        return ForceConstants(
+            atoms=current_atoms,
+            supercell=(1, 1, 1),
+            second_order=second,
+            folder=str(tmp_path / name),
+        )
+
+    shifted = atoms.copy()
+    shifted.positions[1] += cell[0]
+    reference = make_forceconstants(atoms, "reference").elastic_prop()
+    translated = make_forceconstants(shifted, "translated").elastic_prop()
+
+    np.testing.assert_allclose(translated, reference, rtol=1e-11, atol=1e-11)
