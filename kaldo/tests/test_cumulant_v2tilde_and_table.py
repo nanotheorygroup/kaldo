@@ -99,3 +99,9 @@ def test_print_thermo_table_runs(capsys):
     assert "F_0" in out and "F_total" in out
     assert "F_offset" not in out
     assert "+0.0698000" in out  # F_total value rendered
+    # Header + value + SE rows of each block share a fixed width.
+    lines = out.splitlines()
+    for i, line in enumerate(lines):
+        if line.startswith("# F "):
+            header, values, se = lines[i + 1], lines[i + 2], lines[i + 3]
+            assert len(header) == len(values) == len(se)
