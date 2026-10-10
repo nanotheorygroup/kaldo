@@ -97,3 +97,34 @@ def test_eigensystem_shape(phonons):
     sij_x = phonon._sij_x
     assert sij_x.shape == (phonon.n_modes, phonon.n_modes), \
         f"Expected sij_x shape ({phonon.n_modes}, {phonon.n_modes}), got {sij_x.shape}"
+
+
+def test_gamma_projection_chunked_workers_and_resume(phonons, tmp_path, monkeypatch):
+    """Chunked parallel Gamma projection matches serial, and resumes from disk."""
+    import kaldo.phonons as phonons_module
+
+    monkeypatch.setattr(phonons_module, "GAMMA_MODE_CHUNK", 100)
+    kwargs = dict(
+        forceconstants=phonons.forceconstants, is_classic=False, temperature=300,
+        third_bandwidth=0.05 / 4.135, broadening_shape="triangle", storage="memory",
+        n_workers=2, projection_output_dir=str(tmp_path),
+    )
+    parallel = Phonons(**kwargs)
+    np.testing.assert_allclose(parallel.bandwidth, phonons.bandwidth, rtol=1e-10, atol=1e-12)
+    assert len(list(tmp_path.rglob("gamma_*.done"))) == 7
+    # Fresh in-memory reference at another temperature, before the fail guard.
+    serial_400 = Phonons(**{**kwargs, "temperature": 400, "n_workers": 1, "projection_output_dir": None})
+    bandwidth_400 = np.array(serial_400.bandwidth)
+
+    def fail(*args, **kwargs):
+        raise AssertionError("resume should not recompute any chunk")
+
+    monkeypatch.setattr(phonons_module, "_compute_gamma_mode_chunk", fail)
+    resumed = Phonons(**kwargs)
+    np.testing.assert_allclose(resumed.bandwidth, phonons.bandwidth, rtol=1e-10, atol=1e-12)
+    # The checkpointed pairs are temperature-independent: a sweep reduces from
+    # the same files without recomputing the projection.
+    other = Phonons(**{**kwargs, "temperature": 400})
+    np.testing.assert_allclose(other.bandwidth, bandwidth_400, rtol=1e-10, atol=1e-12)
+    assert not np.allclose(other.bandwidth, phonons.bandwidth)
+    assert len(list(tmp_path.rglob("gamma_*.done"))) == 7

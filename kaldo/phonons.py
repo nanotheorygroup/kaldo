@@ -318,6 +318,128 @@ def _compute_kpoint_projection(
     return results
 
 
+# Modes per Gamma-projection work unit. Fixed so resume does not depend on
+# n_workers. Checkpointed chunks hold the sparse projection pairs, so their
+# size scales with the broadening window, not with the reduced output.
+GAMMA_MODE_CHUNK = 256
+
+
+def _gamma_chunk_path(output_dir, chunk_id):
+    return os.path.join(output_dir, f'gamma_{chunk_id:05d}.npz')
+
+
+def _compute_gamma_mode_chunk(
+    chunk_id, chunk_size, n_modes, n_phonons, omega, physical_mode, evect_np,
+    third_coords, third_data, sigma, broadening_shape, hbar, population,
+    is_balanced, is_gamma_tensor_enabled, hbar_factor, output_dir,
+):
+    """Project one chunk of Gamma modes; see Phonons._project_amorphous.
+
+    Returns the chunk's reduced ``ps_and_gamma`` rows, or ``None`` after
+    writing the temperature-independent (indices, phase, potential) pairs
+    under ``output_dir`` when checkpoints are requested; the caller then
+    reduces those pairs with the current population.
+    """
+    evect_tf = tf.convert_to_tensor(evect_np, dtype=tf.float64)
+    third_tf = tf.SparseTensor(
+        tf.convert_to_tensor(third_coords),
+        tf.convert_to_tensor(third_data, dtype=tf.float64),
+        (n_modes, n_modes, n_modes),
+    )
+    third_tf = tf.sparse.reorder(third_tf)
+    third_tf = tf.sparse.reshape(third_tf, (n_modes**2, n_modes))
+    sigma_tf = tf.constant(sigma, dtype=tf.float64)
+    first = chunk_id * chunk_size
+    modes = range(first, min(first + chunk_size, n_phonons))
+    rows = np.zeros((len(modes), 2 + n_phonons if is_gamma_tensor_enabled else 2), dtype=np.float64)
+    pairs = []  # (local_mode, is_plus, indices, phase, pot) when checkpointing
+    for local, nu_single in enumerate(modes):
+        if nu_single % 200 == 0:
+            logging.info("calculating third " + f"{nu_single}" + ": " + \
+                         f"{100 * nu_single / n_phonons:.2f}%")
+        if not physical_mode[0, nu_single]:
+            continue
+        for is_plus in (0, 1):
+            dirac_delta_result = aha.calculate_dirac_delta_amorphous(
+                is_plus, nu_single, omega, physical_mode, sigma_tf, broadening_shape, n_phonons
+            )
+            if not dirac_delta_result:
+                continue
+            mup_vec, mupp_vec = tf.unstack(dirac_delta_result.indices, axis=1)
+
+            third_nu_tf = tf.sparse.sparse_dense_matmul(
+                third_tf, tf.reshape(evect_tf[:, nu_single], (n_modes, 1))
+            )
+            third_nu_tf = tf.reshape(third_nu_tf, (n_modes, n_modes))
+            scaled_potential_tf = tf.einsum(
+                "ij,in,jm->nm", third_nu_tf, evect_tf, evect_tf
+            )
+            coords = tf.stack((mup_vec, mupp_vec), axis=-1)
+            pot_times_dirac = tf.gather_nd(scaled_potential_tf, coords) ** 2
+            pot_times_dirac /= tf.gather(omega[0], mup_vec) * tf.gather(omega[0], mupp_vec)
+            pot_times_dirac *= np.pi * hbar / 4.0 * GAMMA_TO_THZ / omega.flatten()[nu_single]
+
+            if output_dir is not None:
+                pairs.append((local, is_plus,
+                              np.asarray(dirac_delta_result.indices, dtype=np.int64),
+                              np.asarray(dirac_delta_result.values, dtype=np.float64),
+                              np.asarray(pot_times_dirac, dtype=np.float64)))
+                continue
+            sparse_potential_tensor = tf.SparseTensor(
+                indices=dirac_delta_result.indices,
+                values=pot_times_dirac,
+                dense_shape=dirac_delta_result.dense_shape
+            )
+            aha.accumulate_ps_and_gamma_mode(
+                rows[local], nu_single, is_plus, dirac_delta_result, sparse_potential_tensor,
+                population, is_balanced, n_phonons, is_gamma_tensor_enabled, hbar_factor,
+            )
+    if output_dir is None:
+        return rows
+    counts = np.zeros((len(modes), 2), dtype=np.int64)
+    for local, is_plus, indices, phase, pot in pairs:
+        counts[local, is_plus] = phase.shape[0]
+    np.savez(
+        _gamma_chunk_path(output_dir, chunk_id),
+        counts=counts,
+        indices=(np.concatenate([p[2] for p in pairs])
+                 if pairs else np.zeros((0, 2), dtype=np.int64)),
+        phase=(np.concatenate([p[3] for p in pairs])
+               if pairs else np.zeros(0, dtype=np.float64)),
+        pot=(np.concatenate([p[4] for p in pairs])
+             if pairs else np.zeros(0, dtype=np.float64)),
+    )
+    return None
+
+
+def _reduce_gamma_chunk_from_disk(
+    ps_and_gamma, chunk_id, chunk_size, output_dir, population,
+    is_balanced, n_phonons, is_gamma_tensor_enabled, hbar_factor,
+):
+    """Reduce one checkpointed chunk of projection pairs with the current population."""
+    with np.load(_gamma_chunk_path(output_dir, chunk_id)) as data:
+        counts = data["counts"]
+        indices = data["indices"]
+        phase = data["phase"]
+        pot = data["pot"]
+    first = chunk_id * chunk_size
+    offset = 0
+    for local in range(counts.shape[0]):
+        for is_plus in (0, 1):
+            m = int(counts[local, is_plus])
+            if m == 0:
+                continue
+            entry = slice(offset, offset + m)
+            offset += m
+            dense_shape = (n_phonons, n_phonons)
+            phase_tensor = tf.SparseTensor(indices[entry], phase[entry], dense_shape)
+            pot_tensor = tf.SparseTensor(indices[entry], pot[entry], dense_shape)
+            aha.accumulate_ps_and_gamma_mode(
+                ps_and_gamma[first + local], first + local, is_plus, phase_tensor, pot_tensor,
+                population, is_balanced, n_phonons, is_gamma_tensor_enabled, hbar_factor,
+            )
+
+
 def _save_kpoint_projection(output_dir, index_k, results):
     """Save per-k-point projection results to disk."""
     save_dict = {}
@@ -501,12 +623,18 @@ class Phonons(Storable):
         partially periodic IFC interpolation is not currently implemented.
         Default: False
     n_workers : int, optional
-        Number of worker processes used for per-q projection calculations.
+        Number of worker processes used for the anharmonic projection: per
+        q point for crystals, per chunk of modes at Gamma (kpts=(1,1,1)).
         Set to 1 for serial execution.
         Default: 1
     projection_output_dir : str, optional
-        Directory used for restartable per-q projection checkpoints. If it is
-        omitted, completed per-q results are retained in memory instead.
+        Directory used for restartable projection checkpoints (per q point,
+        or per mode chunk at Gamma). At Gamma the checkpoints hold the
+        temperature-independent projection, so later runs at other
+        temperatures or statistics reuse them and rerun only the population
+        reduction; their disk size scales with the number of pairs inside
+        the broadening window. If it is omitted, completed results are
+        retained in memory instead.
         Default: None
     nac_bvk_supercell_matrix : array-like (3, 3), optional
         Born--von Karman grid used by the harmonic long-range correction.
@@ -1396,9 +1524,11 @@ class Phonons(Storable):
         """
         # Calculate from scratch
         if self._is_amorphous:
-            return self._project_amorphous()
-        else:
-            return self._project_crystal()
+            raise NotImplementedError(
+                "the Gamma-point projection is reduced mode by mode and never "
+                "materialized; read bandwidth, phase_space or the gamma tensor."
+            )
+        return self._project_crystal()
 
     @staticmethod
     def _sparse_tensor_to_numpy(sparse_tensor):
@@ -1760,17 +1890,21 @@ class Phonons(Storable):
         # by scaling the potential with the matching factor.
         hbar_factor = CLASSICAL_HBAR_SCALE if self.is_classic else 1
 
-        ps_and_gamma = aha.calculate_ps_and_gamma(
-            self.sparse_phase,
-            self.sparse_potential,
-            population_flat,
-            self.is_balanced,
-            self.n_phonons,
-            self._is_amorphous,
-            self.is_gamma_tensor_enabled,
-            hbar_factor
-        )
-        if not self._is_amorphous:
+        if self._is_amorphous:
+            ps_and_gamma = self._project_amorphous(
+                population_flat, hbar_factor, self.is_gamma_tensor_enabled
+            )
+        else:
+            ps_and_gamma = aha.calculate_ps_and_gamma(
+                self.sparse_phase,
+                self.sparse_potential,
+                population_flat,
+                self.is_balanced,
+                self.n_phonons,
+                self._is_amorphous,
+                self.is_gamma_tensor_enabled,
+                hbar_factor
+            )
             ps_and_gamma[:, 0] /= self.n_k_points
 
         # Replicate IBZ results to symmetry-equivalent k-points.
@@ -1796,8 +1930,8 @@ class Phonons(Storable):
 
 
     @timeit
-    def _project_amorphous(self):
-        """Project Gamma-only IFC3 onto amorphous normal modes.
+    def _project_amorphous(self, population, hbar_factor, is_gamma_tensor_enabled):
+        """Project Gamma-only IFC3 onto amorphous normal modes, one mode at a time.
 
         A periodically repeated amorphous cell is treated as one large unit
         cell sampled only at Gamma. Every integer-translation phase is then
@@ -1805,22 +1939,31 @@ class Phonons(Storable):
         over the two translation axes. Folding that sum here is exact and does
         not invoke the off-Gamma IFC3 interpolation compiler.
 
-        This does *not* make real-space image geometry irrelevant to amorphous
-        transport. The heat-flux operator uses the first Cartesian moment of
-        IFC2 and therefore obtains pair-specific nearest displacements from
-        :class:`HarmonicWithQ`. Gamma frequencies contain only the zeroth IFC2
-        moment and can remain unchanged when that displacement is wrong.
+        Each mode's energy-conservation and potential tensors are reduced into
+        its ``ps_and_gamma`` row as soon as they exist, so peak memory is
+        O(n_modes^2) instead of the O(n_modes^3) retained by keeping every
+        mode's sparse pairs until the end (issue #314). Modes are dispatched in
+        chunks through the same executor as the crystal path, so ``n_workers``
+        and ``projection_output_dir`` (resume) apply here too. Checkpoints
+        hold the temperature-independent projection pairs, so a temperature
+        or statistics sweep over one ``projection_output_dir`` computes the
+        projection once and reruns only the population reduction; without a
+        checkpoint directory the projection is recomputed per temperature.
 
         Returns
         -------
-        sparse_phase, sparse_potential : tuple[list, list]
-            Energy-conservation entries and squared three-phonon potentials
-            for each Gamma mode and absorption/emission channel.
+        ps_and_gamma : np.ndarray (n_phonons, 2) or (n_phonons, 2 + n_phonons)
         """
+        if self.third_bandwidth is None:
+            raise ValueError(
+                "third_bandwidth is required at Gamma: adaptive broadening needs "
+                "a q grid, so pass a fixed width (THz) for kpts=(1, 1, 1)."
+            )
+        n_modes = self.n_modes
+        n_phonons = self.n_phonons
         frequency = self.frequency
         omega = 2 * np.pi * frequency
         rescaled_eigenvectors = self._rescaled_eigenvectors.astype(float)
-        evect_tf = tf.convert_to_tensor(rescaled_eigenvectors[0])
 
         third = self.forceconstants.third
         # Sum the independently translated j and k legs because q'=q''=0.
@@ -1832,70 +1975,73 @@ class Phonons(Storable):
 
             gamma_third = COO.from_numpy(np.asarray(gamma_third))
         coords = gamma_third.coords
-        coords = np.vstack([coords[1], coords[2], coords[0]])
-        coords = tf.cast(coords.T, dtype=tf.int64)
-        data = gamma_third.data
-        third_tf = tf.SparseTensor(
-            coords,
-            data,
-            (self.n_modes, self.n_modes, self.n_modes),
-        )
-        # Same canonical-ordering requirement as the crystal projection above.
-        third_tf = tf.sparse.reorder(third_tf)
-        third_tf = tf.sparse.reshape(third_tf, (self.n_modes**2, self.n_modes))
+        third_coords = np.vstack([coords[1], coords[2], coords[0]]).T.astype(np.int64)
+        third_data = np.asarray(gamma_third.data)
         physical_mode = self.physical_mode.reshape((self.n_k_points, self.n_modes))
         logging.info("Projection started")
-        hbar = units._hbar
-        sigma_tf = tf.constant(self.third_bandwidth, dtype=tf.float64)
-        n_modes = self.n_modes
-        broadening_shape = self.broadening_shape
-        n_phonons = self.n_phonons
-        sparse_phase = []
-        sparse_potential = []
-        for nu_single in range(self.n_phonons):
-            if nu_single % 200 == 0:
-                logging.info("calculating third " + f"{nu_single}" + ": " + \
-                             f"{100 * nu_single / self.n_phonons:.2f}%")
 
-            sparse_phase.append([])
-            sparse_potential.append([])
-            for is_plus in (0, 1):
+        n_columns = 2 + n_phonons if is_gamma_tensor_enabled else 2
+        if is_gamma_tensor_enabled:
+            log_size((n_phonons, n_columns), name="scattering_tensor")
+        # ponytail: every chunk pickles the full eigenvector matrix to its
+        # worker; move it to an executor initializer if that ever dominates.
+        chunk_size = GAMMA_MODE_CHUNK
+        n_chunks = (n_phonons + chunk_size - 1) // chunk_size
+        shared = dict(
+            chunk_size=chunk_size, n_modes=n_modes, n_phonons=n_phonons,
+            omega=omega, physical_mode=physical_mode,
+            evect_np=rescaled_eigenvectors[0],
+            third_coords=third_coords, third_data=third_data,
+            sigma=float(self.third_bandwidth), broadening_shape=self.broadening_shape,
+            hbar=units._hbar, population=np.asarray(population, dtype=np.float64),
+            is_balanced=self.is_balanced, is_gamma_tensor_enabled=is_gamma_tensor_enabled,
+            hbar_factor=hbar_factor, output_dir=self.projection_output_dir,
+        )
+        output_dir = self.projection_output_dir
+        if output_dir is not None:
+            # Checkpoints hold the temperature-independent projection pairs:
+            # temperature, statistics, balance and the tensor mode all enter
+            # only in the reduction below, so they stay out of the namespace
+            # and a sweep reuses one set of files. The pairs still belong to
+            # one broadening, chunk layout and IFC identity.
+            output_dir = self.get_folder_from_label(
+                '<third_bandwidth>/<broadening_shape>',
+                base_folder=output_dir,
+            )
+            # The frequency window sets physical_mode, which decides which
+            # pairs exist; n_phonons fixes the chunk layout and dense shape.
+            output_dir = os.path.join(
+                output_dir,
+                f"f{float(self.min_frequency):.17g}-{self.max_frequency}_n{n_phonons}_chunk{chunk_size}",
+            )
+        shared["output_dir"] = output_dir
+        worker_fn = functools.partial(_compute_gamma_mode_chunk, **shared)
+        ps_and_gamma = np.zeros((n_phonons, n_columns))
 
-                # ps_and_gamma = np.zeros(2)
-                if not physical_mode[0, nu_single]:
-                    sparse_phase[nu_single].extend([None, None])
-                    sparse_potential[nu_single].extend([None, None])
-                    continue
+        def place(chunk_id, rows):
+            first = chunk_id * chunk_size
+            ps_and_gamma[first:first + rows.shape[0]] = rows
 
-                dirac_delta_result = aha.calculate_dirac_delta_amorphous(is_plus, nu_single, omega, physical_mode, sigma_tf,
-                                                                     broadening_shape, n_phonons)
-                if not dirac_delta_result:
-                    sparse_phase[nu_single].append(None)
-                    sparse_potential[nu_single].append(None)
-                    continue
-                sparse_phase[nu_single].append(dirac_delta_result)
-                mup_vec, mupp_vec = tf.unstack(dirac_delta_result.indices, axis=1)
-
-                third_nu_tf = tf.sparse.sparse_dense_matmul(
-                    third_tf, tf.reshape(evect_tf[:, nu_single], (n_modes, 1))
+        for n_done, (chunk_id, rows) in enumerate(dispatch_with_resume(
+            range(n_chunks), worker_fn,
+            n_workers=self.n_workers,
+            output_dir=output_dir,
+            sentinel_prefix="gamma_",
+            log_progress=False,
+        ), start=1):
+            if rows is not None:
+                place(chunk_id, rows)
+            logging.info(f'Completed Gamma mode chunk {n_done}/{n_chunks}')
+        if output_dir is not None:
+            # Resumed chunks are never yielded, and checkpointed chunks hold
+            # unreduced pairs: reduce every chunk from disk with the current
+            # population.
+            for chunk_id in range(n_chunks):
+                _reduce_gamma_chunk_from_disk(
+                    ps_and_gamma, chunk_id, chunk_size, output_dir, shared["population"],
+                    self.is_balanced, n_phonons, is_gamma_tensor_enabled, hbar_factor,
                 )
-                third_nu_tf = tf.reshape(third_nu_tf, (n_modes, n_modes))
-                scaled_potential_tf = tf.einsum(
-                    "ij,in,jm->nm", third_nu_tf, evect_tf, evect_tf
-                )
-                coords = tf.stack((mup_vec, mupp_vec), axis=-1)
-                pot_times_dirac = tf.gather_nd(scaled_potential_tf, coords) ** 2
-                pot_times_dirac /= tf.gather(omega[0], mup_vec) * tf.gather(omega[0], mupp_vec)
-                pot_times_dirac *= np.pi * hbar / 4.0 * GAMMA_TO_THZ / omega.flatten()[nu_single]
-                
-                # Convert to sparse tensor using the same indices as sparse_phase
-                sparse_potential_tensor = tf.SparseTensor(
-                    indices=dirac_delta_result.indices,
-                    values=pot_times_dirac,
-                    dense_shape=dirac_delta_result.dense_shape
-                )
-                sparse_potential[nu_single].append(sparse_potential_tensor)
-        return sparse_phase, sparse_potential
+        return ps_and_gamma
 
 
     @timeit
