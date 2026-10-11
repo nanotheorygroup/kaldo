@@ -19,6 +19,8 @@ solves took 31 iterations each; the three skew solves took 249–255. Final
 relative row-sum and transpose residuals were about 1.0×10⁻¹¹ and zero.
 This is an algorithm benchmark, not a force-calculator or production run.
 
-The `SecondOrder.calculate` adapter, QHGK pair-image displacement mapping,
-and representative 100k-atom production benchmark remain separate integration
-work. The working prompt at the repository root is not project documentation.
+The standalone `build_dynmat` command now connects the existing stages to a
+mass-weighted Gamma BSR matrix without using `SecondOrder.calculate`. QHGK
+pair-image displacement mapping and a representative 100k-atom production
+benchmark remain separate work. The working prompt at the repository root is
+not project documentation.
