@@ -8,15 +8,14 @@ gathers a complete eigenvector.
 
 from __future__ import annotations
 
-import json
-import os
 from pathlib import Path
 from time import perf_counter
 
 import numpy as np
 from scipy.sparse import bsr_matrix
 
-from .checkpoint import RowShardedEigenvectorSource, sha256_file
+from kaldo.helpers.atomic_io import atomic_save_npy, atomic_write_json, sha256_file
+from .checkpoint import RowShardedEigenvectorSource
 from .distributed import DistributedSparseAmorphousHarmonic
 
 
@@ -34,7 +33,8 @@ class SlepcRowEigenvectorSource(RowShardedEigenvectorSource):
             from petsc4py import PETSc
             from slepc4py import SLEPc
         except ImportError as exc:
-            raise ImportError("PETSc/SLEPc interval solves require petsc4py and slepc4py") from exc
+            raise ImportError("PETSc/SLEPc interval solves require petsc4py and slepc4py. "
+                              "Install with: pip install kaldo[slepc]") from exc
         comm = harmonic.comm
         rank, size = comm.Get_rank(), comm.Get_size()
         if PETSc.COMM_WORLD.getSize() != size or PETSc.COMM_WORLD.getRank() != rank:
@@ -139,10 +139,10 @@ class SlepcRowEigenvectorSource(RowShardedEigenvectorSource):
         if rank == 0:
             omega = np.sign(eigenvalues)*np.sqrt(np.abs(eigenvalues))
             physical = eigenvalues > zero_tolerance
-            np.save(directory / "eigenvalues.npy", eigenvalues)
-            np.save(directory / "omega.npy", omega)
-            np.save(directory / "physical_mode.npy", physical)
-            np.save(directory / "residual_estimates.npy", errors)
+            atomic_save_npy(directory / "eigenvalues.npy", eigenvalues)
+            atomic_save_npy(directory / "omega.npy", omega)
+            atomic_save_npy(directory / "physical_mode.npy", physical)
+            atomic_save_npy(directory / "residual_estimates.npy", errors)
             manifest = {"format": "kaldo-eigenvector-row-shards-v1",
                         "n_atoms": harmonic.n_atoms, "n_modes": nconv,
                         "rank_count": size, "dtype": str(np.dtype(dtype)),
@@ -160,9 +160,7 @@ class SlepcRowEigenvectorSource(RowShardedEigenvectorSource):
                                    "max_residual_estimate": (float(np.max(errors))
                                                              if len(errors) else None),
                                    "zero_eigenvalue_tolerance": zero_tolerance}}
-            temporary = directory / ".manifest.tmp"
-            temporary.write_text(json.dumps(manifest, indent=2, sort_keys=True))
-            os.replace(temporary, directory / "manifest.json")
+            atomic_write_json(directory / "manifest.json", manifest)
         comm.Barrier()
         return (cls(directory, comm),
                 np.load(directory / "omega.npy"),

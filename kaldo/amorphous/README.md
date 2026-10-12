@@ -4,8 +4,14 @@
 (W/(m K)) and diffusivity (mm²/s) from sorted angular frequencies (rad/ps),
 `diffusivity_bandwidth` (rad/ps), a physical-mode mask, real coordinate-major
 eigenvectors, and three real derivative operators. Volume is in Å³. It keeps
-the existing `float32` work and `float64` accumulation defaults. The legacy
-TensorFlow path is unchanged.
+the existing `float32` work and `float64` accumulation defaults.
+`core_start`/`core_stop` restrict the result to a half-open range of core modes.
+
+The pair kernel and the generalized heat capacity are
+`kaldo.controllers.qhgk.diffusivity_kernel` and
+`kaldo.controllers.qhgk.generalized_heat_capacity`, the same functions
+`Conductivity(method='qhgk')` uses. `test_amorphous_blocked_qhgk_matches_conductivity.py`
+checks per-mode agreement with `Conductivity` on `kaldo/tests/si-amorphous`.
 
 The pair width is `2*(bandwidth_i+bandwidth_j)`. When the legacy QHGK path has
 no explicit bandwidth, use `phonons.bandwidth/2`. `diffusivity_threshold` keeps
@@ -40,8 +46,13 @@ is zero. The three derivative views share the graph and base values; a panel
 product creates only one temporary sparse direction's values and no dense
 derivative. `validation_report()` checks symmetry, reverse displacement,
 onsite displacement, skew derivatives, and an acoustic-sum residual when
-masses are present. Direct production producers can write the same directory
-contract and load it with `SparseAmorphousHarmonic.load(path)`.
+masses are present. Reverse blocks are matched by atom pair and, when a pair
+is stored more than once, by periodic image (displacement `r` pairs with `-r`).
+The checks are vectorized over blocks and run on every `save()` and `load()`.
+Direct production producers can write the same directory contract and load it
+with `SparseAmorphousHarmonic.load(path)`. Arrays and metadata are written
+atomically. Blocks default to `float64`; pass `dtype=np.float32` (or
+`--dtype float32`) to halve their storage.
 
 The nonperiodic legacy converter streams a mass-weighted dense `.npy` matrix
 or one-replica `Dyn.form` text in three-coordinate row slabs. It uses no dense
@@ -80,21 +91,14 @@ matches the source's definition before using it. Provider metadata records
 units, interpolation, conversion, and source hash.
 
 `NpyEigensystemSource` memory-maps the legacy `(M+1,M)` file and excludes the
-eigenvalue row. `ShardedEigenvectorSource` reads coordinate-major mode-column
-`.npy` shards, including panels that cross shard boundaries. Its manifest
-contains shard intervals and hashes. The reducer receives either source
-through `read_modes(start, stop, dtype=...)`.
+eigenvalue row. The reducer receives any source through
+`read_modes(start, stop, dtype=...)`; `RowShardedEigenvectorSource` (below)
+holds one rank's coordinate rows.
 
 ## MPI and restart
 
-`run_mpi_qhgk(...)` in `kaldo.amorphous.mpi` assigns fixed half-open core
-blocks round-robin to MPI ranks. Ranks replicate the sparse harmonic input,
-read only bounded eigenvector panels, and write disjoint `rows_*.npz` files.
-Rank zero gathers only per-mode vectors. The output manifest records source
-hashes, dtypes, units, broadening policy, mode ownership, completed core
-ranges, per-rank timing, peak RSS, sparse storage, and pair counts. Valid
-blocks are reused on restart, including with a different rank count. Existing
-results are rejected if the calculation configuration changes.
+The MPI paths need `mpi4py` (`pip install kaldo[mpi]`); the SLEPc solver also
+needs `petsc4py` and `slepc4py` (`pip install kaldo[slepc]`).
 
 `run_distributed_qhgk(...)` in `kaldo.amorphous.distributed` is the
 coordinate-row distributed path. Each rank memory-maps only its atom rows of
@@ -102,8 +106,12 @@ the sparse harmonic graph and the corresponding coordinate rows of every
 eigenvector. It exchanges partner-panel rows for off-rank neighbor atoms,
 applies the three derivative actions to its local rows, and reduces only
 bounded flux blocks to the owner of each core-mode block. No rank loads the
-full sparse graph or eigensystem. Output checkpoints and manifests retain the
-same per-core restart discipline. The original `Phonons`, `SecondOrder`, and
+full sparse graph or eigensystem. Core-mode blocks are assigned round-robin to
+owner ranks, which write disjoint `rows_*.npz` checkpoints; the manifest records
+source hashes, dtypes, units, broadening policy, mode and coordinate ownership,
+completed core ranges, per-rank timing, peak RSS, and pair counts. Valid blocks
+are reused on restart, and existing results are rejected if the calculation
+configuration changes. Row shards fix the rank count. The original `Phonons`, `SecondOrder`, and
 `HarmonicWithQ` APIs are unchanged; the distributed harmonic is an adapter to
 the same atom-block file contract, and the distributed eigenvector sources
 derive from the existing NumPy source interface.
@@ -161,18 +169,20 @@ production solver and select full-spectrum versus sliced execution.
 Interval halos include a small outward numerical margin so eigenvalues exactly
 on a planning boundary remain visible even with zero linewidth.
 
-Local MPI validation, including interrupted restarts, is opt-in:
+The MPI integration tests (1, 2, and 4 ranks, interrupted restarts, the
+interval pipeline, and the CLI) carry the `mpi` marker and are skipped when
+`mpiexec` or `mpi4py` is unavailable:
 
 ```bash
-python -m kaldo.tests.run_mpi_amorphous_qhgk_cases
-python -m kaldo.tests.run_mpi_distributed_qhgk_cases
+pytest -m mpi kaldo/tests/test_amorphous_distributed_mpi.py
 ```
 
-The 512-atom saved-data gate is also opt-in because that untracked directory
-may be absent:
+The benchmark and saved-data validation scripts live in
+`examples/amorphous_gamma_qhgk/`, outside the installed package. The 512-atom
+saved-data gate is opt-in because that untracked directory may be absent:
 
 ```bash
-python -m kaldo.amorphous.validate_512 EXAMPLE_PATH --volume ANGSTROM3
+python examples/amorphous_gamma_qhgk/validate_512.py EXAMPLE_PATH --volume ANGSTROM3
 ```
 
 Pass `--file STEM=RELATIVE_PATH` for each ambiguous property name. The script
@@ -183,11 +193,11 @@ process RSS. Keep the example out of git.
 For a synthetic precomputed-eigenvector memory and I/O probe, run:
 
 ```bash
-python -m kaldo.amorphous.benchmark --atoms 32 64 128 --block 32
+python examples/amorphous_gamma_qhgk/benchmark.py --atoms 32 64 128 --block 32
 ```
 
 For distributed synthetic resource measurements, run
-`mpiexec -n 2 python -m kaldo.amorphous.distributed_benchmark --atoms 32 64 --block 32`.
+`mpiexec -n 2 python examples/amorphous_gamma_qhgk/distributed_benchmark.py --atoms 32 64 --block 32`.
 Before attempting 122,880 atoms, benchmark the optional SLEPc full solve
 against spectrum windows on the target machine. The local synthetic probes
 show memory and communication shapes only; they do not validate target-scale
@@ -210,6 +220,3 @@ full eigenvector set. A `float32` eigenvector checkpoint with `float64` work
 halves checkpoint I/O while retaining double-precision contractions; validate
 that storage cast with eigenpair residual and orthogonality checks on each
 target-machine pilot.
-
-Local measurements are recorded in
-[`docs/amorphous_qhgk_prototype_results.md`](../../docs/amorphous_qhgk_prototype_results.md).

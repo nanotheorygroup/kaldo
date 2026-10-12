@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
-import os
 from pathlib import Path
 
 import numpy as np
 
+from kaldo.helpers.atomic_io import atomic_save_npy, atomic_write_json, sha256_file, sha256_json
 from .checkpoint import RowShardedEigenvectorSource
 from .distributed import run_distributed_qhgk
 from .slepc_solver import SlepcRowEigenvectorSource
@@ -55,7 +54,7 @@ def run_interval_pipeline(harmonic, eigenvalue_boundaries, max_bandwidth,
               "dtypes": {"compute": str(np.dtype(compute_dtype)),
                          "accumulator": str(np.dtype(accumulator_dtype))},
               "broadening_policy": "triangle exact support, exact zero self flux"}
-    config_hash = hashlib.sha256(json.dumps(config, sort_keys=True).encode()).hexdigest()
+    config_hash = sha256_json(config)
     manifest_path = directory / "manifest.json"
     if manifest_path.exists() and json.loads(manifest_path.read_text()).get("config_sha256") != config_hash:
         raise ValueError("interval pipeline configuration changed")
@@ -111,8 +110,7 @@ def run_interval_pipeline(harmonic, eigenvalue_boundaries, max_bandwidth,
                               "halo_eigenvalue_interval": [halo_lower, halo_upper],
                               "halo_modes": len(eigenvalues),
                               "core_modes": last-first,
-                              "eigenvector_manifest_sha256": hashlib.sha256(
-                                  (eigen_dir / "manifest.json").read_bytes()).hexdigest(),
+                              "eigenvector_manifest_sha256": sha256_file(eigen_dir / "manifest.json"),
                               "evaluated_pairs": pair_count})
         new_windows += 1
     if rank != 0:
@@ -126,9 +124,7 @@ def run_interval_pipeline(harmonic, eigenvalue_boundaries, max_bandwidth,
                 "complete": complete_windows,
                 "core_mode_count": core_count,
                 "evaluated_pairs": sum(item["evaluated_pairs"] for item in completed)}
-    temporary = directory / ".manifest.tmp"
-    temporary.write_text(json.dumps(manifest, indent=2, sort_keys=True))
-    os.replace(temporary, manifest_path)
+    atomic_write_json(manifest_path, manifest)
     if not complete_windows:
         return None
     arrays = [np.concatenate([item[column] for item in core_data])
@@ -136,5 +132,5 @@ def run_interval_pipeline(harmonic, eigenvalue_boundaries, max_bandwidth,
     ordering = np.argsort(arrays[0], kind="stable")
     for filename, array in zip(("eigenvalues", "omega", "physical_mode",
                                 "conductivity", "diffusivity"), arrays):
-        np.save(directory / (filename + ".npy"), array[ordering])
+        atomic_save_npy(directory / (filename + ".npy"), array[ordering])
     return arrays[3][ordering], arrays[4][ordering]

@@ -1,6 +1,5 @@
-"""Sparse harmonic, bandwidth, checkpoint, and exact support checks."""
+"""Sparse harmonic, bandwidth, and exact support checks."""
 
-import json
 from pathlib import Path
 
 from ase.io import read
@@ -9,17 +8,13 @@ import numpy as np
 import pytest
 
 from kaldo.amorphous import (
-    DirectBandwidth, NumpyEigenvectorSource, ShardedEigenvectorSource,
-    SparseAmorphousHarmonic, TabulatedBandwidth,
+    DirectBandwidth, SparseAmorphousHarmonic, TabulatedBandwidth,
     calculate_qhgk_isotropic_blocked, calculate_qhgk_isotropic_dense,
     convert_legacy_dense,
     from_sparse_force_constants,
 )
 from kaldo.amorphous.sparse_harmonic import convert_legacy_dynform
-from kaldo.amorphous.windows import (approximate_dos_boundaries,
-                                     eigenvalue_window_intervals,
-                                     frequency_window_intervals,
-                                     plan_mode_windows)
+from kaldo.amorphous.windows import approximate_dos_boundaries, eigenvalue_window_intervals
 
 
 @pytest.fixture
@@ -128,6 +123,35 @@ def test_multiple_periodic_images_share_atom_columns(tmp_path):
     np.testing.assert_allclose(loaded.operators[0] @ panel, expected @ panel)
 
 
+def test_symmetrize_pairs_periodic_images_by_displacement():
+    identity = np.eye(3)
+    skew = np.array([[0., 1., 0.], [-1., 0., 0.], [0., 0., 0.]])
+    # Atom pair (0, 1) is stored at images +1 and +2 along x; atom 1 sees -1 and -2.
+    blocks = np.array([2 * identity, -identity + 0.1 * skew, -2 * identity,
+                       -identity, -2 * identity + 0.2 * skew, 2 * identity])
+    shifts = np.array([[0., 0, 0], [1., 0, 0], [2., 0, 0],
+                       [-1., 0, 0], [-2., 0, 0], [0., 0, 0]])
+    harmonic = from_sparse_force_constants(
+        [0, 3, 6], [0, 1, 1, 0, 0, 1], blocks, shifts, [1., 1.],
+        apply_acoustic_sum=False, symmetrize=True,
+        force_constant_unit="kaldo_10J_per_mol")
+    # Image +1 pairs with -1 (slot 3), image +2 with -2 (slot 4).
+    np.testing.assert_allclose(harmonic.blocks[1], -identity + 0.05 * skew)
+    np.testing.assert_allclose(harmonic.blocks[3], (-identity + 0.05 * skew).T)
+    np.testing.assert_allclose(harmonic.blocks[2], -2 * identity - 0.1 * skew)
+    np.testing.assert_allclose(harmonic.blocks[4], (-2 * identity - 0.1 * skew).T)
+    assert harmonic.validation_report()["symmetry_residual"] < 1e-15
+
+
+def test_symmetrize_rejects_missing_periodic_image():
+    identity = np.eye(3)
+    blocks = np.array([identity, -identity, -identity, -identity, identity])
+    shifts = np.array([[0., 0, 0], [1., 0, 0], [2., 0, 0], [-1., 0, 0], [0., 0, 0]])
+    with pytest.raises(ValueError, match="unmatched reverse"):
+        from_sparse_force_constants([0, 3, 5], [0, 1, 1, 0, 1], blocks, shifts, [1., 1.],
+                                    apply_acoustic_sum=False, symmetrize=True)
+
+
 def test_streamed_dynform_and_sparse_acoustic_sum(small_harmonic, tmp_path):
     dense, positions, masses = small_harmonic
     perturbed = dense.copy()
@@ -229,7 +253,7 @@ def test_tracked_ifc_sparse_projection_matches_symmetrized_dense():
     assert abs(broad_mixed.sum()-broad_reference.sum())/broad_reference.sum() < 1e-6
 
 
-def test_bandwidth_providers_and_shards(tmp_path):
+def test_bandwidth_providers():
     omega = np.array([1., 2., 3., 4.])
     np.testing.assert_allclose(DirectBandwidth([1., 2., 4., 8.], unit="lifetime_ps").evaluate(omega, 300),
                                [0.5, 0.25, 0.125, 0.0625])
@@ -239,11 +263,6 @@ def test_bandwidth_providers_and_shards(tmp_path):
     assert table.metadata["source_sha256"]
     with pytest.raises(ValueError, match="outside table"):
         table.evaluate([0.], 300)
-    e = np.arange(16, dtype=np.float64).reshape(4, 4)
-    source = ShardedEigenvectorSource.create(NumpyEigenvectorSource(e), tmp_path / "shards",
-                                            shard_size=2)
-    np.testing.assert_array_equal(source.read_modes(1, 4, dtype=np.float64), e[:, 1:4])
-    assert len(json.loads((tmp_path / "shards/manifest.json").read_text())["shards"]) == 2
 
 
 def test_exact_triangle_block_skip_and_bounds():
@@ -272,36 +291,10 @@ def test_exact_triangle_block_skip_and_bounds():
         assert stats["skipped_blocks"] > 0
 
 
-def test_saved_property_selection_requires_explicit_path(tmp_path):
-    from kaldo.amorphous.validate_512 import _file
-
-    for sub in ("one", "two"):
-        directory = tmp_path / sub
-        directory.mkdir()
-        np.save(directory / "bandwidth.npy", np.array([1.]))
-    with pytest.raises(ValueError, match="use --file"):
-        _file(tmp_path, "bandwidth")
-    assert _file(tmp_path, "bandwidth", {"bandwidth": "two/bandwidth.npy"}) == tmp_path / "two/bandwidth.npy"
-
-
-def test_exact_mode_windows_cover_all_supported_partners():
-    omega = np.array([0., 0., 0., 0.7, 1., 1., 1.05, 1.3, 2., 3.])
-    bandwidth = np.array([0., 0., 0., 0.03, 0.01, 0.2, 0.02, 0.02, 0.08, 0.])
-    windows = plan_mode_windows(omega, bandwidth, 4)
-    assert windows[0].core_start == 0 and windows[-1].core_stop == len(omega)
-    assert all(a.core_stop == b.core_start for a, b in zip(windows, windows[1:]))
-
-
-    assert all(window.core_stop != 5 for window in windows)  # exact degeneracy stays together
-    for window in windows:
-        for i in range(window.core_start, window.core_stop):
-            for j in range(len(omega)):
-                if abs(omega[i]-omega[j]) < 2*(bandwidth[i]+bandwidth[j]):
-                    assert window.halo_start <= j < window.halo_stop
+def test_approximate_dos_boundaries_span_histogram():
     edges = approximate_dos_boundaries([0., 1., 2., 3.], [1., 3., 1.], 2)
     assert edges.shape == (3,) and edges[0] == 0 and edges[-1] == 3
-    intervals = frequency_window_intervals(edges, 0.2)
-    assert intervals[0][2] == pytest.approx(-0.8)
+    assert edges[1] == pytest.approx(1.5)
 
 
 def test_zero_bandwidth_interval_halos_cover_endpoint_modes():

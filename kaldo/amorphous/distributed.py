@@ -8,17 +8,16 @@ rows, and reduce bounded flux blocks to the owner of the core mode rows.
 
 from __future__ import annotations
 
-import hashlib
 import json
-import os
 from pathlib import Path
 import resource
 from time import perf_counter
 
 import numpy as np
 
-from .checkpoint import RowShardedEigenvectorSource, atom_row_bounds, sha256_file
-from .mpi import _array_hash, _result_hash
+from kaldo.helpers.atomic_io import (atomic_save_npy, atomic_savez, atomic_write_json,
+                                     sha256_arrays, sha256_file, sha256_json)
+from .checkpoint import RowShardedEigenvectorSource, atom_row_bounds
 from .qhgk import (_finish, _triangle_block_outside_support, _zero_self_pairs,
                    qhgk_pair_factors)
 from .sparse_harmonic import apply_derivative_panel
@@ -111,9 +110,6 @@ class DistributedSparseAmorphousHarmonic:
         width = local_panel.shape[1]
         if local_panel.shape[0] != 3*self.n_local_atoms:
             raise ValueError("local eigenvector panel has wrong row count")
-        if not len(self.ghost_ids):
-            # Other ranks may still request rows owned here.
-            pass
         atom_panel = local_panel.reshape(self.n_local_atoms, 3, width)
         chunks = [np.ascontiguousarray(atom_panel[ids-self.atom_start]).reshape(-1)
                   for ids in self.send_ids]
@@ -123,7 +119,7 @@ class DistributedSparseAmorphousHarmonic:
         recv_offsets = np.r_[0, np.cumsum(recv_counts[:-1])].astype(np.int32)
         send = np.concatenate(chunks) if chunks else np.empty(0, dtype=local_panel.dtype)
         received = np.empty(int(np.sum(recv_counts)), dtype=local_panel.dtype)
-        from mpi4py import MPI
+        MPI = _mpi()
         mpi_dtype = MPI._typedict[local_panel.dtype.char]
         self.comm.Alltoallv([send, send_counts, send_offsets, mpi_dtype],
                             [received, recv_counts, recv_offsets, mpi_dtype])
@@ -139,6 +135,15 @@ class DistributedSparseAmorphousHarmonic:
             self.row_ptr, self.remapped_columns, blocks, displacement, axis,
             extended_panel,
             (3*self.n_local_atoms, 3*(self.n_local_atoms+len(self.ghost_ids))))
+
+
+def _mpi():
+    try:
+        from mpi4py import MPI
+    except ImportError as exc:
+        raise ImportError("distributed amorphous QHGK requires mpi4py. "
+                          "Install with: pip install kaldo[mpi]") from exc
+    return MPI
 
 
 def _checkpoint_path(directory, start, stop):
@@ -203,16 +208,15 @@ def run_distributed_qhgk(omega, bandwidth_provider, physical_mode, temperature,
     hash_errors = comm.allgather(local_hash_error)
     if any(hash_errors):
         raise ValueError("; ".join(error for error in hash_errors if error))
-    source_hash = hashlib.sha256(json.dumps(eigenvectors.manifest,
-                                            sort_keys=True).encode()).hexdigest()
+    source_hash = sha256_json(eigenvectors.manifest)
     config = {"format": "kaldo-distributed-amorphous-qhgk-v1",
               "rank_count": size, "mode_count": m,
               "eigenvector_source_sha256": source_hash,
               "harmonic_source_sha256": harmonic.metadata.get("source_sha256"),
-              "harmonic_metadata_sha256": hashlib.sha256(json.dumps(harmonic.metadata, sort_keys=True).encode()).hexdigest(),
+              "harmonic_metadata_sha256": sha256_json(harmonic.metadata),
               "harmonic_arrays_sha256": harmonic.input_hashes,
-              "omega_sha256": _array_hash(w), "bandwidth_sha256": _array_hash(bw),
-              "physical_sha256": _array_hash(physical),
+              "omega_sha256": sha256_arrays(w), "bandwidth_sha256": sha256_arrays(bw),
+              "physical_sha256": sha256_arrays(physical),
               "bandwidth_source": getattr(bandwidth_provider, "metadata", None),
               "units": {"omega": "rad/ps", "bandwidth": "rad/ps",
                         "volume": "angstrom^3", "conductivity": "W/(m K)",
@@ -225,7 +229,7 @@ def run_distributed_qhgk(omega, bandwidth_provider, physical_mode, temperature,
                                     "triangular_support": "exact" if broadening_shape == "triangle" else None,
                                     "self_pair_flux": "exact_zero",
                                     "legacy_asymmetric_threshold": diffusivity_threshold}}
-    config_hash = hashlib.sha256(json.dumps(config, sort_keys=True).encode()).hexdigest()
+    config_hash = sha256_json(config)
     old = directory / "manifest.json"
     if old.exists() and json.loads(old.read_text()).get("config_sha256") != config_hash:
         raise ValueError("distributed checkpoint configuration changed")
@@ -254,7 +258,7 @@ def run_distributed_qhgk(omega, bandwidth_provider, physical_mode, temperature,
                         if (str(saved["config_sha256"]) != config_hash or
                                 int(saved["start"]) != i0 or int(saved["stop"]) != i1 or
                                 c.shape != (i1-i0,) or d.shape != (i1-i0,) or
-                                digest != _result_hash(c, d)):
+                                digest != sha256_arrays(c, d)):
                             raise ValueError("checkpoint fields or result hash differ")
                 except Exception as exc:
                     checkpoint_error = f"invalid distributed checkpoint {path}: {exc}"
@@ -324,13 +328,10 @@ def run_distributed_qhgk(omega, bandwidth_provider, physical_mode, temperature,
                 pair_count += (i1-i0)*(j1-j0)
         if rank == owner:
             c, d = _finish(local_c, local_d, volume)
-            digest = _result_hash(c, d)
-            temporary = directory / f".{path.name}.rank{rank}.tmp"
-            with temporary.open("wb") as stream:
-                np.savez(stream, config_sha256=config_hash, start=i0, stop=i1,
+            digest = sha256_arrays(c, d)
+            atomic_savez(path, config_sha256=config_hash, start=i0, stop=i1,
                          conductivity=c, diffusivity=d, result_sha256=digest,
                          evaluated_pairs=pair_count)
-            os.replace(temporary, path)
             local_results.append((i0, i1, c, d, digest, pair_count))
         completed_new += 1
     gathered = comm.gather(local_results, root=0)
@@ -361,11 +362,9 @@ def run_distributed_qhgk(omega, bandwidth_provider, physical_mode, temperature,
                 "metrics_per_rank": metrics,
                 "evaluated_pairs": sum(item["evaluated_pairs"] for item in completed),
                 "executed_pairs_this_run": sum(item["evaluated_pairs"] for item in metrics)}
-    temporary = directory / ".manifest.tmp"
-    temporary.write_text(json.dumps(manifest, indent=2, sort_keys=True))
-    os.replace(temporary, directory / "manifest.json")
+    atomic_write_json(directory / "manifest.json", manifest)
     if complete:
-        np.save(directory / "conductivity.npy", conductivity)
-        np.save(directory / "diffusivity.npy", diffusivity)
+        atomic_save_npy(directory / "conductivity.npy", conductivity)
+        atomic_save_npy(directory / "diffusivity.npy", diffusivity)
         return conductivity, diffusivity
     return None

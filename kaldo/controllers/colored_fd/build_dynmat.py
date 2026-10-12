@@ -20,14 +20,14 @@ from __future__ import annotations
 import argparse
 import importlib
 import json
-import os
 from pathlib import Path
 
 import ase.io
 import numpy as np
 from scipy.sparse import save_npz
 
-from kaldo.helpers.atomic_io import atomic_write_json, sha256_file
+from kaldo.helpers.atomic_io import atomic_save_npy, atomic_write, atomic_write_json, sha256_file
+from kaldo.helpers.logger import get_logger
 from ._common import atoms_extra_arrays_hash, atoms_hash, atoms_info_hash, calculator_instance
 from .assembly import merge_colored_second_order
 from . import estimate as estimate_module
@@ -37,6 +37,7 @@ from .run import run_colored_second_order
 from .structure import perpendicular_cell_widths
 
 
+_LOG = get_logger()
 _FORMAT = "kaldo-colored-dynmat-run-v1"
 _DYNMAT_FORMAT = "kaldo-colored-dynmat-bsr-v1"
 
@@ -54,9 +55,9 @@ def _factory(import_path):
     return factory
 
 
-def _atoms(path, expected_atoms):
+def _atoms(path, expected_atoms=None):
     atoms = ase.io.read(path, index=0)
-    if len(atoms) != expected_atoms:
+    if expected_atoms is not None and len(atoms) != expected_atoms:
         raise ValueError(f"expected {expected_atoms} atoms, found {len(atoms)}")
     if atoms.constraints:
         raise ValueError("colored force derivatives require unconstrained atoms")
@@ -64,13 +65,6 @@ def _atoms(path, expected_atoms):
     if masses.shape != (len(atoms),) or not np.isfinite(masses).all() or np.any(masses <= 0):
         raise ValueError("structure must provide positive finite atomic masses")
     return atoms, masses
-
-
-def _atomic_save_npy(path, array):
-    temporary = path.with_name(path.name + ".tmp")
-    with temporary.open("wb") as stream:
-        np.save(stream, array, allow_pickle=False)
-    os.replace(temporary, path)
 
 
 def _configuration(workdir):
@@ -132,7 +126,7 @@ def plan(args):
             raise ValueError("saved masses have changed")
         if not np.array_equal(masses, np.load(workdir / "masses.npy", allow_pickle=False)):
             raise ValueError("current structure masses differ from the planned masses")
-        print(f"Reusing colored IFC plan: {workdir / 'plan'}", flush=True)
+        _LOG.info("Reusing colored IFC plan: %s", workdir / "plan")
         return
     if not np.isfinite(args.delta_shift) or args.delta_shift <= 0:
         raise ValueError("delta_shift must be positive and finite")
@@ -141,8 +135,8 @@ def plan(args):
     if args.shards < 1 or args.n_probe < 2 or not np.isfinite(args.cutoff_multiplier) or args.cutoff_multiplier < 2:
         raise ValueError("shards and n_probe must be positive; cutoff_multiplier must be at least 2")
     calculator = calculator_instance(factory)
-    detected_cutoff = estimate_module._cutoff_hint(calculator, None)
-    supplied_cutoff = (estimate_module._cutoff_hint(calculator, args.cutoff_hint)
+    detected_cutoff = estimate_module.resolve_cutoff_hint(calculator, None)
+    supplied_cutoff = (estimate_module.resolve_cutoff_hint(calculator, args.cutoff_hint)
                        if args.cutoff_hint is not None else None)
     cutoff = max((value for value in (detected_cutoff, supplied_cutoff) if value is not None), default=None)
     if cutoff is None:
@@ -179,7 +173,7 @@ def plan(args):
         atoms, color_radius, store_radius, delta_shift=args.delta_shift,
         plan_dir=workdir / "plan", calculator_description=description)
     masses_path = workdir / "masses.npy"
-    _atomic_save_npy(masses_path, masses)
+    atomic_save_npy(masses_path, masses)
     config = {**fingerprint, "plan_sha256": colored_plan.plan_hash,
               "masses_sha256": sha256_file(masses_path),
               "color_radius_angstrom": color_radius,
@@ -187,13 +181,13 @@ def plan(args):
               "resolved_cutoff_angstrom": cutoff,
               "structural_upper_bound_angstrom": estimate.structural_upper_bound}
     atomic_write_json(config_path, config)
-    print(f"Plan: {colored_plan.n_groups} groups, {len(colored_plan.tasks)} tasks, "
-          f"{colored_plan.store.nnz} stored blocks", flush=True)
-    print(f"R_color={color_radius:.6g} A R_store={store_radius:.6g} A "
-          f"shards={args.shards} workdir={workdir}", flush=True)
+    _LOG.info("Plan: %d groups, %d tasks, %d stored blocks", colored_plan.n_groups,
+              len(colored_plan.tasks), colored_plan.store.nnz)
+    _LOG.info("R_color=%.6g A R_store=%.6g A shards=%d workdir=%s", color_radius, store_radius,
+              args.shards, workdir)
     if args.calculator_description is None:
-        print("Calculator identity uses the factory path; pass --calculator-description "
-              "when external model files can change", flush=True)
+        _LOG.info("Calculator identity uses the factory path; pass --calculator-description "
+                  "when external model files can change")
 
 
 def run(args):
@@ -212,7 +206,7 @@ def run(args):
     plan_dir = colored_plan.directory
     del colored_plan
     directory = workdir / f"shard_{args.index:04d}_of_{config['n_shards']:04d}"
-    print(f"Running shard {args.index}/{config['n_shards']}: {directory}", flush=True)
+    _LOG.info("Running shard %d/%d: %s", args.index, config["n_shards"], directory)
     run_colored_second_order(
         plan_dir, _factory(config["calculator"]),
         shard=(args.index, config["n_shards"]), workdir=directory,
@@ -274,19 +268,17 @@ def finalize(args):
                 existing.get("arrays_sha256") != sha256_file(output)):
             raise ValueError("existing dynamical matrix does not match verified inputs; "
                              "use a new workdir")
-        print(f"Reusing sparse dynamical matrix: {output}", flush=True)
+        _LOG.info("Reusing sparse dynamical matrix: %s", output)
         return
     weighted = sparse_ifc.mass_weighted_bsr(masses)
-    temporary = workdir / "dynmat_bsr.tmp.npz"
-    save_npz(temporary, weighted, compressed=True)
-    os.replace(temporary, output)
+    atomic_write(output, lambda stream: save_npz(stream, weighted, compressed=True))
     atomic_write_json(metadata_path, {**source, "n_atoms": n_atoms,
                                       "nnz_blocks": sparse_ifc.nnz_blocks,
                                       "storage_bytes": weighted.data.nbytes + weighted.indices.nbytes +
                                                        weighted.indptr.nbytes,
                                       "arrays_sha256": sha256_file(output)})
-    print(f"Saved {weighted.shape[0]} x {weighted.shape[1]} BSR dynamical matrix "
-          f"({sparse_ifc.nnz_blocks} blocks): {output}", flush=True)
+    _LOG.info("Saved %d x %d BSR dynamical matrix (%d blocks): %s", weighted.shape[0],
+              weighted.shape[1], sparse_ifc.nnz_blocks, output)
 
 
 def main(argv=None):
@@ -299,7 +291,8 @@ def main(argv=None):
     planning.add_argument("--calculator-description", help="stable model/version identity for checkpoint safety")
     planning.add_argument("--delta-shift", type=float, required=True, help="central-difference shift in Angstrom")
     planning.add_argument("--shards", type=int, default=1)
-    planning.add_argument("--expected-atoms", type=int, default=122880)
+    planning.add_argument("--expected-atoms", type=int,
+                          help="fail unless the structure has exactly this many atoms")
     planning.add_argument("--n-probe", type=int, default=12)
     planning.add_argument("--tolerance", type=float, default=1e-5)
     planning.add_argument("--seed", type=int, default=0)

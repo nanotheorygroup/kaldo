@@ -1,6 +1,6 @@
 """Opt-in synthetic precomputed-eigenvector scaling probe.
 
-Run ``python -m kaldo.amorphous.benchmark --atoms 32 64 128 --block 32``.
+Run ``python examples/amorphous_gamma_qhgk/benchmark.py --atoms 32 64 128 --block 32``.
 The synthetic modes measure memory and I/O behavior, not physical accuracy.
 """
 
@@ -13,18 +13,19 @@ from time import perf_counter
 
 import numpy as np
 
-from .checkpoint import ShardedEigenvectorSource
-from .qhgk import NumpyEigenvectorSource, calculate_qhgk_isotropic_blocked
-from .sparse_harmonic import SparseAmorphousHarmonic
+from kaldo.amorphous import (NpyEigensystemSource, SparseAmorphousHarmonic,
+                             calculate_qhgk_isotropic_blocked)
 
 
 def probe(n_atoms, block, directory):
     m = 3 * n_atoms
     rng = np.random.default_rng(n_atoms)
     basis = np.linalg.qr(rng.normal(size=(m, m)))[0].astype(np.float32)
-    source = ShardedEigenvectorSource.create(
-        NumpyEigenvectorSource(basis), directory / "eigenvectors",
-        shard_size=block, dtype=np.float32)
+    omega = np.linspace(0, 12, m)
+    directory.mkdir(parents=True, exist_ok=True)
+    eigensystem = directory / "eigensystem.npy"
+    np.save(eigensystem, np.vstack([omega ** 2, basis]).astype(np.float32))
+    source = NpyEigensystemSource(eigensystem)
     del basis
     ptr, columns, blocks, displacement = [0], [], [], []
     for i in range(n_atoms):
@@ -36,7 +37,6 @@ def probe(n_atoms, block, directory):
     harmonic = SparseAmorphousHarmonic(np.array(ptr), np.array(columns),
                                       np.array(blocks), np.array(displacement,
                                                                dtype=np.float32))
-    omega = np.linspace(0, 12, m)
     physical = omega > 0
     stats = {}
     start = perf_counter()
@@ -48,8 +48,7 @@ def probe(n_atoms, block, directory):
             "dtype": "float32 work / float64 accumulation",
             "sparse_blocks": len(columns),
             "sparse_storage_bytes": harmonic.storage_bytes,
-            "eigenvector_shard_bytes": sum((directory / "eigenvectors" / item["file"]).stat().st_size
-                                           for item in source.shards),
+            "eigensystem_bytes": eigensystem.stat().st_size,
             "total_ordered_pairs": m*m, "evaluated_pair_fraction": stats["evaluated_pairs"]/(m*m),
             "wall_seconds": elapsed, "peak_rss_kib": resource.getrusage(resource.RUSAGE_SELF).ru_maxrss,
             "conductivity_sum": float(conductivity.sum()),

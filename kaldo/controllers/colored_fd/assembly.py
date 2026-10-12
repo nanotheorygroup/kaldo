@@ -1,6 +1,5 @@
 """Verify IFC2 chunks, assemble sparse blocks, and enforce symmetry and ASR."""
 
-import hashlib
 import json
 from pathlib import Path
 import warnings
@@ -8,7 +7,7 @@ import warnings
 import numpy as np
 from scipy.sparse import bsr_array
 
-from kaldo.helpers.atomic_io import atomic_write_json, sha256_file
+from kaldo.helpers.atomic_io import atomic_write_json, sha256_file, sha256_json
 from kaldo.helpers.logger import get_logger
 from kaldo.observables.sparse_secondorder import SparseSecondOrder
 from ._common import MERGE_FORMAT, SHARD_FORMAT
@@ -119,8 +118,8 @@ def merge_colored_second_order(plan_dir, shard_dirs, *, output_dir=None, warning
                                           for chunk in manifest["chunks"]])
                       for _, manifest in shards]
     source_entries.sort(key=lambda item: item[0])
-    source_hash = hashlib.sha256(json.dumps([description, source_entries], sort_keys=True).encode()).hexdigest()
-    processing_hash = hashlib.sha256(json.dumps(options, sort_keys=True).encode()).hexdigest()
+    source_hash = sha256_json([description, source_entries])
+    processing_hash = sha256_json(options)
     output_dir = Path(output_dir) if output_dir is not None else plan.directory / "merged"
     if (output_dir / "metadata.json").exists() and (output_dir / "diagnostics.json").exists():
         existing_metadata = json.loads((output_dir / "metadata.json").read_text())

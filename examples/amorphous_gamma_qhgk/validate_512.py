@@ -1,6 +1,6 @@
 """Opt-in comparison with saved amorphous QHGK arrays, without TensorFlow.
 
-Run ``python -m kaldo.amorphous.validate_512 EXAMPLE_PATH --volume ANGSTROM3``.
+Run ``python examples/amorphous_gamma_qhgk/validate_512.py EXAMPLE_PATH --volume ANGSTROM3``.
 The root may contain nested kALDo property folders, but each required property
 name must be unique. The saved ``bandwidth`` is divided by two, matching the
 legacy QHGK fallback; use ``--direct-bandwidth`` if it already represents the
@@ -18,9 +18,9 @@ import ase.units as units
 import numpy as np
 from scipy import sparse
 
-from .qhgk import (NpyEigensystemSource, calculate_qhgk_isotropic_blocked,
-                   generalized_heat_capacity_block)
-from .sparse_harmonic import SparseAmorphousHarmonic
+from kaldo.amorphous import (NpyEigensystemSource, SparseAmorphousHarmonic,
+                             calculate_qhgk_isotropic_blocked)
+from kaldo.controllers.qhgk import generalized_heat_capacity
 
 
 def _file(root, stem, overrides=None):
@@ -103,9 +103,9 @@ def main(argv=None):
         print(f"flux {axis}: {error}")
         if error["max_rel_to_peak"] > args.saved_rtol:
             raise AssertionError(f"saved flux {axis} mismatch")
-    heat = generalized_heat_capacity_block(
+    heat = generalized_heat_capacity(
         omega[:64], omega[64:128], physical[:64], physical[64:128],
-        temperature=args.temperature, is_classic=args.classic, dtype=np.float64)
+        temperature=args.temperature, is_classic=args.classic)
     heat_error = _error(heat * (units.kB / units.J), saved_heat[:64, 64:128])
     print("heat_capacity_2d:", heat_error)
     if heat_error["max_rel_to_peak"] > args.saved_rtol:

@@ -1,54 +1,8 @@
-"""Exact triangular core/halo planning from frequencies and optional DOS bins."""
+"""Spectrum-window boundaries and conservative triangular halos in eigenvalue units."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 import numpy as np
-
-
-@dataclass(frozen=True)
-class ModeWindow:
-    core_start: int
-    core_stop: int
-    halo_start: int
-    halo_stop: int
-
-    @property
-    def local_core(self):
-        return self.core_start - self.halo_start, self.core_stop - self.halo_start
-
-
-def plan_mode_windows(omega, bandwidth, n_windows):
-    """Partition sorted modes and include every possible triangular partner.
-
-    Adjacent exactly degenerate frequencies stay in the same core. The halo
-    bound uses the maximum bandwidth in the core and the global maximum; it
-    may include extra modes but cannot omit a nonzero triangular pair.
-    """
-    w, b = np.asarray(omega, dtype=np.float64), np.asarray(bandwidth, dtype=np.float64)
-    if (w.ndim != 1 or b.shape != w.shape or not len(w) or
-            np.any(np.diff(w) < 0) or not np.isfinite(w).all() or
-            not np.isfinite(b).all() or np.any(b < 0) or
-            not isinstance(n_windows, int) or n_windows < 1):
-        raise ValueError("invalid sorted frequencies, bandwidths, or window count")
-    cuts = [0]
-    for index in range(1, n_windows):
-        target = len(w)*index//n_windows
-        while target < len(w) and target > 0 and w[target] == w[target-1]:
-            target += 1
-        if cuts[-1] < target < len(w):
-            cuts.append(target)
-    cuts.append(len(w))
-    windows = []
-    global_max = float(np.max(b))
-    for start, stop in zip(cuts[:-1], cuts[1:]):
-        reach = 2*(float(np.max(b[start:stop])) + global_max)
-        left = int(np.searchsorted(w, w[start]-reach, side="right"))
-        right = int(np.searchsorted(w, w[stop-1]+reach, side="left"))
-        # The core itself must remain in the halo even for zero bandwidth.
-        windows.append(ModeWindow(start, stop, min(start, left), max(stop, right)))
-    return windows
 
 
 def approximate_dos_boundaries(bin_edges, density, n_windows):
@@ -85,19 +39,6 @@ def eigenvalue_boundaries_from_full_spectrum(eigenvalues, n_windows):
     scale = max(1., float(np.max(np.abs(values))))
     padding = max(1e-8, 1e-6*scale)
     return np.array([values[0]-padding, *sorted(set(cuts)), values[-1]+padding])
-
-
-def frequency_window_intervals(boundaries, max_bandwidth):
-    """Return half-open core intervals with conservative triangular halos."""
-    boundaries = np.asarray(boundaries, dtype=np.float64)
-    if (boundaries.ndim != 1 or len(boundaries) < 2 or
-            np.any(np.diff(boundaries) <= 0) or
-            not np.isfinite(boundaries).all() or
-            not np.isfinite(max_bandwidth) or max_bandwidth < 0):
-        raise ValueError("invalid frequency boundaries or maximum bandwidth")
-    reach = 4*max_bandwidth
-    return [(float(a), float(b), float(a-reach), float(b+reach))
-            for a,b in zip(boundaries[:-1], boundaries[1:])]
 
 
 def eigenvalue_window_intervals(boundaries, max_bandwidth):

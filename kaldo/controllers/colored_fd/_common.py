@@ -5,6 +5,8 @@ import json
 
 import numpy as np
 
+from kaldo.helpers.atomic_io import sha256_arrays
+
 
 PLAN_FORMAT = "kaldo-colored-ifc2-plan-v1"
 SHARD_FORMAT = "kaldo-colored-ifc2-shard-v1"
@@ -33,22 +35,12 @@ def describe_calculator(calculator):
     return f"{cls.__module__}.{cls.__qualname__}:{repr(getattr(calculator, 'parameters', None))}"
 
 
-def _arrays_hash(*arrays):
-    digest = hashlib.sha256()
-    for array in arrays:
-        array = np.ascontiguousarray(array)
-        digest.update(str(array.dtype).encode())
-        digest.update(repr(array.shape).encode())
-        digest.update(array.tobytes())
-    return digest.hexdigest()
-
-
 def atoms_hash(atoms):
     """SHA-256 of the exact atomic input used for force evaluations."""
-    return _arrays_hash(np.asarray(atoms.numbers, dtype=np.int32),
-                        np.asarray(atoms.positions, dtype=np.float64),
-                        np.asarray(atoms.cell, dtype=np.float64),
-                        np.asarray(atoms.pbc, dtype=np.bool_))
+    return sha256_arrays(np.asarray(atoms.numbers, dtype=np.int32),
+                         np.asarray(atoms.positions, dtype=np.float64),
+                         np.asarray(atoms.cell, dtype=np.float64),
+                         np.asarray(atoms.pbc, dtype=np.bool_))
 
 
 def atoms_extra_arrays_hash(atoms):

@@ -3,12 +3,12 @@
 import json
 from pathlib import Path
 
-import ase.units as units
 import numpy as np
 from scipy.sparse import bsr_array
 from scipy.sparse.linalg import LinearOperator
 
 from kaldo.helpers.atomic_io import atomic_savez_compressed, atomic_write_json, sha256_file
+from kaldo.helpers.units import EV_TO_10J_PER_MOL
 
 
 _FORMAT = "kaldo-sparse-ifc2-v1"
@@ -61,15 +61,14 @@ class SparseSecondOrder:
         """Return kALDo-unit dynamical blocks as a separate 3x3 BSR matrix."""
         scale = self._mass_scale(masses)
         rows = np.repeat(np.arange(self.n_atoms), np.diff(self.matrix.indptr))
-        factor = units.mol / (10 * units.J)
-        data = self.matrix.data * (factor * scale[rows] * scale[self.matrix.indices])[:, None, None]
+        data = self.matrix.data * (EV_TO_10J_PER_MOL * scale[rows] * scale[self.matrix.indices])[:, None, None]
         return bsr_array((data, self.matrix.indices.copy(), self.matrix.indptr.copy()),
                          shape=self.matrix.shape)
 
     def mass_weighted_operator(self, masses):
         """Apply the dynamical matrix without duplicating its BSR block data."""
         scale = np.repeat(self._mass_scale(masses), 3)
-        factor = units.mol / (10 * units.J)
+        factor = EV_TO_10J_PER_MOL
         matrix = self.matrix
         row_ids = None
 

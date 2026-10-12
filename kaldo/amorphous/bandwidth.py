@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-import hashlib
-
 import numpy as np
+
+from kaldo.helpers.atomic_io import sha256_arrays
 
 
 def _convert(values, unit):
@@ -29,15 +29,6 @@ def _convert(values, unit):
     return result, convention
 
 
-def _hash(*arrays):
-    digest = hashlib.sha256()
-    for array in arrays:
-        contiguous = np.ascontiguousarray(array, dtype=np.float64)
-        digest.update(str(contiguous.shape).encode())
-        digest.update(contiguous.tobytes())
-    return digest.hexdigest()
-
-
 class DirectBandwidth:
     """Scalar or per-mode values, including optional lifetime conversion."""
 
@@ -46,7 +37,7 @@ class DirectBandwidth:
         self.unit = unit
         _, convention = _convert(self.values, unit)
         self.metadata = {"source_unit": unit, "conversion": convention,
-                         "interpolation": "none", "source_sha256": _hash(self.values)}
+                         "interpolation": "none", "source_sha256": sha256_arrays(self.values)}
 
     def evaluate(self, omega, temperature):
         omega = np.asarray(omega)
@@ -91,14 +82,14 @@ class TabulatedBandwidth:
             raise ValueError("bounds must be error or clamp")
         self.value_unit = value_unit
         self.bounds = bounds
-        _, convention = _convert(self.values, value_unit)
+        self._converted, convention = _convert(self.values, value_unit)
         self.metadata = {"source_unit": value_unit,
                          "frequency_unit": frequency_unit,
                          "temperature_unit": "K", "conversion": convention,
                          "interpolation": "linear frequency then linear temperature",
                          "bounds": bounds,
-                         "source_sha256": _hash(self.frequencies, self.temperatures,
-                                                self.values)}
+                         "source_sha256": sha256_arrays(self.frequencies, self.temperatures,
+                                                        self.values)}
 
     def evaluate(self, omega, temperature):
         omega = np.asarray(omega, dtype=np.float64)
@@ -109,10 +100,17 @@ class TabulatedBandwidth:
                                         np.any(omega > self.frequencies[-1]) or
                                         not self.temperatures[0] <= temperature <= self.temperatures[-1]):
             raise ValueError("bandwidth interpolation outside table")
-        converted = _convert(self.values, self.value_unit)[0]
-        by_temperature = np.array([np.interp(omega, self.frequencies, row)
-                                   for row in converted])
-        result = np.array([np.interp(temperature, self.temperatures,
-                                     by_temperature[:, mode])
-                           for mode in range(len(omega))])
-        return np.ascontiguousarray(result)
+        # Interpolation is linear in the table values, so blending the two
+        # bracketing temperature rows first equals interpolating every
+        # frequency row and then interpolating each mode in temperature.
+        if len(self.temperatures) == 1:
+            row = self._converted[0]
+        else:
+            upper = int(np.clip(np.searchsorted(self.temperatures, temperature, side="right"),
+                                1, len(self.temperatures) - 1))
+            lower = upper - 1
+            span = self.temperatures[upper] - self.temperatures[lower]
+            weight = (temperature - self.temperatures[lower]) / span
+            weight = float(np.clip(weight, 0., 1.))
+            row = (1 - weight) * self._converted[lower] + weight * self._converted[upper]
+        return np.ascontiguousarray(np.interp(omega, self.frequencies, row))

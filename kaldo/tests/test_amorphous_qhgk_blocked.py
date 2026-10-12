@@ -1,5 +1,6 @@
 """TensorFlow-free checks of the real Gamma-point blocked QHGK reducer."""
 
+import subprocess
 import sys
 from pathlib import Path
 
@@ -12,7 +13,8 @@ from ase.io import read
 from kaldo.amorphous import (NpyEigensystemSource,
                              calculate_qhgk_isotropic_blocked as blocked,
                              calculate_qhgk_isotropic_dense as dense,
-                             generalized_heat_capacity_block, qhgk_pair_factors)
+                             qhgk_pair_factors)
+from kaldo.controllers.qhgk import generalized_heat_capacity
 
 
 @pytest.fixture
@@ -79,14 +81,12 @@ def test_full_tensor_trace_reference(system):
 def test_quantum_heat_capacity_and_masks():
     omega = np.array([0., 1., 1. + 1e-11, 2.])
     physical = np.ones(4, dtype=bool)
-    classical = generalized_heat_capacity_block(omega, omega, physical, physical,
-                                                 temperature=300, is_classic=True,
-                                                 dtype=np.float64)
+    classical = generalized_heat_capacity(omega, omega, physical, physical,
+                                          temperature=300, is_classic=True)
     assert np.all(classical[0] == 0)
     assert np.all(classical[1:, 1:] == 1)
-    quantum = generalized_heat_capacity_block(omega, omega, physical, physical,
-                                               temperature=300, is_classic=False,
-                                               dtype=np.float64)
+    quantum = generalized_heat_capacity(omega, omega, physical, physical,
+                                        temperature=300, is_classic=False)
     assert np.isfinite(quantum).all()
     np.testing.assert_allclose(quantum[1, 2], quantum[1, 1], rtol=1e-9)
     np.testing.assert_allclose(quantum, quantum.T, rtol=1e-14, atol=1e-14)
@@ -104,9 +104,8 @@ def test_quantum_heat_capacity_matches_legacy_equation():
             (omega[None, :] - omega[:, None]) * temperature
             * (units.kB / units.J) / (units._hbar * 1e12))
     np.fill_diagonal(expected, (x / (2 * np.sinh(x / 2))) ** 2)
-    actual = generalized_heat_capacity_block(omega, omega, physical, physical,
-                                             temperature=temperature, is_classic=False,
-                                             dtype=np.float64)
+    actual = generalized_heat_capacity(omega, omega, physical, physical,
+                                       temperature=temperature, is_classic=False)
     np.testing.assert_allclose(actual, expected, rtol=1e-13)
 
 
@@ -137,7 +136,6 @@ def test_sparse_mmap_and_mixed_precision(system, tmp_path):
                     sparse_ops, block_size=4)
     for got, expected in zip(mixed, reference):
         np.testing.assert_allclose(got, expected, rtol=3e-7, atol=3e-8)
-    assert "tensorflow" not in sys.modules
 
 
 def test_bsr_and_configurable_accumulation(system):
@@ -178,7 +176,7 @@ def test_zero_bandwidth_finite(system):
         assert np.all(conductivity == 0) and np.all(diffusivity == 0)
 
 
-def test_tracked_amorphous_second_order_fixture_without_tensorflow():
+def test_tracked_amorphous_second_order_fixture():
     root = Path(__file__).resolve().parent / "data/input/amorphous-si-tersoff-32"
     second = np.load(root / "second.npy").reshape(96, 96)
     dynamical = (second + second.T) / 2
@@ -198,7 +196,21 @@ def test_tracked_amorphous_second_order_fixture_without_tensorflow():
     reference = dense(**inputs)[0]
     actual = blocked(**inputs, block_size=17)[0]
     np.testing.assert_allclose(actual, reference, rtol=1e-12, atol=1e-13)
-    assert "tensorflow" not in sys.modules
+
+
+def test_amorphous_reducer_does_not_import_tensorflow():
+    # Other tests in this session import TensorFlow, so check a fresh interpreter.
+    script = (
+        "import sys\n"
+        "import numpy as np\n"
+        "from kaldo.amorphous import calculate_qhgk_isotropic_blocked, SparseAmorphousHarmonic\n"
+        "e = np.eye(6)\n"
+        "operators = tuple(np.zeros((6, 6)) for _ in range(3))\n"
+        "calculate_qhgk_isotropic_blocked(np.linspace(1, 2, 6), 0.1, np.ones(6, bool), 300., False,\n"
+        "                                 10., e, operators, block_size=2)\n"
+        "assert 'tensorflow' not in sys.modules, 'kaldo.amorphous imported tensorflow'\n"
+    )
+    subprocess.run([sys.executable, "-c", script], check=True)
 
 
 def test_no_global_pair_field(system, monkeypatch):

@@ -56,6 +56,15 @@ def test_staged_sparse_dynmat_and_resume(tmp_path):
         main(_plan_args(root, structure, description="changed-model"))
 
 
+def test_plan_rejects_unexpected_atom_count(tmp_path):
+    structure = tmp_path / "atoms.extxyz"
+    ase.io.write(structure, chain(9))
+    arguments = _plan_args(tmp_path / "colored", structure)
+    arguments[arguments.index("--expected-atoms") + 1] = "10"
+    with pytest.raises(ValueError, match="expected 10 atoms, found 9"):
+        main(arguments)
+
+
 def test_worker_rejects_changed_structure(tmp_path):
     structure = tmp_path / "atoms.extxyz"
     atoms = chain(9)
@@ -73,7 +82,7 @@ def test_plan_requires_cutoff_bound(tmp_path, monkeypatch):
     ase.io.write(structure, chain(9))
     from kaldo.controllers.colored_fd import estimate as estimate_module
 
-    monkeypatch.setattr(estimate_module, "_cutoff_hint", lambda calculator, explicit: None)
+    monkeypatch.setattr(estimate_module, "resolve_cutoff_hint", lambda calculator, explicit: None)
     with pytest.raises(ValueError, match="finite calculator cutoff"):
         main(_plan_args(tmp_path / "colored", structure))
 
@@ -84,8 +93,7 @@ def test_periodic_many_body_gamma_matrix_has_translational_null_modes(tmp_path):
     root = tmp_path / "periodic_run"
     main(["plan", "--workdir", str(root), "--structure", str(structure),
           "--calculator", "kaldo.tests.colored_fd_helpers:PeriodicToyEAM",
-          "--delta-shift", "0.001", "--expected-atoms", "216", "--n-probe", "3",
-          "--shards", "2"])
+          "--delta-shift", "0.001", "--n-probe", "3", "--shards", "2"])
     for index in (0, 1):
         main(["run", "--workdir", str(root), "--index", str(index), "--flush-tasks", "32"])
     main(["finalize", "--workdir", str(root)])

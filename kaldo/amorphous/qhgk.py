@@ -4,7 +4,9 @@ Frequencies and ``diffusivity_bandwidth`` use rad/ps, derivative operators
 use the legacy kALDo real amorphous convention, volume uses Å³, conductivity
 is W/(m K), and diffusivity is mm²/s as documented by ``Conductivity``.
 Eigenvector panels are coordinate-major
-``(3*N, modes)``; all returned results are mode-major ``(modes,)``.
+``(3*N, modes)``; all returned results are mode-major ``(modes,)``. The pair
+kernel and heat capacity come from :mod:`kaldo.controllers.qhgk`, the same
+functions used by ``Conductivity(method='qhgk')``.
 """
 
 from __future__ import annotations
@@ -12,15 +14,13 @@ from __future__ import annotations
 from pathlib import Path
 from time import perf_counter
 
-import ase.units as units
 import numpy as np
 
-from kaldo.controllers.dirac_kernel import (gaussian_delta, lorentz_delta,
-                                             triangular_delta)
+from kaldo.controllers.dirac_kernel import gaussian_delta, lorentz_delta, triangular_delta
+from kaldo.controllers.qhgk import diffusivity_kernel, generalized_heat_capacity
+from kaldo.helpers.units import KB_J_PER_K
 
 
-_K_B = units.kB / units.J  # J/K, matching HarmonicWithQTemp
-_HBAR = units._hbar  # J s
 _CURVES = {"gauss": gaussian_delta, "triangle": triangular_delta,
            "lorentz": lorentz_delta}
 
@@ -80,93 +80,20 @@ def _physical(value, n_modes):
     return np.ascontiguousarray(array.reshape(n_modes), dtype=bool)
 
 
-def _heat_capacity_diagonal(x):
-    """Stable dimensionless single-mode Bose heat capacity at ``x=ℏω/kBT``."""
-    result = np.zeros_like(x)
-    small = x < 1e-4
-    result[small] = 1 - x[small] ** 2 / 12 + x[small] ** 4 / 240
-    moderate = (x >= 1e-4) & (x < 700)
-    z = np.exp(-x[moderate])
-    result[moderate] = x[moderate] ** 2 * z / (-np.expm1(-x[moderate])) ** 2
-    return result
-
-
-def generalized_heat_capacity_block(omega_i, omega_j, physical_i, physical_j,
-                                    *, temperature, is_classic, dtype=np.float32):
-    """Return ``C_ij/k_B`` for one rad/ps mode block; no SI pair matrix.
-
-    Modes flagged unphysical or with nonpositive frequency contribute zero.
-    For ``|x_i-x_j| <= 1e-6 max(1, |x_i|, |x_j|)`` the average of the
-    analytic diagonal limits avoids subtracting nearly equal Bose populations.
-    """
-    wi, wj = np.asarray(omega_i, dtype=np.float64), np.asarray(omega_j, dtype=np.float64)
-    pi, pj = np.asarray(physical_i, dtype=bool), np.asarray(physical_j, dtype=bool)
-    valid = (pi & (wi > 0))[:, None] & (pj & (wj > 0))[None, :]
-    out = np.zeros((wi.size, wj.size), dtype=np.float64)
-    if is_classic:
-        out[valid] = 1
-    else:
-        if not np.isfinite(temperature) or temperature <= 0:
-            raise ValueError("quantum temperature must be finite and positive")
-        xi = wi * (_HBAR * 1e12 / (_K_B * temperature))
-        xj = wj * (_HBAR * 1e12 / (_K_B * temperature))
-        # Evaluate occupations only for valid positive modes.
-        ni = np.zeros_like(xi)
-        nj = np.zeros_like(xj)
-        with np.errstate(over="ignore", divide="ignore", invalid="ignore"):
-            ni[pi & (wi > 0)] = 1 / np.expm1(xi[pi & (wi > 0)])
-            nj[pj & (wj > 0)] = 1 / np.expm1(xj[pj & (wj > 0)])
-        dx = xj[None, :] - xi[:, None]
-        near = np.abs(dx) <= 1e-6 * np.maximum(1, np.maximum(np.abs(xi[:, None]), np.abs(xj[None, :])))
-        far = valid & ~near
-        np.divide(xi[:, None] * xj[None, :] * (ni[:, None] - nj[None, :]),
-                  dx, out=out, where=far)
-        if np.any(valid & near):
-            di = _heat_capacity_diagonal(np.maximum(xi, np.finfo(float).tiny))
-            dj = _heat_capacity_diagonal(np.maximum(xj, np.finfo(float).tiny))
-            limit = (di[:, None] + dj[None, :]) / 2
-            out[valid & near] = limit[valid & near]
-    return out.astype(dtype, copy=False)
-
-
 def qhgk_pair_factors(omega_i, omega_j, bandwidth_i, bandwidth_j,
                       physical_i, physical_j, *, temperature, is_classic,
                       broadening_shape="triangle", diffusivity_threshold=None,
-                      dtype=np.float32, include_antiresonant=False):
-    """Return resonant ``L_ij`` and dimensionless ``C_ij/k_B`` for one block.
-
-    ``sigma_ij=2(b_i+b_j)`` is the existing kALDo convention. The optional
-    threshold intentionally uses **partner** ``b_j`` after legacy broadcasting;
-    this is asymmetric for vector bandwidths. Zero widths contribute zero.
-    """
-    if include_antiresonant:
-        raise NotImplementedError("antiresonant QHGK is outside this milestone")
+                      dtype=np.float32):
+    """Return the resonant diffusivity kernel and ``C_ij/k_B`` for one block in ``dtype``."""
     try:
         curve = _CURVES[broadening_shape]
     except KeyError as exc:
         raise ValueError(f"unknown broadening_shape {broadening_shape!r}") from exc
-    wi, wj = np.asarray(omega_i, dtype=np.float64), np.asarray(omega_j, dtype=np.float64)
-    bi, bj = np.asarray(bandwidth_i, dtype=np.float64), np.asarray(bandwidth_j, dtype=np.float64)
-    pi, pj = np.asarray(physical_i, dtype=bool), np.asarray(physical_j, dtype=bool)
-    sigma = 2 * (bi[:, None] + bj[None, :])
-    delta = wi[:, None] - wj[None, :]
-    with np.errstate(divide="ignore", invalid="ignore", over="ignore"):
-        kernel = np.asarray(curve(delta, sigma), dtype=np.float64)
-        np.multiply(kernel, np.pi, out=kernel)
-        np.divide(kernel, wi[:, None], out=kernel)
-        np.divide(kernel, 4 * wj[None, :], out=kernel)
-    valid = (pi & (wi > 0))[:, None] & (pj & (wj > 0))[None, :] & (sigma > 0)
-    if diffusivity_threshold is not None:
-        if not np.isfinite(diffusivity_threshold) or diffusivity_threshold < 0:
-            raise ValueError("diffusivity_threshold must be finite and nonnegative")
-        # TODO(distributed-qhgk): offer a separately tested symmetric cutoff.
-        valid &= np.abs(delta) < diffusivity_threshold * 2 * np.pi * bj[None, :]
-    kernel[~valid] = 0
-    np.nan_to_num(kernel, copy=False, nan=0, posinf=0, neginf=0)
-    heat = generalized_heat_capacity_block(wi, wj, pi, pj,
-                                           temperature=temperature, is_classic=is_classic,
-                                           dtype=dtype)
-    return kernel.astype(dtype, copy=False), heat
+    kernel = diffusivity_kernel(omega_i, omega_j, bandwidth_i, bandwidth_j, physical_i, physical_j,
+                                curve, diffusivity_threshold=diffusivity_threshold)
+    heat = generalized_heat_capacity(omega_i, omega_j, physical_i, physical_j,
+                                     temperature=temperature, is_classic=is_classic)
+    return kernel.astype(dtype, copy=False), heat.astype(dtype, copy=False)
 
 
 def _inputs(omega, diffusivity_bandwidth, physical_mode, volume, eigenvectors,
@@ -196,7 +123,7 @@ def _inputs(omega, diffusivity_bandwidth, physical_mode, volume, eigenvectors,
 
 
 def _finish(conductivity, diffusivity, volume):
-    return conductivity * (_K_B * 1e22 / volume), diffusivity / 100
+    return conductivity * (KB_J_PER_K * 1e22 / volume), diffusivity / 100
 
 
 def _work_operators(operators, dtype):
@@ -230,14 +157,14 @@ def _zero_self_pairs(pair_block, core_start, partner_start):
         pair_block[modes-core_start, modes-partner_start] = 0
 
 
-def calculate_qhgk_isotropic_rows(omega, diffusivity_bandwidth, physical_mode,
-                                  temperature, is_classic, volume, eigenvectors,
-                                  harmonic_operator, *, core_start=0, core_stop=None,
-                                  broadening_shape="triangle", block_size=1024,
-                                  diffusivity_threshold=None,
-                                  compute_dtype=np.float32,
-                                  accumulator_dtype=np.float64, stats=None):
-    """Reduce a half-open owned mode range and return its two local vectors.
+def calculate_qhgk_isotropic_blocked(omega, diffusivity_bandwidth, physical_mode,
+                                      temperature, is_classic, volume, eigenvectors,
+                                      harmonic_operator, *, core_start=0, core_stop=None,
+                                      broadening_shape="triangle", block_size=1024,
+                                      diffusivity_threshold=None,
+                                      compute_dtype=np.float32,
+                                      accumulator_dtype=np.float64, stats=None):
+    """Return per-mode isotropic conductivity and diffusivity for modes ``[core_start, core_stop)``.
 
     Only coordinate-by-``B`` eigenvector panels and ``B×B`` pair scratch live
     during a partner iteration. Even ``block_size >= M`` is capped at ``M-1``
@@ -327,22 +254,6 @@ def calculate_qhgk_isotropic_rows(omega, diffusivity_bandwidth, physical_mode,
         conductivity[i0-core_start:i1-core_start] = local_c
         diffusivity[i0-core_start:i1-core_start] = local_d
     return _finish(conductivity, diffusivity, volume)
-
-
-def calculate_qhgk_isotropic_blocked(omega, diffusivity_bandwidth, physical_mode,
-                                      temperature, is_classic, volume, eigenvectors,
-                                      harmonic_operator, *, broadening_shape="triangle",
-                                      block_size=1024, diffusivity_threshold=None,
-                                      compute_dtype=np.float32,
-                                      accumulator_dtype=np.float64, stats=None):
-    """Return per-mode isotropic conductivity and diffusivity."""
-    return calculate_qhgk_isotropic_rows(
-        omega, diffusivity_bandwidth, physical_mode, temperature, is_classic,
-        volume, eigenvectors, harmonic_operator,
-        broadening_shape=broadening_shape, block_size=block_size,
-        diffusivity_threshold=diffusivity_threshold,
-        compute_dtype=compute_dtype, accumulator_dtype=accumulator_dtype,
-        stats=stats)
 
 
 def calculate_qhgk_isotropic_dense(omega, diffusivity_bandwidth, physical_mode,

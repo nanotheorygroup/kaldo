@@ -1,15 +1,13 @@
 """Probe finite-difference IFC columns to choose sparse coloring radii."""
 
 from dataclasses import asdict, dataclass
-import hashlib
-import json
 from pathlib import Path
 import warnings
 
 import numpy as np
 from ase.neighborlist import neighbor_list
 
-from kaldo.helpers.atomic_io import atomic_savez_compressed, atomic_write_json
+from kaldo.helpers.atomic_io import atomic_savez_compressed, atomic_write_json, sha256_json
 from kaldo.helpers.logger import get_logger
 from ._common import atoms_hash, calculator_instance, describe_calculator
 from .structure import _DEFAULT_PAIR_LIMIT, build_neighbor_structure, color_structure, perpendicular_cell_widths
@@ -56,11 +54,11 @@ class RangeEstimate:
 
 
 def _probe_fingerprint(atoms, delta_shift, calculator_description):
-    payload = [atoms_hash(atoms), repr(float(delta_shift)), calculator_description]
-    return hashlib.sha256(json.dumps(payload).encode()).hexdigest()
+    return sha256_json([atoms_hash(atoms), repr(float(delta_shift)), calculator_description])
 
 
-def _cutoff_hint(calculator, explicit):
+def resolve_cutoff_hint(calculator, explicit):
+    """Return ``explicit`` or a positive ``rc``/``cutoff``/``r_cut`` read from the calculator, else ``None``."""
     if explicit is not None:
         candidate = explicit
     else:
@@ -207,7 +205,7 @@ def estimate_interaction_range(atoms, calculator, *, delta_shift=1e-3, n_probe=1
     notes = []
     widths = perpendicular_cell_widths(atoms)
     minimum_width = float(widths.min()) if len(widths) else None
-    raw_hint = _cutoff_hint(engine, cutoff_hint)
+    raw_hint = resolve_cutoff_hint(engine, cutoff_hint)
     upper_bound = None if raw_hint is None else raw_hint * cutoff_multiplier
     h_noise_ratio = None
     if check_h_convergence:

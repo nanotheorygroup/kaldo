@@ -1,4 +1,7 @@
-"""Opt-in row-distributed MPI QHGK integration case."""
+"""Row-distributed MPI QHGK integration case, launched by ``test_amorphous_distributed_mpi.py``.
+
+Usage: ``mpiexec -n R python -m kaldo.tests.mpi_distributed_qhgk_case DIR PHASE``.
+"""
 
 import json
 import sys
@@ -14,8 +17,35 @@ from kaldo.amorphous.checkpoint import RowShardedEigenvectorSource
 from kaldo.amorphous.distributed import (DistributedSparseAmorphousHarmonic,
                                          run_distributed_qhgk)
 from kaldo.amorphous.pipeline import run_interval_pipeline
-from kaldo.amorphous.windows import plan_mode_windows
-from kaldo.tests.mpi_amorphous_qhgk_case import write_input
+
+
+def write_input(root):
+    """Write a small dense-coupled sparse harmonic and an orthonormal eigensystem once."""
+    root.mkdir(parents=True, exist_ok=True)
+    if (root / "eigensystem.npy").exists():
+        return
+    rng = np.random.default_rng(123)
+    n = 8
+    positions = rng.normal(size=(n, 3))
+    atom_blocks = np.zeros((n, n, 3, 3))
+    for i in range(n):
+        for j in range(i + 1, n):
+            a = rng.normal(size=(3, 3)) * 0.03
+            a = (a + a.T) / 2
+            atom_blocks[i, j] = a
+            atom_blocks[j, i] = a.T
+    for i in range(n):
+        atom_blocks[i, i] = -sum(atom_blocks[i, j] for j in range(n) if j != i)
+    dense = atom_blocks.transpose(0, 2, 1, 3).reshape(3*n, 3*n)
+    _, e = np.linalg.eigh(dense)
+    omega = np.arange(1, 3*n + 1, dtype=np.float64) * 0.1
+    np.save(root / "eigensystem.npy", np.vstack([omega**2, e]))
+    np.save(root / "omega.npy", omega)
+    np.save(root / "physical.npy", np.ones(len(omega), bool))
+    columns = np.tile(np.arange(n), n)
+    displacement = (positions[:, None, :] - positions[None, :, :]).reshape(-1, 3)
+    SparseAmorphousHarmonic(np.arange(0, n*n + 1, n), columns, atom_blocks.reshape(-1, 3, 3),
+                            displacement).save(root / "sparse")
 
 
 class PrecomputedIntervalSource:
@@ -159,38 +189,6 @@ def main():
                 for actual, expected in zip(result, reference):
                     np.testing.assert_allclose(actual, expected, rtol=1e-12, atol=1e-13)
                 print("interval pipeline complete", comm.size, float(result[0].sum()))
-        return
-    if phase == "window":
-        collected_c = np.zeros(len(omega)) if comm.rank == 0 else None
-        collected_d = np.zeros(len(omega)) if comm.rank == 0 else None
-        full_source = NpyEigensystemSource(root / "eigensystem.npy")
-        for number, window in enumerate(plan_mode_windows(
-                omega, provider.evaluate(omega, 300.), 3)):
-            subspace = NumpyEigenvectorSource(full_source.read_modes(
-                window.halo_start, window.halo_stop, dtype=np.float64))
-            source = RowShardedEigenvectorSource.create(
-                subspace, root / f"window_{number}/row_shards", comm,
-                panel_size=5, dtype=np.float64)
-            local_start, local_stop = window.local_core
-            result = run_distributed_qhgk(
-                omega[window.halo_start:window.halo_stop], provider,
-                np.ones(window.halo_stop-window.halo_start, bool),
-                300., False, 200., source, harmonic,
-                root / f"window_{number}/results", block_size=4,
-                compute_dtype=np.float64, core_start=local_start,
-                core_stop=local_stop)
-            if comm.rank == 0:
-                collected_c[window.core_start:window.core_stop] = result[0][local_start:local_stop]
-                collected_d[window.core_start:window.core_stop] = result[1][local_start:local_stop]
-        if comm.rank == 0:
-            reference = calculate_qhgk_isotropic_blocked(
-                omega, provider.evaluate(omega, 300.), np.ones(len(omega), bool),
-                300., False, 200., full_source,
-                SparseAmorphousHarmonic.load(root / "sparse").operators,
-                block_size=4, compute_dtype=np.float64)
-            for actual, expected in zip((collected_c, collected_d), reference):
-                np.testing.assert_allclose(actual, expected, rtol=1e-12, atol=1e-13)
-            print("distributed window complete", comm.size, float(collected_c.sum()))
         return
     result = run_distributed_qhgk(
         omega, provider, np.ones(len(omega), bool), 300., False, 200.,

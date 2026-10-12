@@ -1,6 +1,6 @@
 """Opt-in coordinate-row MPI memory, communication, and pair-work probe.
 
-Example: ``mpiexec -n 2 python -m kaldo.amorphous.distributed_benchmark
+Example: ``mpiexec -n 2 python examples/amorphous_gamma_qhgk/distributed_benchmark.py
 --atoms 32 64 --block 32 --output /tmp/qhgk-distributed.json``.
 """
 
@@ -13,11 +13,9 @@ from time import perf_counter
 from mpi4py import MPI
 import numpy as np
 
-from .bandwidth import DirectBandwidth
-from .checkpoint import RowShardedEigenvectorSource
-from .distributed import DistributedSparseAmorphousHarmonic, run_distributed_qhgk
-from .qhgk import NpyEigensystemSource
-from .sparse_harmonic import SparseAmorphousHarmonic
+from kaldo.amorphous import (DirectBandwidth, DistributedSparseAmorphousHarmonic,
+                             NpyEigensystemSource, RowShardedEigenvectorSource,
+                             SparseAmorphousHarmonic, run_distributed_qhgk)
 
 
 def _write_case(directory, n_atoms):

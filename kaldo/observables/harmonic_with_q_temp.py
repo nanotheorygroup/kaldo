@@ -1,6 +1,8 @@
 import kaldo.observables.harmonic_with_q as hwq
 import numpy as np
 import ase.units as units
+from kaldo.controllers.qhgk import generalized_heat_capacity
+from kaldo.helpers.units import KB_J_PER_K
 from kaldo.storable import lazy_property, Storable
 
 
@@ -80,34 +82,11 @@ class HarmonicWithQTemp(hwq.HarmonicWithQ):
         c_v : np.array
             (phonons.n_k_points,phonons.modes, phonons.n_modes) float
         """
-        kelvintojoule = units.kB / units.J
-        kelvintothz = units.kB / units.J / (2 * np.pi * self.hbar) * 1e-12
-        frequencies = self.frequency.flatten()
-        temperature = self.temperature * kelvintothz
-        heat_capacity = self.heat_capacity.flatten()
+        omega = 2 * np.pi * self.frequency.flatten()
         physical_mode = self.physical_mode.flatten()
-        f_be = self.population.flatten()
-        c_v_omega = (f_be[:, np.newaxis] - f_be[np.newaxis, :])
-        diff_omega = (frequencies[:, np.newaxis] - frequencies[np.newaxis, :])
-        mask_degeneracy = np.where(diff_omega == 0, True, False)
-
-        # value to do the division
-        diff_omega[mask_degeneracy] = 1
-        divide_omega = -1 / diff_omega
-        freq_sq = frequencies[:, np.newaxis] * frequencies[np.newaxis, :]
-
-        # remember here f_n-f_m/ w_m-w_n index reversed
-        c_v = freq_sq * c_v_omega * divide_omega
-        c_v = kelvintojoule * c_v / temperature
-
-        #Degeneracy part: let us substitute the wrong elements
-        heat_capacity_deg_2d = (heat_capacity[:, np.newaxis]
-                                + heat_capacity[np.newaxis, :]) / 2
-        c_v = np.where(mask_degeneracy, heat_capacity_deg_2d, c_v)
-
-        #Physical modes
-        c_v = c_v * physical_mode[:, np.newaxis] * physical_mode[np.newaxis, :]
-        return c_v
+        c_v = generalized_heat_capacity(omega, omega, physical_mode, physical_mode,
+                                        temperature=self.temperature, is_classic=self.is_classic)
+        return KB_J_PER_K * c_v
 
 
     def _calculate_population(self):

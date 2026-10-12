@@ -6,6 +6,7 @@ from opt_einsum import contract
 import numpy as np
 from kaldo.phonons import Phonons
 from kaldo.controllers.dirac_kernel import lorentz_delta, gaussian_delta, triangular_delta
+from kaldo.controllers.qhgk import diffusivity_kernel
 from kaldo.storable import lazy_property, Storable
 import kaldo.observables.harmonic_with_q_temp as hwqwt
 from kaldo.helpers.logger import get_logger, log_size
@@ -26,26 +27,11 @@ def calculate_conductivity_per_mode(heat_capacity, velocity, mfp, physical_mode,
 def calculate_diffusivity(omega, sij_left, sij_right, diffusivity_bandwidth, physical_mode, curve,
                           is_diffusivity_including_antiresonant=False,
                           diffusivity_threshold=None):
-    # TODO: cache this
-    sigma = 2 * (diffusivity_bandwidth[:, np.newaxis] + diffusivity_bandwidth[np.newaxis, :])
-    physical_mode = physical_mode.astype(bool)
-    delta_energy = omega[:, np.newaxis] - omega[np.newaxis, :]
-    kernel = curve(delta_energy, sigma)
-    if diffusivity_threshold is not None:
-        condition = (np.abs(delta_energy) < diffusivity_threshold * 2 * np.pi * diffusivity_bandwidth)
-        kernel[np.invert(condition)] = 0
-    if is_diffusivity_including_antiresonant:
-        sum_energy = omega[:, np.newaxis] + omega[np.newaxis, :]
-        kernel += curve(sum_energy, sigma)
-    kernel = kernel * np.pi
-    kernel[np.isnan(kernel)] = 0
-    mu_unphysical = np.argwhere(np.invert(physical_mode)).T
-    kernel[:, :] = kernel / omega[:, np.newaxis]
-    kernel[:, :] = kernel[:, :] / omega[np.newaxis, :] / 4
-    kernel[mu_unphysical, :] = 0
-    kernel[:, mu_unphysical] = 0
-    diffusivity = sij_left * kernel * sij_right
-    return diffusivity
+    kernel = diffusivity_kernel(omega, omega, diffusivity_bandwidth, diffusivity_bandwidth,
+                                physical_mode, physical_mode, curve,
+                                is_including_antiresonant=is_diffusivity_including_antiresonant,
+                                diffusivity_threshold=diffusivity_threshold)
+    return sij_left * kernel * sij_right
 
 
 def mfp_matthiessen(gamma, velocity, length, physical_mode):

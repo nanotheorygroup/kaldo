@@ -110,3 +110,15 @@ does not implement periodic replica symmetry, and `SecondOrder.value` has a
 separate translation-support axis. Keep replicated cells out of the first
 colored API with a clear error; extend only after translation-aware symmetry,
 ASR, and pair-image mapping are defined.
+
+**Validation and status.** Focused tests cover the structure, coloring, range
+estimator, sharded runs, sparse merge, transpose symmetrization, sparse ASR,
+and the staged `build_dynmat` command; shared toy calculators live in
+`kaldo/tests/colored_fd_helpers.py`. A synthetic 46×46×46 periodic
+nearest-neighbor graph (97,336 atoms, 681,352 stored blocks) completed
+symmetry and projection ASR in 1.13 s with 170.6 MB peak RSS. The six
+symmetric solves took 31 iterations each and the three skew solves 249–255;
+final relative row-sum and transpose residuals were about 1.0×10⁻¹¹ and zero.
+That is an algorithm benchmark, not a force-calculator or production run.
+Still open: mapping the merged IFC2 to pair/image displacements for QHGK, and
+a representative 100k-atom production benchmark.

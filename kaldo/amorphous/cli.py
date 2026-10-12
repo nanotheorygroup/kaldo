@@ -10,14 +10,19 @@ from pathlib import Path
 
 import numpy as np
 
+from kaldo.helpers.atomic_io import atomic_save_npy, sha256_file
+from kaldo.helpers.logger import get_logger
 from .bandwidth import DirectBandwidth, TabulatedBandwidth
-from .checkpoint import RowShardedEigenvectorSource, sha256_file
+from .checkpoint import RowShardedEigenvectorSource
 from .distributed import DistributedSparseAmorphousHarmonic, run_distributed_qhgk
 from .pipeline import run_interval_pipeline
 from .qhgk import NpyEigensystemSource
 from .slepc_solver import SlepcRowEigenvectorSource
 from .windows import (approximate_dos_boundaries,
                       eigenvalue_boundaries_from_full_spectrum)
+
+
+_LOG = get_logger()
 
 
 def _provider(args):
@@ -98,7 +103,11 @@ def main(argv=None):
     window_parser.add_argument("--eigenvector-dtype", choices=("float32", "float64"),
                                default="float32")
     args = parser.parse_args(argv)
-    from mpi4py import MPI
+    try:
+        from mpi4py import MPI
+    except ImportError as exc:
+        raise ImportError("the amorphous QHGK CLI requires mpi4py. "
+                          "Install with: pip install kaldo[mpi]") from exc
     comm = MPI.COMM_WORLD
     if args.command == "shard":
         source = NpyEigensystemSource(args.eigensystem)
@@ -112,9 +121,9 @@ def main(argv=None):
             source, args.output, comm, panel_size=args.panel,
             dtype=args.dtype, source_sha256=source_hash)
         if comm.rank == 0:
-            np.save(args.output / "omega.npy", omega)
-            np.save(args.output / "physical_mode.npy", physical)
-            print(f"row-sharded {source.n_modes} modes: {args.output}")
+            atomic_save_npy(args.output / "omega.npy", omega)
+            atomic_save_npy(args.output / "physical_mode.npy", physical)
+            _LOG.info("Row-sharded %d modes: %s", source.n_modes, args.output)
         return
     harmonic = DistributedSparseAmorphousHarmonic(args.harmonic, comm)
     if args.command == "solve":
@@ -123,7 +132,7 @@ def main(argv=None):
             tolerance=args.tolerance, dtype=args.eigenvector_dtype,
             require_full=args.interval is None)
         if comm.rank == 0:
-            print(f"converged {source.n_modes} modes; output: {args.output}")
+            _LOG.info("Converged %d modes; output: %s", source.n_modes, args.output)
         return
     provider = _provider(args)
     if args.command == "reduce":
@@ -157,8 +166,8 @@ def main(argv=None):
             solver_options={"tolerance": args.solver_tolerance,
                             "dtype": args.eigenvector_dtype})
     if comm.rank == 0 and result is not None:
-        print(f"total isotropic conductivity: {float(np.sum(result[0])):.12g} W/(m K)")
-        print(f"output: {args.output}")
+        _LOG.info("Total isotropic conductivity: %.12g W/(m K)", float(np.sum(result[0])))
+        _LOG.info("Output: %s", args.output)
 
 
 if __name__ == "__main__":
