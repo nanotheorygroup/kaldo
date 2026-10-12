@@ -400,12 +400,10 @@ def calculate_qhgk_blocked(omega, diffusivity_bandwidth, physical_mode, temperat
     return conductivity, diffusivity
 
 
-def calculate_qhgk_isotropic_dense(omega, diffusivity_bandwidth, physical_mode,
-                                    temperature, is_classic, volume, eigenvectors,
-                                    harmonic_operator, *, broadening_shape="triangle",
-                                    diffusivity_threshold=None,
-                                    compute_dtype=np.float64,
-                                    accumulator_dtype=np.float64):
+def calculate_qhgk_isotropic_dense(omega, diffusivity_bandwidth, physical_mode, temperature, is_classic, volume,
+                                   eigenvectors, harmonic_operator, *, broadening_shape="triangle",
+                                   diffusivity_threshold=None, compute_dtype=np.float64,
+                                   accumulator_dtype=np.float64):
     """Small-system NumPy reference; deliberately forms complete pair fields."""
     work, accum = check_dtypes(compute_dtype, accumulator_dtype)
     w, bw, physical = check_mode_inputs(omega, diffusivity_bandwidth, physical_mode, volume, temperature)

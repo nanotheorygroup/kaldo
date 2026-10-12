@@ -11,8 +11,8 @@ from scipy import sparse
 from ase.io import read
 
 from kaldo.controllers.qhgk import (calculate_qhgk_blocked as blocked,
-                                   calculate_qhgk_isotropic_dense as dense,
-                                   generalized_heat_capacity, qhgk_pair_factors)
+                                    calculate_qhgk_isotropic_dense as dense,
+                                    generalized_heat_capacity, qhgk_pair_factors)
 from kaldo.observables.eigenvector_source import NpyEigensystemSource
 
 

@@ -45,7 +45,7 @@ def write_input(root):
     columns = np.tile(np.arange(n), n)
     displacement = (positions[:, None, :] - positions[None, :, :]).reshape(-1, 3)
     SparseHarmonic(np.arange(0, n*n + 1, n), columns, atom_blocks.reshape(-1, 3, 3),
-                            displacement).save(root / "sparse")
+                   displacement).save(root / "sparse")
 
 
 class PrecomputedIntervalSource:

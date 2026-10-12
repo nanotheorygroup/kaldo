@@ -96,7 +96,7 @@ def test_sparse_validation_rejects_bad_reverse(small_harmonic, tmp_path):
     corrupted = harmonic.displacement.copy()
     corrupted[1, 0] += 0.1
     bad = SparseHarmonic(harmonic.row_ptr, harmonic.column_atom,
-                                  harmonic.blocks, corrupted)
+                         harmonic.blocks, corrupted)
     with pytest.raises(ValueError, match="validation failed"):
         bad.validation_report()
 

@@ -189,15 +189,14 @@ def merge_colored_second_order(plan_dir, shard_dirs, *, output_dir=None, warning
         if diagnostics[f"relative_{label}_response"] > warning_threshold:
             warnings.warn(f"colored IFC {label} response exceeds {warning_threshold:g} of median onsite block",
                           RuntimeWarning, stacklevel=2)
+    processing = ("projection" if apply_acoustic_sum and asr_mode == "projection" else
+                  "match_dense" if apply_acoustic_sum else "symmetric" if symmetrize else "raw")
     result = SparseSecondOrder(matrix, atoms=atoms, metadata={"plan_sha256": plan.plan_hash,
-                                                 "atoms_sha256": plan.metadata["atoms_sha256"],
-                                                 "source_sha256": source_hash,
-                                                 "processing_sha256": processing_hash,
-                                                 "plan_metadata": plan.metadata,
-                                                 "processing": ("projection" if apply_acoustic_sum and
-                                                                asr_mode == "projection" else
-                                                                "match_dense" if apply_acoustic_sum else
-                                                                "symmetric" if symmetrize else "raw")})
+                                                              "atoms_sha256": plan.metadata["atoms_sha256"],
+                                                              "source_sha256": source_hash,
+                                                              "processing_sha256": processing_hash,
+                                                              "plan_metadata": plan.metadata,
+                                                              "processing": processing})
     result.save(output_dir)
     atomic_write_json(output_dir / "diagnostics.json", diagnostics)
     _LOG.info("Merged colored IFC: %d blocks, %d tasks, %d shards", plan.store.nnz,

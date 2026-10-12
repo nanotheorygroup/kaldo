@@ -35,7 +35,7 @@ def _write_case(directory, n_atoms):
             displacement.append([float(atom-neighbor), 0., 0.])
         ptr.append(len(column))
     SparseHarmonic(np.array(ptr), np.array(column), np.array(blocks),
-                            np.array(displacement, dtype=np.float32)).save(directory / "harmonic")
+                   np.array(displacement, dtype=np.float32)).save(directory / "harmonic")
 
 
 def main(argv=None):
