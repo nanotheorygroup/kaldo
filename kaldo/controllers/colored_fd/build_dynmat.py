@@ -1,14 +1,14 @@
 """Build a restartable, sparse Gamma dynamical matrix from colored IFC2.
 
-Example (submit each ``run`` index as a separate scheduler job)::
+The stages are the ``ifc-plan``, ``ifc-run``, and ``ifc-finalize`` commands
+of :mod:`kaldo.large_cell_cli` (submit each ``ifc-run`` index as a separate
+scheduler job)::
 
-    python -m kaldo.controllers.colored_fd.build_dynmat plan \
+    python -m kaldo.large_cell_cli ifc-plan \
         --workdir /scratch/colored-si --structure amorphous.extxyz \
         --calculator my_potential:make_calculator --delta-shift 0.01 --shards 16
-    python -m kaldo.controllers.colored_fd.build_dynmat run \
-        --workdir /scratch/colored-si --index 0
-    python -m kaldo.controllers.colored_fd.build_dynmat finalize \
-        --workdir /scratch/colored-si
+    python -m kaldo.large_cell_cli ifc-run --workdir /scratch/colored-si --index 0
+    python -m kaldo.large_cell_cli ifc-finalize --workdir /scratch/colored-si
 
 The factory must be importable and take no arguments. It must return an ASE
 calculator. ``finalize`` writes ``merged/`` (the processed IFC2, loadable with
@@ -20,7 +20,6 @@ calculator. ``finalize`` writes ``merged/`` (the processed IFC2, loadable with
 
 from __future__ import annotations
 
-import argparse
 import importlib
 import json
 from pathlib import Path
@@ -304,38 +303,3 @@ def _write_sparse_harmonic(directory, sparse_ifc, source):
     harmonic.metadata["colored_ifc_provenance"] = provenance
     harmonic.save(directory)
     _LOG.info("Saved sparse harmonic for distributed QHGK: %s", directory)
-
-
-def main(argv=None):
-    parser = argparse.ArgumentParser(description=__doc__)
-    commands = parser.add_subparsers(dest="command", required=True)
-    planning = commands.add_parser("plan", help="probe range and create the immutable coloring plan")
-    planning.add_argument("--workdir", type=Path, required=True)
-    planning.add_argument("--structure", type=Path, required=True, help="ASE-readable physical Gamma cell")
-    planning.add_argument("--calculator", required=True, help="importable module:factory")
-    planning.add_argument("--calculator-description", help="stable model/version identity for checkpoint safety")
-    planning.add_argument("--delta-shift", type=float, required=True, help="central-difference shift in Angstrom")
-    planning.add_argument("--shards", type=int, default=1)
-    planning.add_argument("--expected-atoms", type=int,
-                          help="fail unless the structure has exactly this many atoms")
-    planning.add_argument("--n-probe", type=int, default=12)
-    planning.add_argument("--tolerance", type=float, default=1e-5)
-    planning.add_argument("--seed", type=int, default=0)
-    planning.add_argument("--bin-width", type=float, default=0.5)
-    planning.add_argument("--cutoff-hint", type=float, help="calculator descriptor cutoff in Angstrom")
-    planning.add_argument("--cutoff-multiplier", type=float, default=2.0)
-    worker = commands.add_parser("run", help="evaluate one checkpointed shard")
-    worker.add_argument("--workdir", type=Path, required=True)
-    worker.add_argument("--index", type=int, required=True)
-    worker.add_argument("--flush-tasks", type=int, default=1)
-    merging = commands.add_parser("finalize", help="merge, validate, mass-weight, and save BSR")
-    merging.add_argument("--workdir", type=Path, required=True)
-    merging.add_argument("--response-threshold", type=float,
-                         help="maximum relative omitted response; defaults to the probe tolerance")
-    merging.add_argument("--residual-threshold", type=float, default=1e-8)
-    args = parser.parse_args(argv)
-    {"plan": plan, "run": run, "finalize": finalize}[args.command](args)
-
-
-if __name__ == "__main__":
-    main()

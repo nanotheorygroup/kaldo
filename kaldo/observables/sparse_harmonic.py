@@ -13,7 +13,6 @@ use the vectorized block operations in
 
 from __future__ import annotations
 
-import argparse
 import json
 from pathlib import Path
 
@@ -22,11 +21,8 @@ from scipy.sparse import bsr_matrix
 
 from kaldo.helpers.sparse_blocks import block_row_sums, reverse_block_slots, symmetrize_blocks
 from kaldo.helpers.atomic_io import atomic_save_npy, atomic_write_json, sha256_file
-from kaldo.helpers.logger import get_logger
 from kaldo.helpers.units import EV_TO_10J_PER_MOL
 
-
-_LOG = get_logger()
 _ARRAY_NAMES = ("row_ptr", "column_atom", "dynamical_blocks", "displacement",
                 "masses", "positions", "cell")
 _BLOCK_BATCH = 65536
@@ -446,32 +442,3 @@ def convert_legacy_dynform(dynform_path, positions_path, output_directory, *,
         positions_path, output_directory, masses_path=masses_path,
         derivative_paths=derivative_paths, tolerance=tolerance,
         dtype=dtype, apply_acoustic_sum=apply_acoustic_sum)
-
-
-def main(argv=None):
-    parser = argparse.ArgumentParser(description="Convert nonperiodic .npy or one-replica Dyn.form harmonic input")
-    parser.add_argument("dynamical", type=Path)
-    parser.add_argument("positions", type=Path)
-    parser.add_argument("output", type=Path)
-    parser.add_argument("--masses", type=Path)
-    parser.add_argument("--derivative", type=Path, action="append", default=[],
-                        help="one each for x, y, z; verifies the displacement convention")
-    parser.add_argument("--dtype", choices=("float32", "float64"), default="float64")
-    parser.add_argument("--apply-acoustic-sum", action="store_true")
-    args = parser.parse_args(argv)
-    if args.derivative and len(args.derivative) != 3:
-        parser.error("provide exactly three --derivative paths")
-    converter = convert_legacy_dense if args.dynamical.suffix == ".npy" else convert_legacy_dynform
-    harmonic = converter(
-        args.dynamical, args.positions, args.output, masses_path=args.masses,
-        derivative_paths=args.derivative or None, dtype=args.dtype,
-        apply_acoustic_sum=args.apply_acoustic_sum)
-    _LOG.info("Sparse harmonic written to %s: %s", args.output,
-              json.dumps({"n_atoms": harmonic.n_atoms,
-                          "n_blocks": len(harmonic.column_atom),
-                          "storage_bytes": harmonic.storage_bytes,
-                          "validation": harmonic.validation_report()}))
-
-
-if __name__ == "__main__":
-    main()

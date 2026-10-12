@@ -6,7 +6,7 @@ import pytest
 from scipy.sparse import load_npz
 
 from kaldo.forceconstants import ForceConstants
-from kaldo.controllers.colored_fd.build_dynmat import main
+from kaldo.large_cell_cli import main
 from kaldo.observables.harmonic_with_q import HarmonicWithQ
 from kaldo.observables.secondorder import SecondOrder
 from kaldo.observables.sparse_harmonic import SparseHarmonic
@@ -20,12 +20,12 @@ def workdir(tmp_path_factory):
     structure = root / "periodic.extxyz"
     ase.io.write(structure, rattled_simple_cubic(6, seed=4))
     run = root / "run"
-    main(["plan", "--workdir", str(run), "--structure", str(structure),
+    main(["ifc-plan", "--workdir", str(run), "--structure", str(structure),
           "--calculator", "kaldo.tests.colored_fd_helpers:PeriodicToyEAM",
           "--delta-shift", "0.001", "--n-probe", "3", "--shards", "2"])
     for index in (0, 1):
-        main(["run", "--workdir", str(run), "--index", str(index), "--flush-tasks", "32"])
-    main(["finalize", "--workdir", str(run)])
+        main(["ifc-run", "--workdir", str(run), "--index", str(index), "--flush-tasks", "32"])
+    main(["ifc-finalize", "--workdir", str(run)])
     return run
 
 
@@ -53,5 +53,5 @@ def test_sparse_harmonic_matches_existing_amorphous_derivatives(workdir):
 def test_finalize_reuses_the_sparse_harmonic(workdir):
     metadata = workdir / "harmonic" / "metadata.json"
     before = metadata.stat().st_mtime_ns
-    main(["finalize", "--workdir", str(workdir)])
+    main(["ifc-finalize", "--workdir", str(workdir)])
     assert metadata.stat().st_mtime_ns == before

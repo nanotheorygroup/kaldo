@@ -1,17 +1,46 @@
 # Large-cell Gamma-point QHGK
 
-`calculate_qhgk_blocked` computes per-mode isotropic conductivity
-(W/(m K)) and diffusivity (mm²/s) from sorted angular frequencies (rad/ps),
+The large-cell path computes QHGK conductivity for one big cell sampled only
+at Gamma, without forming any `(3N, 3N)` pair field. The end-to-end workflow is:
+
+1. `ifc-plan`, `ifc-run` (one job per shard), and `ifc-finalize` of
+   `python -m kaldo.large_cell_cli` compute colored finite-difference IFC2.
+   `ifc-finalize` writes `merged/` (a `SparseSecondOrder`), `dynmat_bsr.npz`,
+   and `harmonic/`, the atom-block input below.
+2. An eigensolve gives the eigenvectors: `solve`/`windows` (SLEPc), or `shard`
+   for a saved kALDo `_eigensystem.npy`.
+3. `reduce` or `windows` runs the distributed reducer.
+
+For cells small enough for dense eigenvectors, the existing API covers the
+same physics: `ForceConstants.from_folder(merged_dir, format='colored',
+only_second=True)` loads the merged IFC2, and `Conductivity(method='qhgk')`
+on a Gamma-only amorphous `Phonons` already reduces in bounded blocks.
+
+## Blocked reducer
+
+`calculate_qhgk_blocked` computes per-mode conductivity (W/(m K)) and
+diffusivity (mm²/s) from sorted angular frequencies (rad/ps),
 `diffusivity_bandwidth` (rad/ps), a physical-mode mask, real coordinate-major
-eigenvectors, and three real derivative operators. Volume is in Å³. It keeps
-the existing `float32` work and `float64` accumulation defaults.
+eigenvectors, and three real derivative operators. Volume is in Å³. The
+conductivity is the isotropic trace/3, or the full `(modes, 3, 3)` tensor with
+`is_tensor=True`; `is_including_antiresonant=True` adds antiresonant terms.
+It keeps the existing `float32` work and `float64` accumulation defaults.
 `core_start`/`core_stop` restrict the result to a half-open range of core modes.
+
+Serial and distributed runs share one loop, `reduce_qhgk_blocks`. It asks a
+flux projector for each `e_i^T (dD/dx_a) e_j` block: `LocalFluxProjector`
+holds all coordinate rows, and `DistributedFluxProjector` holds one rank's rows
+and sums partial blocks onto the owner. Restartable runs store per-block
+results in a `kaldo.helpers.checkpoint_store.CheckpointStore`, bound to a hash
+of the calculation configuration.
 
 The pair kernel and the generalized heat capacity are
 `kaldo.controllers.qhgk.diffusivity_kernel` and
-`kaldo.controllers.qhgk.generalized_heat_capacity`, the same functions
-`Conductivity(method='qhgk')` uses. `test_amorphous_blocked_qhgk_matches_conductivity.py`
-checks per-mode agreement with `Conductivity` on `kaldo/tests/si-amorphous`.
+`kaldo.controllers.qhgk.generalized_heat_capacity`, the same functions the
+per-q-point `Conductivity` path uses.
+`test_amorphous_blocked_qhgk_matches_conductivity.py` checks that the blocked
+`Conductivity` path reproduces the per-q-point pair fields on
+`kaldo/tests/si-amorphous`.
 
 The pair width is `2*(bandwidth_i+bandwidth_j)`. When the legacy QHGK path has
 no explicit bandwidth, use `phonons.bandwidth/2`. `diffusivity_threshold` keeps
@@ -31,15 +60,17 @@ sent to the pair kernel, including some zeros inside retained blocks.
 
 | Module | Contents |
 | --- | --- |
-| `kaldo.controllers.qhgk` | Pair kernel, generalized heat capacity, blocked and dense reducers |
+| `kaldo.controllers.qhgk` | Pair kernel, generalized heat capacity, flux projector, reducers |
 | `kaldo.controllers.bandwidth` | `DirectBandwidth`, `TabulatedBandwidth` |
 | `kaldo.observables.sparse_harmonic` | `SparseHarmonic` atom-block contract and legacy converters |
 | `kaldo.observables.eigenvector_source` | In-memory, memory-mapped, and row-sharded eigenvector sources |
-| `kaldo.parallel.distributed_qhgk` | `DistributedSparseHarmonic`, `run_distributed_qhgk` |
+| `kaldo.parallel.distributed_qhgk` | `DistributedSparseHarmonic`, `DistributedFluxProjector`, `run_distributed_qhgk` |
 | `kaldo.parallel.slepc_eigensolver` | `SlepcRowEigenvectorSource` interval solves |
 | `kaldo.parallel.spectrum_slicing` | Window boundaries, halos, `run_interval_pipeline` |
 | `kaldo.helpers.sparse_blocks` | Reverse-block matching, block sums, transpose symmetrization |
-| `kaldo.large_cell_cli` | Command line for conversion, sharding, reduction, and solves |
+| `kaldo.observables.sparse_secondorder` | `SparseSecondOrder`: sparse IFC2 with its structure |
+| `kaldo.helpers.checkpoint_store` | `CheckpointStore` for restartable block results |
+| `kaldo.large_cell_cli` | Command line for colored IFC2, conversion, sharding, reduction, and solves |
 
 ## Sparse harmonic input
 

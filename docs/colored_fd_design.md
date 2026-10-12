@@ -26,7 +26,8 @@ The result is `SparseSecondOrder` in
 `kaldo/observables/sparse_secondorder.py`, holding float64 3×3 SciPy BSR
 blocks in eV/Å², with save/load, guarded `to_dense()`, mass-weighted BSR and
 `LinearOperator` accessors. The staged sparse path is available through the
-functions above and `python -m kaldo.controllers.colored_fd.build_dynmat`.
+functions above and the `ifc-plan`, `ifc-run`, and `ifc-finalize` commands of
+`python -m kaldo.large_cell_cli`.
 It does not route through `SecondOrder.calculate`, assign
 `SecondOrder.value`, or write `second.npy`. Dense calculation and
 `ForceConstants` defaults remain unchanged. A merged result carries its
@@ -37,17 +38,17 @@ which builds a dense one-cell `SecondOrder` for small cells.
 **122,880-atom Gamma matrix workflow.** The command has three stages:
 
 ```bash
-python -m kaldo.controllers.colored_fd.build_dynmat plan \
+python -m kaldo.large_cell_cli ifc-plan \
   --workdir /scratch/colored-si --structure amorphous.extxyz \
   --calculator my_potential:make_calculator --delta-shift 0.01 --shards 16
-python -m kaldo.controllers.colored_fd.build_dynmat run \
+python -m kaldo.large_cell_cli ifc-run \
   --workdir /scratch/colored-si --index 0
-# Submit `run` for indices 0 through 15, one index per job.
-python -m kaldo.controllers.colored_fd.build_dynmat finalize \
+# Submit `ifc-run` for indices 0 through 15, one index per job.
+python -m kaldo.large_cell_cli ifc-finalize \
   --workdir /scratch/colored-si
 ```
 
-`plan` probes force responses and uses the recommendation at `--tolerance`
+`ifc-plan` probes force responses and uses the recommendation at `--tolerance`
 (default `1e-5`) for `R_store`. It sets `R_color` to at least twice the
 potential cutoff. The cutoff may be detected from the calculator or supplied
 with `--cutoff-hint`; when both exist, the larger one wins. Planning
@@ -59,7 +60,7 @@ The factory must be importable and take no arguments. Set
 `--calculator-description` to a stable model/version identity when changing a
 model file does not change the factory path.
 
-Each shard resumes from its own checkpoint. `finalize` checks merge diagnostics
+Each shard resumes from its own checkpoint. `ifc-finalize` checks merge diagnostics
 and writes `dynmat_bsr.npz`, a float64 SciPy 3×3 BSR dynamical matrix in
 kALDo units, plus `dynmat_metadata.json`. It retains the plan, force chunks,
 merged sparse IFC2, and diagnostic report. It also writes `harmonic/`, the
