@@ -20,8 +20,7 @@ from pathlib import Path
 import numpy as np
 from scipy.sparse import bsr_matrix
 
-from kaldo.controllers.colored_fd.processing import (block_row_sums, reverse_block_slots,
-                                                     symmetrize_blocks)
+from kaldo.helpers.sparse_blocks import block_row_sums, reverse_block_slots, symmetrize_blocks
 from kaldo.helpers.atomic_io import atomic_save_npy, atomic_write_json, sha256_file
 from kaldo.helpers.logger import get_logger
 from kaldo.helpers.units import EV_TO_10J_PER_MOL
@@ -77,7 +76,7 @@ class DerivativeView:
             self.axis, panel, self.shape)
 
 
-class SparseAmorphousHarmonic:
+class SparseHarmonic:
     """Directed atom-pair BSR graph with mass-weighted 3x3 blocks."""
 
     def __init__(self, row_ptr, column_atom, blocks, displacement, *, masses=None,
@@ -136,7 +135,7 @@ class SparseAmorphousHarmonic:
         if dtype not in (np.dtype("float32"), np.dtype("float64")):
             raise ValueError("sparse harmonic work dtype must be float32 or float64")
         if dtype not in self._casts:
-            self._casts[dtype] = SparseAmorphousHarmonic(
+            self._casts[dtype] = SparseHarmonic(
                 self.row_ptr, self.column_atom, self.blocks.astype(dtype),
                 self.displacement.astype(dtype), masses=self.masses,
                 positions=self.positions, cell=self.cell,
@@ -307,7 +306,7 @@ def from_sparse_force_constants(row_ptr, column_atom, force_blocks,
         force[onsite] -= block_row_sums(force, ptr)
     rows = _row_ids(ptr)
     force *= (factor / np.sqrt(masses[rows] * masses[columns]))[:, None, None]
-    result = SparseAmorphousHarmonic(
+    result = SparseHarmonic(
         ptr, columns, force.astype(dtype), displacement, masses=masses,
         positions=positions, cell=cell,
         metadata={"source_format": "sparse-ifc2",
@@ -396,7 +395,7 @@ def _convert_legacy_slabs(slabs, source_path, source_format, positions_path,
         weight = np.sqrt(masses[rows] * masses[columns])
         sums = block_row_sums(blocks * weight[:, None, None], ptr)
         blocks[_onsite_slots(ptr, columns, n)] -= sums / np.asarray(masses)[:, None, None]
-    harmonic = SparseAmorphousHarmonic(
+    harmonic = SparseHarmonic(
         ptr, columns, blocks.astype(dtype),
         np.asarray(displacement, dtype=dtype).reshape(-1, 3), masses=masses,
         positions=positions,

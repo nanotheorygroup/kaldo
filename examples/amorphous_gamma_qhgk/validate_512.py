@@ -18,9 +18,9 @@ import ase.units as units
 import numpy as np
 from scipy import sparse
 
-from kaldo.amorphous import (NpyEigensystemSource, SparseAmorphousHarmonic,
-                             calculate_qhgk_isotropic_blocked)
-from kaldo.controllers.qhgk import generalized_heat_capacity
+from kaldo.controllers.qhgk import calculate_qhgk_isotropic_blocked, generalized_heat_capacity
+from kaldo.observables.eigenvector_source import NpyEigensystemSource
+from kaldo.observables.sparse_harmonic import SparseHarmonic
 
 
 def _file(root, stem, overrides=None):
@@ -142,7 +142,7 @@ def main(argv=None):
     if total_error > 1e-6:
         raise AssertionError("mixed-precision total mismatch")
     if args.sparse_harmonic is not None:
-        atom_blocks = SparseAmorphousHarmonic.load(args.sparse_harmonic)
+        atom_blocks = SparseHarmonic.load(args.sparse_harmonic)
         print("atom-block validation:", atom_blocks.validation_report())
         for axis, operator, flux in zip("xyz", atom_blocks.operators, saved_flux):
             projected = e0.T @ (operator @ e1)

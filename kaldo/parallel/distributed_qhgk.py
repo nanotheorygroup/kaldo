@@ -17,17 +17,17 @@ import numpy as np
 
 from kaldo.helpers.atomic_io import (atomic_save_npy, atomic_savez, atomic_write_json,
                                      sha256_arrays, sha256_file, sha256_json)
-from .checkpoint import RowShardedEigenvectorSource, atom_row_bounds
-from .qhgk import (_finish, _triangle_block_outside_support, _zero_self_pairs,
-                   qhgk_pair_factors)
-from .sparse_harmonic import apply_derivative_panel
+from kaldo.observables.eigenvector_source import RowShardedEigenvectorSource, atom_row_bounds
+from kaldo.controllers.qhgk import (_finish, _triangle_block_outside_support, _zero_self_pairs,
+                                   qhgk_pair_factors)
+from kaldo.observables.sparse_harmonic import apply_derivative_panel
 
 
-class DistributedSparseAmorphousHarmonic:
+class DistributedSparseHarmonic:
     """Local atom rows of the direct sparse input contract.
 
     This adapter keeps the on-disk format and derivative action of
-    ``SparseAmorphousHarmonic`` while replacing global storage with local rows.
+    ``SparseHarmonic`` while replacing global storage with local rows.
     It does not change the original harmonic or legacy kALDo object APIs.
     """
 

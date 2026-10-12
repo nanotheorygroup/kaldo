@@ -5,7 +5,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from kaldo.amorphous import calculate_qhgk_isotropic_blocked
+from kaldo.controllers.qhgk import calculate_qhgk_isotropic_blocked
 from kaldo.conductivity import Conductivity
 from kaldo.forceconstants import ForceConstants
 from kaldo.observables.harmonic_with_q import HarmonicWithQ

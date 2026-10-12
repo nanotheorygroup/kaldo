@@ -1,4 +1,9 @@
-"""Coordinate-row eigenvector shards read without loading the full eigensystem."""
+"""Real Gamma-point eigenvector panels read without loading the full eigensystem.
+
+Sources are coordinate-major ``(3*N, modes)`` and expose
+``read_modes(start, stop, dtype=...)``: an in-memory array, a memory-mapped
+kALDo ``_eigensystem.npy``, or one MPI rank's coordinate rows.
+"""
 
 from __future__ import annotations
 
@@ -8,7 +13,41 @@ from pathlib import Path
 import numpy as np
 
 from kaldo.helpers.atomic_io import atomic_write_json, sha256_file
-from .qhgk import NumpyEigenvectorSource
+
+
+class NumpyEigenvectorSource:
+    """Read coordinate-major real eigenvector columns from an in-memory array."""
+
+    def __init__(self, eigenvectors):
+        array = np.asarray(eigenvectors)
+        if array.ndim != 2 or not np.issubdtype(array.dtype, np.floating):
+            raise ValueError("eigenvectors must be a real 2D floating array")
+        self._array = array
+        self.n_coordinates, self.n_modes = array.shape
+
+    def read_modes(self, start, stop, *, dtype):
+        """Return a ``(coordinates, stop-start)`` panel in ``dtype``."""
+        if not 0 <= start < stop <= self.n_modes:
+            raise ValueError("invalid eigenvector mode interval")
+        return np.asarray(self._array[:, start:stop], dtype=dtype)
+
+    def read_rows_modes(self, row_start, row_stop, start, stop, *, dtype):
+        """Read a coordinate-row and mode-column slab from the backing array."""
+        if (not 0 <= row_start < row_stop <= self.n_coordinates or
+                not 0 <= start < stop <= self.n_modes):
+            raise ValueError("invalid eigenvector row or mode interval")
+        return np.asarray(self._array[row_start:row_stop, start:stop], dtype=dtype)
+
+
+class NpyEigensystemSource(NumpyEigenvectorSource):
+    """Memory-map a kALDo ``_eigensystem.npy`` (eigenvalues in row zero)."""
+
+    def __init__(self, path: str | Path):
+        self.path = Path(path)
+        array = np.load(path, mmap_mode="r", allow_pickle=False)
+        if array.ndim != 2 or array.shape[0] != array.shape[1] + 1:
+            raise ValueError("kALDo eigensystem must have shape (M+1, M)")
+        super().__init__(array[1:, :])
 
 
 def atom_row_bounds(n_atoms, size):

@@ -99,7 +99,7 @@ The plan records structure and plan hashes, cell, PBC, radii, units, calculator
 description, seeds, and software versions; progress uses kALDo's logger.
 
 **Amorphous integration and later replicas.** The new object stores *ordinary*
-IFC2; `kaldo.amorphous.sparse_harmonic.from_sparse_force_constants` already
+IFC2; `kaldo.observables.sparse_harmonic.from_sparse_force_constants` already
 provides the mass-weighting/ASR bridge to the amorphous QHGK block contract
 (use `apply_acoustic_sum=False` after ASR), provided unique directed pair
 displacements can be assigned. That contract

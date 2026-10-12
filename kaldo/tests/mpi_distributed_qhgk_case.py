@@ -10,13 +10,13 @@ from pathlib import Path
 from mpi4py import MPI
 import numpy as np
 
-from kaldo.amorphous import (DirectBandwidth, NpyEigensystemSource,
-                             NumpyEigenvectorSource, SparseAmorphousHarmonic,
-                             calculate_qhgk_isotropic_blocked)
-from kaldo.amorphous.checkpoint import RowShardedEigenvectorSource
-from kaldo.amorphous.distributed import (DistributedSparseAmorphousHarmonic,
-                                         run_distributed_qhgk)
-from kaldo.amorphous.pipeline import run_interval_pipeline
+from kaldo.controllers.bandwidth import DirectBandwidth
+from kaldo.controllers.qhgk import calculate_qhgk_isotropic_blocked
+from kaldo.observables.eigenvector_source import (NpyEigensystemSource, NumpyEigenvectorSource,
+                                                  RowShardedEigenvectorSource)
+from kaldo.observables.sparse_harmonic import SparseHarmonic
+from kaldo.parallel.distributed_qhgk import DistributedSparseHarmonic, run_distributed_qhgk
+from kaldo.parallel.spectrum_slicing import run_interval_pipeline
 
 
 def write_input(root):
@@ -44,7 +44,7 @@ def write_input(root):
     np.save(root / "physical.npy", np.ones(len(omega), bool))
     columns = np.tile(np.arange(n), n)
     displacement = (positions[:, None, :] - positions[None, :, :]).reshape(-1, 3)
-    SparseAmorphousHarmonic(np.arange(0, n*n + 1, n), columns, atom_blocks.reshape(-1, 3, 3),
+    SparseHarmonic(np.arange(0, n*n + 1, n), columns, atom_blocks.reshape(-1, 3, 3),
                             displacement).save(root / "sparse")
 
 
@@ -79,7 +79,7 @@ def main():
     comm.Barrier()
     row_directory = root / "row_shards"
     if phase == "cli":
-        from kaldo.amorphous.cli import main as cli_main
+        from kaldo.large_cell_cli import main as cli_main
         cli_main(["shard", "--eigensystem", str(root / "eigensystem.npy"),
                   "--omega", str(root / "omega.npy"),
                   "--physical", str(root / "physical.npy"),
@@ -90,7 +90,7 @@ def main():
         RowShardedEigenvectorSource.create(source, row_directory, comm,
                                            panel_size=5, dtype=np.float64)
     row_source = RowShardedEigenvectorSource(row_directory, comm)
-    harmonic = DistributedSparseAmorphousHarmonic(root / "sparse", comm)
+    harmonic = DistributedSparseHarmonic(root / "sparse", comm)
     omega = np.load(root / "omega.npy")
     provider = DirectBandwidth(0.035)
     if phase == "corrupt":
@@ -134,7 +134,7 @@ def main():
                         adjusted, provider.evaluate(adjusted, 300.), physical,
                         300., False, 200.,
                         NpyEigensystemSource(root / "eigensystem.npy"),
-                        SparseAmorphousHarmonic.load(root / "sparse").operators,
+                        SparseHarmonic.load(root / "sparse").operators,
                         block_size=5, broadening_shape=shape,
                         compute_dtype=np.float64)
                     if dtype == np.float64:
@@ -148,7 +148,7 @@ def main():
             print("distributed shapes and mixed precision complete", comm.size)
         return
     if phase == "cli":
-        from kaldo.amorphous.cli import main as cli_main
+        from kaldo.large_cell_cli import main as cli_main
         cli_main(["reduce", "--harmonic", str(root / "sparse"),
                   "--eigenvectors", str(row_directory),
                   "--omega", str(root / "omega.npy"),
@@ -161,7 +161,7 @@ def main():
             expected = calculate_qhgk_isotropic_blocked(
                 omega, provider.evaluate(omega, 300.), np.ones(len(omega), bool),
                 300., False, 200., NpyEigensystemSource(root / "eigensystem.npy"),
-                SparseAmorphousHarmonic.load(root / "sparse").operators,
+                SparseHarmonic.load(root / "sparse").operators,
                 block_size=4, compute_dtype=np.float64)[0]
             np.testing.assert_allclose(np.load(root / "cli_results/conductivity.npy"),
                                        expected, rtol=1e-12, atol=1e-13)
@@ -184,7 +184,7 @@ def main():
                 reference = calculate_qhgk_isotropic_blocked(
                     omega, provider.evaluate(omega, 300.), np.ones(len(omega), bool),
                     300., False, 200., NpyEigensystemSource(root / "eigensystem.npy"),
-                    SparseAmorphousHarmonic.load(root / "sparse").operators,
+                    SparseHarmonic.load(root / "sparse").operators,
                     block_size=4, compute_dtype=np.float64)
                 for actual, expected in zip(result, reference):
                     np.testing.assert_allclose(actual, expected, rtol=1e-12, atol=1e-13)
@@ -205,7 +205,7 @@ def main():
             reference = calculate_qhgk_isotropic_blocked(
                 omega, provider.evaluate(omega, 300.), np.ones(len(omega), bool),
                 300., False, 200., NpyEigensystemSource(root / "eigensystem.npy"),
-                SparseAmorphousHarmonic.load(root / "sparse").operators,
+                SparseHarmonic.load(root / "sparse").operators,
                 block_size=4, compute_dtype=np.float64)
             for actual, expected in zip(result, reference):
                 np.testing.assert_allclose(actual, expected, rtol=1e-12, atol=1e-13)

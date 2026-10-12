@@ -15,8 +15,8 @@ import numpy as np
 from scipy.sparse import bsr_matrix
 
 from kaldo.helpers.atomic_io import atomic_save_npy, atomic_write_json, sha256_file
-from .checkpoint import RowShardedEigenvectorSource
-from .distributed import DistributedSparseAmorphousHarmonic
+from kaldo.observables.eigenvector_source import RowShardedEigenvectorSource
+from kaldo.parallel.distributed_qhgk import DistributedSparseHarmonic
 
 
 class SlepcRowEigenvectorSource(RowShardedEigenvectorSource):
@@ -27,7 +27,7 @@ class SlepcRowEigenvectorSource(RowShardedEigenvectorSource):
                        tolerance=1e-9, max_iterations=None, dtype=np.float32,
                        require_full=False, zero_tolerance=1e-12,
                        factor_solver=None):
-        if not isinstance(harmonic, DistributedSparseAmorphousHarmonic):
+        if not isinstance(harmonic, DistributedSparseHarmonic):
             raise ValueError("SLEPc solve requires distributed sparse harmonic input")
         try:
             from petsc4py import PETSc

@@ -10,11 +10,10 @@ import pytest
 from scipy import sparse
 from ase.io import read
 
-from kaldo.amorphous import (NpyEigensystemSource,
-                             calculate_qhgk_isotropic_blocked as blocked,
-                             calculate_qhgk_isotropic_dense as dense,
-                             qhgk_pair_factors)
-from kaldo.controllers.qhgk import generalized_heat_capacity
+from kaldo.controllers.qhgk import (calculate_qhgk_isotropic_blocked as blocked,
+                                   calculate_qhgk_isotropic_dense as dense,
+                                   generalized_heat_capacity, qhgk_pair_factors)
+from kaldo.observables.eigenvector_source import NpyEigensystemSource
 
 
 @pytest.fixture
@@ -203,18 +202,20 @@ def test_amorphous_reducer_does_not_import_tensorflow():
     script = (
         "import sys\n"
         "import numpy as np\n"
-        "from kaldo.amorphous import calculate_qhgk_isotropic_blocked, SparseAmorphousHarmonic\n"
+        "from kaldo.controllers.qhgk import calculate_qhgk_isotropic_blocked\n"
+        "from kaldo.observables.sparse_harmonic import SparseHarmonic\n"
+        "from kaldo.parallel.distributed_qhgk import run_distributed_qhgk\n"
         "e = np.eye(6)\n"
         "operators = tuple(np.zeros((6, 6)) for _ in range(3))\n"
         "calculate_qhgk_isotropic_blocked(np.linspace(1, 2, 6), 0.1, np.ones(6, bool), 300., False,\n"
         "                                 10., e, operators, block_size=2)\n"
-        "assert 'tensorflow' not in sys.modules, 'kaldo.amorphous imported tensorflow'\n"
+        "assert 'tensorflow' not in sys.modules, 'the Gamma QHGK stack imported tensorflow'\n"
     )
     subprocess.run([sys.executable, "-c", script], check=True)
 
 
 def test_no_global_pair_field(system, monkeypatch):
-    import kaldo.amorphous.qhgk as qhgk
+    import kaldo.controllers.qhgk as qhgk
 
     original = qhgk.qhgk_pair_factors
     shapes = []

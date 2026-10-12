@@ -7,14 +7,11 @@ import ase.units as units
 import numpy as np
 import pytest
 
-from kaldo.amorphous import (
-    DirectBandwidth, SparseAmorphousHarmonic, TabulatedBandwidth,
-    calculate_qhgk_isotropic_blocked, calculate_qhgk_isotropic_dense,
-    convert_legacy_dense,
-    from_sparse_force_constants,
-)
-from kaldo.amorphous.sparse_harmonic import convert_legacy_dynform
-from kaldo.amorphous.windows import approximate_dos_boundaries, eigenvalue_window_intervals
+from kaldo.controllers.bandwidth import DirectBandwidth, TabulatedBandwidth
+from kaldo.controllers.qhgk import calculate_qhgk_isotropic_blocked, calculate_qhgk_isotropic_dense
+from kaldo.observables.sparse_harmonic import (SparseHarmonic, convert_legacy_dense, convert_legacy_dynform,
+                                               from_sparse_force_constants)
+from kaldo.parallel.spectrum_slicing import approximate_dos_boundaries, eigenvalue_window_intervals
 
 
 @pytest.fixture
@@ -61,7 +58,7 @@ def test_sparse_converter_action_validation_and_projection(small_harmonic, tmp_p
     report = harmonic.validation_report(require_acoustic_sum=True)
     assert report["acoustic_sum_residual"] < 1e-13
     assert report["skew_derivative_residual"] < 1e-13
-    loaded = SparseAmorphousHarmonic.load(tmp_path / "sparse")
+    loaded = SparseHarmonic.load(tmp_path / "sparse")
     np.testing.assert_array_equal(loaded.positions, positions)
     assert loaded.storage_bytes < dense.nbytes * 5
     rng = np.random.default_rng(4)
@@ -98,7 +95,7 @@ def test_sparse_validation_rejects_bad_reverse(small_harmonic, tmp_path):
                                     dtype=np.float64)
     corrupted = harmonic.displacement.copy()
     corrupted[1, 0] += 0.1
-    bad = SparseAmorphousHarmonic(harmonic.row_ptr, harmonic.column_atom,
+    bad = SparseHarmonic(harmonic.row_ptr, harmonic.column_atom,
                                   harmonic.blocks, corrupted)
     with pytest.raises(ValueError, match="validation failed"):
         bad.validation_report()
@@ -110,11 +107,11 @@ def test_multiple_periodic_images_share_atom_columns(tmp_path):
                        2*identity, 3*identity, np.zeros((3,3))])
     shifts = np.array([[0.,0,0], [1.,0,0], [2.,0,0],
                        [-1.,0,0], [-2.,0,0], [0.,0,0]])
-    harmonic = SparseAmorphousHarmonic(
+    harmonic = SparseHarmonic(
         [0,3,6], [0,1,1,0,0,1], blocks, shifts,
         metadata={"periodic_wrapping": "explicit_images"})
     harmonic.save(tmp_path / "images")
-    loaded = SparseAmorphousHarmonic.load(tmp_path / "images")
+    loaded = SparseHarmonic.load(tmp_path / "images")
     assert loaded.validation_report()["skew_derivative_residual"] == 0
     panel = np.arange(12, dtype=float).reshape(6,2)
     expected = np.zeros((6,6))
@@ -165,7 +162,7 @@ def test_streamed_dynform_and_sparse_acoustic_sum(small_harmonic, tmp_path):
         masses_path=tmp_path / "masses.npy", apply_acoustic_sum=True,
         dtype=np.float64)
     assert harmonic.metadata["source_format"] == "legacy-dynform-one-replica"
-    assert SparseAmorphousHarmonic.load(tmp_path / "sparse").validation_report(
+    assert SparseHarmonic.load(tmp_path / "sparse").validation_report(
         require_acoustic_sum=True)["acoustic_sum_residual"] < 1e-12
     panel = np.random.default_rng(5).normal(size=(len(dense), 2))
     for axis in range(3):

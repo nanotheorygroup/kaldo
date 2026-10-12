@@ -13,8 +13,9 @@ from time import perf_counter
 
 import numpy as np
 
-from kaldo.amorphous import (NpyEigensystemSource, SparseAmorphousHarmonic,
-                             calculate_qhgk_isotropic_blocked)
+from kaldo.controllers.qhgk import calculate_qhgk_isotropic_blocked
+from kaldo.observables.eigenvector_source import NpyEigensystemSource
+from kaldo.observables.sparse_harmonic import SparseHarmonic
 
 
 def probe(n_atoms, block, directory):
@@ -34,7 +35,7 @@ def probe(n_atoms, block, directory):
             blocks.append(np.eye(3, dtype=np.float32) * (2 if i == j else -1))
             displacement.append([float(i-j), 0., 0.])
         ptr.append(len(columns))
-    harmonic = SparseAmorphousHarmonic(np.array(ptr), np.array(columns),
+    harmonic = SparseHarmonic(np.array(ptr), np.array(columns),
                                       np.array(blocks), np.array(displacement,
                                                                dtype=np.float32))
     physical = omega > 0

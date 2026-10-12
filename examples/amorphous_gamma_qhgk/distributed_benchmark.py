@@ -13,9 +13,10 @@ from time import perf_counter
 from mpi4py import MPI
 import numpy as np
 
-from kaldo.amorphous import (DirectBandwidth, DistributedSparseAmorphousHarmonic,
-                             NpyEigensystemSource, RowShardedEigenvectorSource,
-                             SparseAmorphousHarmonic, run_distributed_qhgk)
+from kaldo.controllers.bandwidth import DirectBandwidth
+from kaldo.observables.eigenvector_source import NpyEigensystemSource, RowShardedEigenvectorSource
+from kaldo.observables.sparse_harmonic import SparseHarmonic
+from kaldo.parallel.distributed_qhgk import DistributedSparseHarmonic, run_distributed_qhgk
 
 
 def _write_case(directory, n_atoms):
@@ -33,7 +34,7 @@ def _write_case(directory, n_atoms):
             blocks.append(np.eye(3, dtype=np.float32)*(2 if atom == neighbor else -1))
             displacement.append([float(atom-neighbor), 0., 0.])
         ptr.append(len(column))
-    SparseAmorphousHarmonic(np.array(ptr), np.array(column), np.array(blocks),
+    SparseHarmonic(np.array(ptr), np.array(column), np.array(blocks),
                             np.array(displacement, dtype=np.float32)).save(directory / "harmonic")
 
 
@@ -62,7 +63,7 @@ def main(argv=None):
             NpyEigensystemSource(directory / "eigensystem.npy"),
             directory / "row_shards", comm, panel_size=args.block,
             dtype=np.float32)
-        harmonic = DistributedSparseAmorphousHarmonic(directory / "harmonic", comm)
+        harmonic = DistributedSparseHarmonic(directory / "harmonic", comm)
         omega = np.load(directory / "omega.npy")
         start = perf_counter()
         result = run_distributed_qhgk(

@@ -1,4 +1,4 @@
-# Amorphous Gamma QHGK prototype
+# Large-cell Gamma-point QHGK
 
 `calculate_qhgk_isotropic_blocked` computes per-mode isotropic conductivity
 (W/(m K)) and diffusivity (mm²/s) from sorted angular frequencies (rad/ps),
@@ -26,9 +26,24 @@ largest bandwidths in the two blocks. This is a conservative bound on the
 kernel's *exact* compact support. The reported `evaluated_pairs` counts pairs
 sent to the pair kernel, including some zeros inside retained blocks.
 
+
+## Module layout
+
+| Module | Contents |
+| --- | --- |
+| `kaldo.controllers.qhgk` | Pair kernel, generalized heat capacity, blocked and dense reducers |
+| `kaldo.controllers.bandwidth` | `DirectBandwidth`, `TabulatedBandwidth` |
+| `kaldo.observables.sparse_harmonic` | `SparseHarmonic` atom-block contract and legacy converters |
+| `kaldo.observables.eigenvector_source` | In-memory, memory-mapped, and row-sharded eigenvector sources |
+| `kaldo.parallel.distributed_qhgk` | `DistributedSparseHarmonic`, `run_distributed_qhgk` |
+| `kaldo.parallel.slepc_eigensolver` | `SlepcRowEigenvectorSource` interval solves |
+| `kaldo.parallel.spectrum_slicing` | Window boundaries, halos, `run_interval_pipeline` |
+| `kaldo.helpers.sparse_blocks` | Reverse-block matching, block sums, transpose symmetrization |
+| `kaldo.large_cell_cli` | Command line for conversion, sharding, reduction, and solves |
+
 ## Sparse harmonic input
 
-`SparseAmorphousHarmonic` stores directed atom-block CSR arrays:
+`SparseHarmonic` stores directed atom-block CSR arrays:
 
 | File | Shape | Meaning |
 | --- | --- | --- |
@@ -50,7 +65,7 @@ masses are present. Reverse blocks are matched by atom pair and, when a pair
 is stored more than once, by periodic image (displacement `r` pairs with `-r`).
 The checks are vectorized over blocks and run on every `save()` and `load()`.
 Direct production producers can write the same directory contract and load it
-with `SparseAmorphousHarmonic.load(path)`. Arrays and metadata are written
+with `SparseHarmonic.load(path)`. Arrays and metadata are written
 atomically. Blocks default to `float64`; pass `dtype=np.float32` (or
 `--dtype float32`) to halve their storage.
 
@@ -60,9 +75,9 @@ intermediate for text input, drops zero offsite blocks, and can verify three
 saved derivative matrices:
 
 ```bash
-python -m kaldo.amorphous.sparse_harmonic D.npy positions.npy sparse_out \
+python -m kaldo.large_cell_cli convert D.npy positions.npy sparse_out \
   --masses masses.npy --derivative Dx.npy --derivative Dy.npy --derivative Dz.npy
-python -m kaldo.amorphous.sparse_harmonic Dyn.form positions.npy sparse_out \
+python -m kaldo.large_cell_cli convert Dyn.form positions.npy sparse_out \
   --masses masses.npy --apply-acoustic-sum
 ```
 
@@ -100,7 +115,7 @@ holds one rank's coordinate rows.
 The MPI paths need `mpi4py` (`pip install kaldo[mpi]`); the SLEPc solver also
 needs `petsc4py` and `slepc4py` (`pip install kaldo[slepc]`).
 
-`run_distributed_qhgk(...)` in `kaldo.amorphous.distributed` is the
+`run_distributed_qhgk(...)` in `kaldo.parallel.distributed_qhgk` is the
 coordinate-row distributed path. Each rank memory-maps only its atom rows of
 the sparse harmonic graph and the corresponding coordinate rows of every
 eigenvector. It exchanges partner-panel rows for off-rank neighbor atoms,
@@ -119,10 +134,10 @@ derive from the existing NumPy source interface.
 The precomputed-eigenvector workflow is:
 
 ```bash
-mpiexec -n 4 python -m kaldo.amorphous.cli shard \
+mpiexec -n 4 python -m kaldo.large_cell_cli shard \
   --eigensystem _eigensystem.npy --omega omega.npy \
   --physical physical_mode.npy --output row_shards
-mpiexec -n 4 python -m kaldo.amorphous.cli reduce \
+mpiexec -n 4 python -m kaldo.large_cell_cli reduce \
   --harmonic sparse_out --eigenvectors row_shards --output qhgk_out \
   --temperature 300 --volume ANGSTROM3 --bandwidth 0.035
 ```
@@ -142,7 +157,7 @@ be built with MUMPS; the eigenvector checkpoint may still be `float32`.
 A full-spectrum solve uses:
 
 ```bash
-mpiexec -n 4 python -m kaldo.amorphous.cli solve \
+mpiexec -n 4 python -m kaldo.large_cell_cli solve \
   --harmonic sparse_out --output solved_rows
 ```
 
@@ -153,7 +168,7 @@ full dynamical spectrum, including unstable modes. Supply a verified global
 maximum bandwidth to form conservative triangular halos:
 
 ```bash
-mpiexec -n 4 python -m kaldo.amorphous.cli windows \
+mpiexec -n 4 python -m kaldo.large_cell_cli windows \
   --harmonic sparse_out --dos eigenvalue_dos.npz --windows 16 \
   --max-bandwidth 0.1 --temperature 300 --volume ANGSTROM3 \
   --bandwidth-table linewidths.npz --output sliced_qhgk

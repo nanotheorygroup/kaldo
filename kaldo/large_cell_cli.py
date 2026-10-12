@@ -1,6 +1,6 @@
 """MPI entry point for the amorphous sparse QHGK stack.
 
-Examples are in ``kaldo/amorphous/README.md``. Launch with ``mpiexec -n R``.
+Examples are in ``docs/large_cell_qhgk.md``. Launch with ``mpiexec -n R``.
 """
 
 from __future__ import annotations
@@ -12,14 +12,13 @@ import numpy as np
 
 from kaldo.helpers.atomic_io import atomic_save_npy, sha256_file
 from kaldo.helpers.logger import get_logger
-from .bandwidth import DirectBandwidth, TabulatedBandwidth
-from .checkpoint import RowShardedEigenvectorSource
-from .distributed import DistributedSparseAmorphousHarmonic, run_distributed_qhgk
-from .pipeline import run_interval_pipeline
-from .qhgk import NpyEigensystemSource
-from .slepc_solver import SlepcRowEigenvectorSource
-from .windows import (approximate_dos_boundaries,
-                      eigenvalue_boundaries_from_full_spectrum)
+from kaldo.controllers.bandwidth import DirectBandwidth, TabulatedBandwidth
+from kaldo.observables.eigenvector_source import RowShardedEigenvectorSource
+from kaldo.parallel.distributed_qhgk import DistributedSparseHarmonic, run_distributed_qhgk
+from kaldo.parallel.spectrum_slicing import (approximate_dos_boundaries,
+                                             eigenvalue_boundaries_from_full_spectrum, run_interval_pipeline)
+from kaldo.observables.eigenvector_source import NpyEigensystemSource
+from kaldo.parallel.slepc_eigensolver import SlepcRowEigenvectorSource
 
 
 _LOG = get_logger()
@@ -125,7 +124,7 @@ def main(argv=None):
             atomic_save_npy(args.output / "physical_mode.npy", physical)
             _LOG.info("Row-sharded %d modes: %s", source.n_modes, args.output)
         return
-    harmonic = DistributedSparseAmorphousHarmonic(args.harmonic, comm)
+    harmonic = DistributedSparseHarmonic(args.harmonic, comm)
     if args.command == "solve":
         source, omega, physical = SlepcRowEigenvectorSource.solve_interval(
             harmonic, args.output, interval_lambda=args.interval,
