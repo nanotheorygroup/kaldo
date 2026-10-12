@@ -16,7 +16,10 @@ Physics formulas follow Julia's conventions exactly:
 """
 from __future__ import annotations
 
+import os
 import time
+from concurrent.futures import as_completed
+from multiprocessing import shared_memory
 
 import numpy as np
 
@@ -132,8 +135,370 @@ def build_psi4_realspace_v(QD, q1_cart, q2_cart):
     return A
 
 
+def _quartet_mode_blocks(Mq, atom_left, atom_right):
+    """Gather per-quartet 3x3 blocks from mode outer products."""
+    xyz = np.arange(3)
+    left = 3 * atom_left[:, None] + xyz[None, :]
+    right = 3 * atom_right[:, None] + xyz[None, :]
+    blocks = Mq[:, left[:, :, None], right[:, None, :]]
+    return np.moveaxis(blocks, 1, 0)
+
+
+def _quartet_mode_blocks_batch(Mq, atom_left, atom_right):
+    """Gather per-quartet 3x3 blocks for a batch of q-points."""
+    xyz = np.arange(3)
+    left = 3 * atom_left[:, None] + xyz[None, :]
+    right = 3 * atom_right[:, None] + xyz[None, :]
+    blocks = Mq[:, :, left[:, :, None], right[:, None, :]]
+    return np.moveaxis(blocks, 2, 1)
+
+
+def _prepare_psi4_q1(QD, M1, q1_cart):
+    """Contract the q1 mode blocks with IFC4 once for an outer-q1 task."""
+    M1_blocks = _quartet_mode_blocks(M1, QD["a1"], QD["a2"])
+    left = np.einsum("nkab,nabcd->nkcd", M1_blocks, QD["ifc"], optimize=True)
+    phase_q1 = np.exp(-1j * (QD["lv2c"] @ q1_cart))
+    return left * phase_q1[:, None, None, None]
+
+
+def _build_psi4_modes_quartet(QD, left_q1, M2, q2_cart):
+    """Build mode-space Psi4 directly in quartet space, without scattering."""
+    M2_blocks = _quartet_mode_blocks(M2, QD["a3"], QD["a4"])
+    phase_q2 = np.exp(1j * ((QD["lv3c"] - QD["lv4c"]) @ q2_cart))
+    per_quartet = np.einsum("nkcd,nlcd->nkl", left_q1, M2_blocks, optimize=True)
+    return np.einsum("n,nkl->kl", phase_q2, per_quartet, optimize=True)
+
+
+def _build_psi4_modes_quartet_batch(QD, left_q1, M2, q2_cart):
+    """Build mode-space Psi4 for a batch of q2 points."""
+    M2_blocks = _quartet_mode_blocks_batch(M2, QD["a3"], QD["a4"])
+    phase_q2 = np.exp(1j * (q2_cart @ (QD["lv3c"] - QD["lv4c"]).T))
+    per_quartet = np.einsum("nkcd,bnlcd->bnkl", left_q1, M2_blocks, optimize=True)
+    return np.einsum("bn,bnkl->bkl", phase_q2, per_quartet, optimize=True)
+
+
+# ---------------------------------------------------------------------------
+# Process-pool q1 reduction: SharedMemory for flattened IFCs (QD/TD) and
+# other large read-only arrays. Nested quartet/triplet lists never leave
+# the parent. Each worker maps the same blocks once via initializer.
+# ---------------------------------------------------------------------------
+
+_QD_ARRAY_KEYS = ('a1', 'a2', 'a3', 'a4', 'lv2c', 'lv3c', 'lv4c', 'ifc')
+_TD_ARRAY_KEYS = ('a1', 'a2', 'a3', 'lv2c', 'lv3c', 'ifc')
+_F1_Q2_BATCH_SIZE = 4
+_F2_Q2_BATCH_SIZE = 8
+
+# Filled by _init_q1_worker in process-pool children; unused on the serial path.
+_WORKER_Q1 = None
+
+
+def _check_n_workers(n_workers):
+    if n_workers is not None and n_workers < 1:
+        raise ValueError(f"n_workers must be >= 1 or None, got {n_workers}")
+
+
+def _prefix_table(prefix, table, keys):
+    return {f'{prefix}.{k}': table[k] for k in keys}
+
+
+def _unprefix_table(prefix, arrays, keys, nb):
+    out = {k: arrays[f'{prefix}.{k}'] for k in keys}
+    out['nb'] = nb
+    return out
+
+
+def _create_shm_array(arr):
+    arr = np.ascontiguousarray(arr)
+    nbytes = int(arr.nbytes)
+    shm = shared_memory.SharedMemory(create=True, size=max(nbytes, 1))
+    if nbytes:
+        view = np.ndarray(arr.shape, dtype=arr.dtype, buffer=shm.buf)
+        view[:] = arr
+    return {
+        'name': shm.name,
+        'shape': tuple(int(s) for s in arr.shape),
+        'dtype': np.dtype(arr.dtype).str,
+        'nbytes': nbytes,
+    }, shm
+
+
+def _view_shm_array(meta, hold):
+    shm = shared_memory.SharedMemory(name=meta['name'])
+    hold.append(shm)
+    if meta['nbytes'] == 0:
+        return np.empty(meta['shape'], dtype=np.dtype(meta['dtype']))
+    arr = np.ndarray(meta['shape'], dtype=np.dtype(meta['dtype']), buffer=shm.buf)
+    try:
+        arr.setflags(write=False)
+    except ValueError:
+        pass
+    return arr
+
+
+class _SharedArrayStore:
+    """Parent-owned SharedMemory blocks for a dict of ndarrays."""
+
+    def __init__(self, arrays):
+        self._shms = []
+        self.spec = {}
+        try:
+            for key, arr in arrays.items():
+                meta, shm = _create_shm_array(arr)
+                self._shms.append(shm)
+                self.spec[key] = meta
+        except Exception:
+            self.close_and_unlink()
+            raise
+
+    def close_and_unlink(self):
+        for shm in self._shms:
+            try:
+                shm.close()
+            except Exception:
+                pass
+            try:
+                shm.unlink()
+            except FileNotFoundError:
+                pass
+            except Exception:
+                pass
+        self._shms.clear()
+
+
+def _init_q1_worker(thread_cap, spec, scalars):
+    from kaldo.parallel.executor import _init_worker_thread_caps
+    _init_worker_thread_caps(int(thread_cap))
+    global _WORKER_Q1
+    hold = []
+    arrays = {k: _view_shm_array(meta, hold) for k, meta in spec.items()}
+    _WORKER_Q1 = {'arrays': arrays, 'scalars': scalars, '_hold': hold}
+
+
+def _q1_chunk_worker(iq1_list):
+    key = _WORKER_Q1['scalars']['_accumulate']
+    return _ACCUMULATORS[key](iq1_list, _WORKER_Q1['arrays'], _WORKER_Q1['scalars'])
+
+
+def _run_parallel_q1(accumulate_key, q1_indices, n_workers, arrays, scalars):
+    """Map individual q1 points onto processes; reduce (F, S, Cv) with +."""
+    from kaldo.parallel import get_executor, is_parallel
+
+    iq1s = [int(i) for i in q1_indices]
+    if not is_parallel(n_workers):
+        return _ACCUMULATORS[accumulate_key](iq1s, arrays, scalars)
+
+    n_cpu = n_workers if n_workers is not None else (os.cpu_count() or 1)
+    n_processes = max(1, min(int(n_cpu), len(iq1s)))
+    payload = dict(scalars)
+    payload['_accumulate'] = accumulate_key
+    store = _SharedArrayStore(arrays)
+    F = S = Cv = 0.0
+    n_q1 = len(iq1s)
+    report_every = max(1, n_q1 // 20)
+    t0 = time.time()
+    try:
+        with get_executor(
+            backend='process',
+            n_workers=n_processes,
+            initializer=_init_q1_worker,
+            initargs=(1, store.spec, payload),
+        ) as executor:
+            futures = [executor.submit(_q1_chunk_worker, [iq1]) for iq1 in iq1s]
+            for i, fut in enumerate(as_completed(futures), 1):
+                f, s, cv = fut.result()
+                F += f
+                S += s
+                Cv += cv
+                if i == 1 or i == n_q1 or i % report_every == 0:
+                    elapsed = time.time() - t0
+                    logging.info(
+                        f"  q1={i}/{n_q1} ({100.0*i/n_q1:.0f}%)  "
+                        f"elapsed={elapsed:.1f}s"
+                    )
+    finally:
+        store.close_and_unlink()
+    return F, S, Cv
+
+
+def _accumulate_f1_q1s(iq1_list, arrays, scalars):
+    cart = arrays['cart']
+    M = arrays['M']
+    inv_w = arrays['inv_w']
+    two_np1 = arrays['two_np1']
+    dn_tab = arrays['dn_tab']
+    ddn_tab = arrays['ddn_tab']
+    ok = arrays['ok']
+    QD = _unprefix_table('qd', arrays, _QD_ARRAY_KEYS, scalars['qd_nb'])
+    q1_weights = scalars['q1_weights']
+    nq = scalars['nq']
+    T_K = scalars['T_K']
+    log_every = scalars.get('log_every')
+    n_q1 = len(iq1_list)
+    t0 = time.time()
+    F1_acc = 0.0
+    S1_acc = 0.0
+    Cv1_acc = 0.0
+    for _i, iq1 in enumerate(iq1_list):
+        q1c = cart[iq1]
+        M1 = M[iq1]
+        psi4_left = _prepare_psi4_q1(QD, M1, q1c)
+        inv_w1 = inv_w[iq1]
+        two1 = two_np1[iq1]
+        dn1 = dn_tab[iq1]
+        ddn1 = ddn_tab[iq1]
+        ok1 = ok[iq1]
+        w1 = q1_weights[iq1]
+        for iq2_start in range(0, nq, _F1_Q2_BATCH_SIZE):
+            iq2_stop = min(iq2_start + _F1_Q2_BATCH_SIZE, nq)
+            q2_slice = slice(iq2_start, iq2_stop)
+            Psi4 = _build_psi4_modes_quartet_batch(
+                QD, psi4_left, M[q2_slice], cart[q2_slice],
+            )
+            psi_re = np.real(Psi4)
+            mask = ok1[None, :, None] & ok[q2_slice][:, None, :]
+            inv_w_prod = inv_w1[None, :, None] * inv_w[q2_slice][:, None, :]
+
+            two2 = two_np1[q2_slice][:, None, :]
+            dn2 = dn_tab[q2_slice][:, None, :]
+            ddn2 = ddn_tab[q2_slice][:, None, :]
+            f_w = two1[None, :, None] * two2 * inv_w_prod
+            s_w = -(2.0 * dn1[None, :, None] * two2
+                    + two1[None, :, None] * 2.0 * dn2) * inv_w_prod
+            cv_w = -(2.0 * ddn1[None, :, None] * two2
+                     + 2.0 * ddn2 * two1[None, :, None]
+                     + 8.0 * dn1[None, :, None] * dn2) * T_K * inv_w_prod
+
+            F1_acc += w1 * (psi_re * f_w * mask).sum()
+            S1_acc += w1 * (psi_re * s_w * mask).sum()
+            Cv1_acc += w1 * (psi_re * cv_w * mask).sum()
+        if log_every and (_i + 1) % log_every == 0:
+            logging.info(f"  q1={_i+1}/{n_q1}  elapsed={time.time()-t0:.1f}s")
+    return F1_acc, S1_acc, Cv1_acc
+
+
+def _accumulate_f2_q1s(iq1_list, arrays, scalars):
+    cart = arrays['cart']
+    egvs = arrays['egvs']
+    omegas = arrays['omegas']
+    frac_rounded = arrays['frac_rounded']
+    lookup = arrays['lookup']
+    ok_tab = arrays['ok_tab']
+    TD = _unprefix_table('td', arrays, _TD_ARRAY_KEYS, scalars['td_nb'])
+    q1_weights = scalars['q1_weights']
+    nq = scalars['nq']
+    nx = scalars['nx']
+    ny = scalars['ny']
+    nz = scalars['nz']
+    T_K = scalars['T_K']
+    is_classic = scalars['is_classic']
+    kT = scalars['kT']
+    sigma_table = arrays.get('sigma_table')
+    n_tab = arrays.get('n_tab')
+    dn_tab = arrays.get('dn_tab')
+    ddn_tab = arrays.get('ddn_tab')
+    log_every = scalars.get('log_every')
+    n_q1 = len(iq1_list)
+    t0 = time.time()
+    F2 = 0.0
+    S2 = 0.0
+    Cv2 = 0.0
+    for _i, iq1 in enumerate(iq1_list):
+        i1, j1, k1 = frac_rounded[iq1]
+        e1 = egvs[iq1]
+        psi3_left = _prepare_psi3_q1(TD, e1)
+        w1 = omegas[iq1]
+        ok1 = ok_tab[iq1]
+        w_q1 = q1_weights[iq1]
+        for iq2_start in range(0, nq, _F2_Q2_BATCH_SIZE):
+            iq2_stop = min(iq2_start + _F2_Q2_BATCH_SIZE, nq)
+            q2_slice = slice(iq2_start, iq2_stop)
+            q2_grid = frac_rounded[q2_slice]
+            i3 = (-i1 - q2_grid[:, 0]) % nx
+            j3 = (-j1 - q2_grid[:, 1]) % ny
+            k3 = (-k1 - q2_grid[:, 2]) % nz
+            iq3 = lookup[i3, j3, k3]
+
+            Psi3 = _build_psi3_modes_triplet_batch(
+                TD, psi3_left, egvs[q2_slice], egvs[iq3],
+                cart[q2_slice], cart[iq3],
+            )
+            psisq = np.abs(Psi3) ** 2
+
+            w1_ = w1[None, :, None, None]
+            w2_ = omegas[q2_slice][:, None, :, None]
+            w3_ = omegas[iq3][:, None, None, :]
+            mask = (ok1[None, :, None, None]
+                    & ok_tab[q2_slice][:, None, :, None]
+                    & ok_tab[iq3][:, None, None, :])
+
+            inv_w_prod = np.zeros_like(psisq)
+            inv_w_prod[mask] = 1.0 / (w1_ * w2_ * w3_)[mask]
+
+            if is_classic:
+                w_prod = w1_ * w2_ * w3_
+                common_F = np.zeros_like(psisq)
+                common_S = np.zeros_like(psisq)
+                common_F[mask] = 4.0 * (kT ** 2) / ((HBAR ** 2) * w_prod[mask])
+                common_S[mask] = 8.0 * (KB ** 2) * T_K / ((HBAR ** 2) * w_prod[mask])
+                common_Cv = common_S
+            else:
+                s1 = sigma_table[iq1][None, :, None, None]
+                s2 = sigma_table[q2_slice][:, None, :, None]
+                s3 = sigma_table[iq3][:, None, None, :]
+                sigma_combo = np.sqrt(s1 ** 2 + s2 ** 2 + s3 ** 2)
+                denom1 = w1_ + w2_ + w3_
+                Re1 = denom1 / (denom1 ** 2 + sigma_combo ** 2)
+                denom2 = w1_ + w2_ - w3_
+                Re2 = denom2 / (denom2 ** 2 + sigma_combo ** 2)
+
+                n1_ = n_tab[iq1][None, :, None, None]
+                n2_ = n_tab[q2_slice][:, None, :, None]
+                n3_ = n_tab[iq3][:, None, None, :]
+                dn1_ = dn_tab[iq1][None, :, None, None]
+                dn2_ = dn_tab[q2_slice][:, None, :, None]
+                dn3_ = dn_tab[iq3][:, None, None, :]
+                ddn1_ = ddn_tab[iq1][None, :, None, None]
+                ddn2_ = ddn_tab[q2_slice][:, None, :, None]
+                ddn3_ = ddn_tab[iq3][:, None, None, :]
+
+                f1 = (n1_ + 1.0) * (n2_ + n3_ + 1.0) + n2_ * n3_
+                f2 = n3_ * (n1_ + n2_ + 1.0) - n1_ * n2_
+
+                df1 = (dn1_ * (n2_ + n3_ + 1.0) + (n1_ + 1.0) * (dn2_ + dn3_)
+                       + dn2_ * n3_ + n2_ * dn3_)
+                df2 = (dn3_ * (n1_ + n2_ + 1.0) + dn1_ * (n3_ - n2_) + dn2_ * (n3_ - n1_))
+
+                ddf1 = (ddn1_ * (n2_ + n3_ + 1.0) + 2.0 * dn1_ * (dn2_ + dn3_)
+                        + (n1_ + 1.0) * (ddn2_ + ddn3_) + ddn2_ * n3_ + n2_ * ddn3_
+                        + 2.0 * dn2_ * dn3_)
+                ddf2 = (ddn3_ * (n1_ + n2_ + 1.0) + dn3_ * (dn1_ + dn2_)
+                        + ddn1_ * (n3_ - n2_) + dn1_ * (dn3_ - dn2_)
+                        + ddn2_ * (n3_ - n1_) + dn2_ * (dn3_ - dn1_))
+
+                common_F = (f1 * Re1 + 3.0 * f2 * Re2)
+                common_S = (df1 * Re1 + 3.0 * df2 * Re2)
+                common_Cv = (ddf1 * Re1 + 3.0 * ddf2 * Re2) * T_K
+
+            integrand_F = psisq * inv_w_prod * common_F / 48.0
+            integrand_S = psisq * inv_w_prod * common_S / 48.0
+            integrand_Cv = psisq * inv_w_prod * common_Cv / 48.0
+            F2 += w_q1 * integrand_F[mask].sum()
+            S2 += w_q1 * integrand_S[mask].sum()
+            Cv2 += w_q1 * integrand_Cv[mask].sum()
+        if log_every and (_i + 1) % log_every == 0:
+            logging.info(f"  q1={_i+1}/{n_q1}  elapsed={time.time()-t0:.1f}s")
+    return F2, S2, Cv2
+
+
+_ACCUMULATORS = {
+    'f1': _accumulate_f1_q1s,
+    'f2': _accumulate_f2_q1s,
+}
+
+
 def F1_vectorized(neighbors_pair, quartets, masses_kg, uc_positions, uc_cell,
-                  kmesh, T_K, use_q_symmetry=False, atoms=None, is_classic=False):
+                  kmesh, T_K, use_q_symmetry=False, atoms=None, is_classic=False,
+                  n_workers=1):
     """
     F1 / S1 / Cv1 / U1 quartic cumulant evaluator on a regular MP q-mesh.
 
@@ -159,12 +524,19 @@ def F1_vectorized(neighbors_pair, quartets, masses_kg, uc_positions, uc_cell,
     atoms : ASE Atoms (needed only when use_q_symmetry=True).
     is_classic : if True, use classical occupations ``2n+1 = 2 kT / (ħ ω)``
         (LDT ``quantum=false`` branch); else Bose–Einstein.
+    n_workers : int or None
+        Process-pool size for the outer q1 loop. ``1`` (default) is serial;
+        ``>1`` that many processes; ``None`` uses all CPUs. Flattened IFC
+        tables (QD) and other large arrays are attached via
+        ``multiprocessing.shared_memory`` so nested quartet lists are never
+        pickled into workers.
 
     Returns
     -------
     dict with keys ``F1``, ``S1``, ``Cv1``, ``U1`` (units eV/atom for F, U
     and kB/atom for S, Cv).
     """
+    _check_n_workers(n_workers)
     nx, ny, nz = kmesh
     n_uc = len(uc_positions)
     nb = 3 * n_uc
@@ -215,42 +587,29 @@ def F1_vectorized(neighbors_pair, quartets, masses_kg, uc_positions, uc_cell,
 
     n_q1 = len(q1_indices)
     logging.info(f"F1/S1/Cv1 double-q loop over {n_q1}x{nq}={n_q1*nq} (q1,q2) pairs"
-          + (" [q1 in IBZ]" if use_q_symmetry else ""))
+          + (" [q1 in IBZ]" if use_q_symmetry else "")
+          + (f" n_workers={n_workers}" if n_workers != 1 else ""))
     t2 = time.time()
-    F1_acc = 0.0
-    S1_acc = 0.0
-    Cv1_acc = 0.0
-    for _i, iq1 in enumerate(q1_indices):
-        q1c = cart[iq1]
-        M1 = M[iq1]
-        inv_w1 = inv_w[iq1]
-        two1 = two_np1[iq1]
-        dn1 = dn_tab[iq1]
-        ddn1 = ddn_tab[iq1]
-        ok1 = ok[iq1]
-        w1 = q1_weights[iq1]
-        for iq2 in range(nq):
-            q2c = cart[iq2]
-            A = build_psi4_realspace_v(QD, q1c, q2c)
-            T = np.einsum("kab,abcd->kcd", M1, A)
-            Psi4 = np.einsum("kcd,lcd->kl", T, M[iq2])
-            psi_re = np.real(Psi4)
-            mask = ok1[:, None] & ok[iq2][None, :]
-            inv_w_prod = inv_w1[:, None] * inv_w[iq2][None, :]
-
-            two2 = two_np1[iq2][None, :]
-            dn2 = dn_tab[iq2][None, :]
-            ddn2 = ddn_tab[iq2][None, :]
-            f_w = two1[:, None] * two2 * inv_w_prod
-            s_w = -(2.0 * dn1[:, None] * two2 + two1[:, None] * 2.0 * dn2) * inv_w_prod
-            cv_w = -(2.0 * ddn1[:, None] * two2 + 2.0 * ddn2 * two1[:, None]
-                     + 8.0 * dn1[:, None] * dn2) * T_K * inv_w_prod
-
-            F1_acc += w1 * (psi_re * f_w * mask).sum()
-            S1_acc += w1 * (psi_re * s_w * mask).sum()
-            Cv1_acc += w1 * (psi_re * cv_w * mask).sum()
-        if (_i + 1) % max(1, n_q1 // 20) == 0:
-            logging.info(f"  q1={_i+1}/{n_q1}  elapsed={time.time()-t2:.1f}s")
+    arrays = {
+        'cart': cart,
+        'M': M,
+        'inv_w': inv_w,
+        'two_np1': two_np1,
+        'dn_tab': dn_tab,
+        'ddn_tab': ddn_tab,
+        'ok': ok,
+        **_prefix_table('qd', QD, _QD_ARRAY_KEYS),
+    }
+    scalars = {
+        'qd_nb': int(QD['nb']),
+        'nq': int(nq),
+        'T_K': float(T_K),
+        'q1_weights': q1_weights,
+        'log_every': max(1, n_q1 // 20) if n_workers == 1 else None,
+    }
+    F1_acc, S1_acc, Cv1_acc = _run_parallel_q1(
+        'f1', q1_indices, n_workers, arrays, scalars,
+    )
     logging.info(f"F1 loop total {time.time()-t2:.1f}s")
 
     prefac = HBAR * HBAR / (32.0 * nq * nq * n_uc)
@@ -316,6 +675,35 @@ def build_psi3_realspace(TD, q2_cart, q3_cart):
     a1_idx, a2_idx, a3_idx = np.broadcast_arrays(a1_idx, a2_idx, a3_idx)
     np.add.at(A, (a1_idx, a2_idx, a3_idx), scaled)
     return A
+
+
+def _triplet_mode_vectors(egv, atoms):
+    """Gather Cartesian mode vectors for each triplet atom."""
+    xyz = np.arange(3)
+    indices = 3 * atoms[:, None] + xyz[None, :]
+    return np.moveaxis(egv[indices, :], 2, 1)
+
+
+def _triplet_mode_vectors_batch(egv, atoms):
+    """Gather Cartesian mode vectors for a batch of q-points."""
+    xyz = np.arange(3)
+    indices = 3 * atoms[:, None] + xyz[None, :]
+    return np.moveaxis(egv[:, indices, :], 3, 2)
+
+
+def _prepare_psi3_q1(TD, e1):
+    """Contract q1 mode vectors with IFC3 once for an outer-q1 task."""
+    e1_vectors = _triplet_mode_vectors(np.conj(e1), TD["a1"])
+    return np.einsum("nka,nabc->nkbc", e1_vectors, TD["ifc"], optimize=True)
+
+
+def _build_psi3_modes_triplet_batch(TD, left_q1, e2, e3, q2_cart, q3_cart):
+    """Build mode-space Psi3 for a batch without a real-space scatter."""
+    e2_vectors = _triplet_mode_vectors_batch(np.conj(e2), TD["a2"])
+    e3_vectors = _triplet_mode_vectors_batch(np.conj(e3), TD["a3"])
+    phase = np.exp(-1j * (q2_cart @ TD["lv2c"].T + q3_cart @ TD["lv3c"].T))
+    middle = np.einsum("nkbc,qnlb->qnklc", left_q1, e2_vectors, optimize=True)
+    return np.einsum("qnklc,qnmc,qn->qklm", middle, e3_vectors, phase, optimize=True)
 
 
 def planck_and_derivs(omega, T_K, is_classic=False):
@@ -500,7 +888,7 @@ def smearingparameter(scaled_rec_basis, group_vel_alpha_nb, default_sigma_nb, sc
 
 def F2_vectorized(neighbors_pair, triplets, masses_kg, uc_positions, uc_cell,
                   kmesh, T_K, sigma_THz=None, use_q_symmetry=False, atoms=None,
-                  is_classic=False):
+                  is_classic=False, n_workers=1):
     """
     F2 / S2 / Cv2 / U2 cubic cumulant evaluator on a regular MP q-mesh.
 
@@ -516,8 +904,12 @@ def F2_vectorized(neighbors_pair, triplets, masses_kg, uc_positions, uc_cell,
     ``(kT)^2 / (ω1 ω2 ω3) / 12`` (no resonant principal-value denominators);
     quantum uses Bose occupations with adaptive/fixed σ smearing.
 
+    ``n_workers`` is as in :func:`F1_vectorized`: process-pool over q1,
+    with flattened IFC tables (TD) in shared memory.
+
     Returns a dict with keys ``F2``, ``S2``, ``Cv2``, ``U2``.
     """
+    _check_n_workers(n_workers)
     nx, ny, nz = kmesh
     nq = nx * ny * nz
     n_uc = len(uc_positions)
@@ -612,117 +1004,40 @@ def F2_vectorized(neighbors_pair, triplets, masses_kg, uc_positions, uc_cell,
 
     n_q1 = len(q1_indices)
     logging.info(f"F2/S2/Cv2 double-q loop over {n_q1}x{nq}={n_q1*nq} (q1,q2) pairs"
-          + (" [q1 in IBZ]" if use_q_symmetry else ""))
+          + (" [q1 in IBZ]" if use_q_symmetry else "")
+          + (f" n_workers={n_workers}" if n_workers != 1 else ""))
     t2 = time.time()
-    F2 = 0.0
-    S2 = 0.0
-    Cv2 = 0.0
-
-    # Classical LDT weights: f0 = (kT)^2/(ω1 ω2 ω3)/12 replaces
-    # (f1 Re1 + 3 f2 Re2)/48, with ω in rad/s matching inv_w_prod; the
-    # outer ħ² prefactor converts to energy (same convention as classical F1).
-    # df0 = 2 f0 / T, ddf0 = df0 (Cv2 = S2).
     kT = KB * T_K
-
-    for _i, iq1 in enumerate(q1_indices):
-        i1, j1, k1 = frac_rounded[iq1]
-        e1 = egvs[iq1]
-        w1 = omegas[iq1]
-        ok1 = ok_tab[iq1]
-        w_q1 = q1_weights[iq1]
-        for iq2 in range(nq):
-            i2, j2, k2 = frac_rounded[iq2]
-            i3 = (-i1 - i2) % nx
-            j3 = (-j1 - j2) % ny
-            k3 = (-k1 - k2) % nz
-            iq3 = lookup[i3, j3, k3]
-            q2c = cart[iq2]
-            q3c = cart[iq3]
-
-            A = build_psi3_realspace(TD, q2c, q3c)
-
-            e2 = egvs[iq2]
-            e3 = egvs[iq3]
-            w2 = omegas[iq2]
-            w3 = omegas[iq3]
-            ok2 = ok_tab[iq2]
-            ok3 = ok_tab[iq3]
-
-            # Psi_3 via conjugated eigenvectors (LDT convention).
-            e1c = np.conj(e1)
-            e2c = np.conj(e2)
-            e3c = np.conj(e3)
-            T1 = np.einsum("abc,ak->kbc", A, e1c)
-            T2 = np.einsum("kbc,bl->klc", T1, e2c)
-            Psi3 = np.einsum("klc,cm->klm", T2, e3c)
-            psisq = np.abs(Psi3) ** 2
-
-            w1_ = w1[:, None, None]
-            w2_ = w2[None, :, None]
-            w3_ = w3[None, None, :]
-            mask = ok1[:, None, None] & ok2[None, :, None] & ok3[None, None, :]
-
-            inv_w_prod = np.zeros_like(psisq)
-            inv_w_prod[mask] = 1.0 / (w1_ * w2_ * w3_)[mask]
-
-            if is_classic:
-                # LDT classical: f0 = (kT)^2/(ω1 ω2 ω3)/12 replaces
-                # (f1 Re1 + 3 f2 Re2)/48.  Frequency unit matches inv_w_prod
-                # (rad/s); the outer ħ² prefactor supplies the energy conversion
-                # (same convention as classical F1 with 2n+1 = 2kT/(ħω)).
-                # common_F/48 = (kT)^2 / (ħ² ω1 ω2 ω3) / 12
-                w_prod = w1_ * w2_ * w3_
-                common_F = np.zeros_like(psisq)
-                common_S = np.zeros_like(psisq)
-                common_F[mask] = 4.0 * (kT ** 2) / ((HBAR ** 2) * w_prod[mask])
-                common_S[mask] = 8.0 * (KB ** 2) * T_K / ((HBAR ** 2) * w_prod[mask])
-                common_Cv = common_S
-            else:
-                s1 = sigma_table[iq1][:, None, None]
-                s2 = sigma_table[iq2][None, :, None]
-                s3 = sigma_table[iq3][None, None, :]
-                sigma_combo = np.sqrt(s1 ** 2 + s2 ** 2 + s3 ** 2)
-                denom1 = w1_ + w2_ + w3_
-                Re1 = denom1 / (denom1 ** 2 + sigma_combo ** 2)
-                denom2 = w1_ + w2_ - w3_
-                Re2 = denom2 / (denom2 ** 2 + sigma_combo ** 2)
-
-                n1_ = n_tab[iq1][:, None, None]
-                n2_ = n_tab[iq2][None, :, None]
-                n3_ = n_tab[iq3][None, None, :]
-                dn1_ = dn_tab[iq1][:, None, None]
-                dn2_ = dn_tab[iq2][None, :, None]
-                dn3_ = dn_tab[iq3][None, None, :]
-                ddn1_ = ddn_tab[iq1][:, None, None]
-                ddn2_ = ddn_tab[iq2][None, :, None]
-                ddn3_ = ddn_tab[iq3][None, None, :]
-
-                f1 = (n1_ + 1.0) * (n2_ + n3_ + 1.0) + n2_ * n3_
-                f2 = n3_ * (n1_ + n2_ + 1.0) - n1_ * n2_
-
-                df1 = (dn1_ * (n2_ + n3_ + 1.0) + (n1_ + 1.0) * (dn2_ + dn3_)
-                       + dn2_ * n3_ + n2_ * dn3_)
-                df2 = (dn3_ * (n1_ + n2_ + 1.0) + dn1_ * (n3_ - n2_) + dn2_ * (n3_ - n1_))
-
-                ddf1 = (ddn1_ * (n2_ + n3_ + 1.0) + 2.0 * dn1_ * (dn2_ + dn3_)
-                        + (n1_ + 1.0) * (ddn2_ + ddn3_) + ddn2_ * n3_ + n2_ * ddn3_
-                        + 2.0 * dn2_ * dn3_)
-                ddf2 = (ddn3_ * (n1_ + n2_ + 1.0) + dn3_ * (dn1_ + dn2_)
-                        + ddn1_ * (n3_ - n2_) + dn1_ * (dn3_ - dn2_)
-                        + ddn2_ * (n3_ - n1_) + dn2_ * (dn3_ - dn1_))
-
-                common_F = (f1 * Re1 + 3.0 * f2 * Re2)
-                common_S = (df1 * Re1 + 3.0 * df2 * Re2)
-                common_Cv = (ddf1 * Re1 + 3.0 * ddf2 * Re2) * T_K
-
-            integrand_F = psisq * inv_w_prod * common_F / 48.0
-            integrand_S = psisq * inv_w_prod * common_S / 48.0
-            integrand_Cv = psisq * inv_w_prod * common_Cv / 48.0
-            F2 += w_q1 * integrand_F[mask].sum()
-            S2 += w_q1 * integrand_S[mask].sum()
-            Cv2 += w_q1 * integrand_Cv[mask].sum()
-        if (_i + 1) % max(1, n_q1 // 10) == 0:
-            logging.info(f"  q1={_i+1}/{n_q1}  elapsed={time.time()-t2:.1f}s")
+    arrays = {
+        'cart': cart,
+        'egvs': egvs,
+        'omegas': omegas,
+        'frac_rounded': frac_rounded,
+        'lookup': lookup,
+        'ok_tab': ok_tab,
+        **_prefix_table('td', TD, _TD_ARRAY_KEYS),
+    }
+    if sigma_table is not None:
+        arrays['sigma_table'] = sigma_table
+    if n_tab is not None:
+        arrays['n_tab'] = n_tab
+        arrays['dn_tab'] = dn_tab
+        arrays['ddn_tab'] = ddn_tab
+    scalars = {
+        'td_nb': int(TD['nb']),
+        'nq': int(nq),
+        'nx': int(nx),
+        'ny': int(ny),
+        'nz': int(nz),
+        'T_K': float(T_K),
+        'is_classic': bool(is_classic),
+        'kT': float(kT),
+        'q1_weights': q1_weights,
+        'log_every': max(1, n_q1 // 10) if n_workers == 1 else None,
+    }
+    F2, S2, Cv2 = _run_parallel_q1(
+        'f2', q1_indices, n_workers, arrays, scalars,
+    )
     logging.info(f"F2 loop total {time.time()-t2:.1f}s")
 
     prefac = HBAR * HBAR / (nq * nq * n_uc)
@@ -950,7 +1265,7 @@ def _quartets_from_fc(fc):
 
 
 def F2_from_fc(fc, masses_amu, kmesh, T_K, sigma_THz=None,
-               use_q_symmetry=False, is_classic=False):
+               use_q_symmetry=False, is_classic=False, n_workers=1):
     """F2 cubic cumulant on a ``ForceConstants`` object (kaldo-native entry).
 
     Uses ``fc.atoms``, ``fc.second``, ``fc.third`` as the input data source
@@ -965,7 +1280,7 @@ def F2_from_fc(fc, masses_amu, kmesh, T_K, sigma_THz=None,
         ``ForceConstants.from_folder(..., format='tdep')``).
     masses_amu : (n_uc,) array
         Atomic masses in amu.
-    kmesh, T_K, sigma_THz, use_q_symmetry, is_classic :
+    kmesh, T_K, sigma_THz, use_q_symmetry, is_classic, n_workers :
         see :func:`F2_vectorized`.
 
     Returns
@@ -984,10 +1299,12 @@ def F2_from_fc(fc, masses_amu, kmesh, T_K, sigma_THz=None,
         use_q_symmetry=use_q_symmetry,
         atoms=fc.atoms,
         is_classic=is_classic,
+        n_workers=n_workers,
     )
 
 
-def F1_from_fc(fc, masses_amu, kmesh, T_K, use_q_symmetry=False, is_classic=False):
+def F1_from_fc(fc, masses_amu, kmesh, T_K, use_q_symmetry=False, is_classic=False,
+               n_workers=1):
     """F1 quartic cumulant on a ``ForceConstants`` object (kaldo-native entry).
 
     Requires ``fc.fourth`` loaded (``include_fourth=True`` in ``from_folder``).
@@ -1007,4 +1324,5 @@ def F1_from_fc(fc, masses_amu, kmesh, T_K, use_q_symmetry=False, is_classic=Fals
         use_q_symmetry=use_q_symmetry,
         atoms=fc.atoms if use_q_symmetry else None,
         is_classic=is_classic,
+        n_workers=n_workers,
     )
