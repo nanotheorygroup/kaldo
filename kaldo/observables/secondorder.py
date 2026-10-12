@@ -270,6 +270,8 @@ class SecondOrder(ForceConstant, Storable):
             Default: (1, 1, 1)
         format : str
             Format of the second order force constant information being loaded into SecondOrder object.
+            ``'colored'`` reads a merged colored finite-difference IFC2 directory
+            (``ifc2.npz``, ``atoms.npz``, ``metadata.json``) as a dense one-cell IFC2.
             Default: 'sparse'
         is_acoustic_sum : bool, optional
             If true, the acoustic sum rule is applied to the dynamical matrix.
@@ -554,6 +556,14 @@ class SecondOrder(ForceConstant, Storable):
                     is_acoustic_sum=apply_asr,
                     folder=folder,
                 )
+
+            case "colored":
+                # A merged colored finite-difference IFC2: one Gamma-only cell.
+                from kaldo.observables.sparse_secondorder import SparseSecondOrder
+                if np.prod(supercell) != 1:
+                    raise ValueError("format='colored' holds one Gamma-only cell; use supercell=(1, 1, 1)")
+                second_order = SparseSecondOrder.load(folder).to_second_order(
+                    folder, is_acoustic_sum=is_acoustic_sum)
 
             case _:
                 raise ValueError(f"{format} is not a valid format")

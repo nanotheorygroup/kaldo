@@ -29,7 +29,10 @@ blocks in eV/Å², with save/load, guarded `to_dense()`, mass-weighted BSR and
 functions above and `python -m kaldo.controllers.colored_fd.build_dynmat`.
 It does not route through `SecondOrder.calculate`, assign
 `SecondOrder.value`, or write `second.npy`. Dense calculation and
-`ForceConstants` defaults remain unchanged.
+`ForceConstants` defaults remain unchanged. A merged result carries its
+structure and masses (`atoms.npz`) and loads into the existing API with
+`ForceConstants.from_folder(merged_dir, format='colored', only_second=True)`,
+which builds a dense one-cell `SecondOrder` for small cells.
 
 **122,880-atom Gamma matrix workflow.** The command has three stages:
 
@@ -59,9 +62,12 @@ model file does not change the factory path.
 Each shard resumes from its own checkpoint. `finalize` checks merge diagnostics
 and writes `dynmat_bsr.npz`, a float64 SciPy 3×3 BSR dynamical matrix in
 kALDo units, plus `dynmat_metadata.json`. It retains the plan, force chunks,
-merged sparse IFC2, and diagnostic report. This Gamma matrix is enough for a
-sparse eigensolver; periodic QHGK derivatives also need pair/image
-displacements, which the BSR IFC2 does not encode.
+merged sparse IFC2, and diagnostic report. It also writes `harmonic/`, the
+mass-weighted atom-block input of the distributed QHGK reducer. Its pair
+displacements are minimum-image vectors `r_a - r_b`: planning already
+requires the coloring radius to stay below half the narrowest cell width, so
+every stored pair has exactly one shortest image, and the derivative operators
+then equal the existing Wigner-Seitz amorphous Gamma derivatives.
 
 **Layout and conventions.** The dense calculation in
 `kaldo/controllers/displacement.py` returns
@@ -98,12 +104,11 @@ merge rejects gaps and duplicates and builds BSR without a dense intermediate.
 The plan records structure and plan hashes, cell, PBC, radii, units, calculator
 description, seeds, and software versions; progress uses kALDo's logger.
 
-**Amorphous integration and later replicas.** The new object stores *ordinary*
-IFC2; `kaldo.observables.sparse_harmonic.from_sparse_force_constants` already
-provides the mass-weighting/ASR bridge to the amorphous QHGK block contract
-(use `apply_acoustic_sum=False` after ASR), provided unique directed pair
-displacements can be assigned. That contract
-also stores pair vectors, which a bare BSR does not. A replicated cell does
+**QHGK integration and later replicas.** `SparseSecondOrder` stores *ordinary*
+IFC2 plus its `atoms`; `dynmat`, `dynmat_operator`-style accessors,
+`derivative_operators()`, and `to_sparse_harmonic()` derive the mass-weighted
+QHGK inputs, using explicit per-block displacements when given and minimum
+images otherwise. A replicated cell does
 have a clean rectangular raw finite-difference map of shape
 `(3*n_rep*n_unit, 3*n_unit)` in response-row order, but a direct transpose
 does not implement periodic replica symmetry, and `SecondOrder.value` has a
@@ -120,5 +125,4 @@ symmetry and projection ASR in 1.13 s with 170.6 MB peak RSS. The six
 symmetric solves took 31 iterations each and the three skew solves 249–255;
 final relative row-sum and transpose residuals were about 1.0×10⁻¹¹ and zero.
 That is an algorithm benchmark, not a force-calculator or production run.
-Still open: mapping the merged IFC2 to pair/image displacements for QHGK, and
-a representative 100k-atom production benchmark.
+Still open: a representative 100k-atom production benchmark.

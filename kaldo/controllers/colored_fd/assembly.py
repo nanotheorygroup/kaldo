@@ -10,7 +10,7 @@ from scipy.sparse import bsr_array
 from kaldo.helpers.atomic_io import atomic_write_json, sha256_file, sha256_json
 from kaldo.helpers.logger import get_logger
 from kaldo.observables.sparse_secondorder import SparseSecondOrder
-from ._common import MERGE_FORMAT, SHARD_FORMAT
+from ._common import MERGE_FORMAT, SHARD_FORMAT, atoms_hash
 from .plan import load_colored_second_order_plan
 from .processing import ALGORITHM_VERSION, process_sparse_ifc
 
@@ -94,7 +94,7 @@ def _log_processing(options, report, *, cached=False):
 
 def merge_colored_second_order(plan_dir, shard_dirs, *, output_dir=None, warning_threshold=1e-3,
                                apply_acoustic_sum=True, asr_mode="projection", symmetrize=True,
-                               asr_tolerance=1e-10, asr_max_iter=1000):
+                               asr_tolerance=1e-10, asr_max_iter=1000, atoms=None):
     """Merge a complete task partition into a processed 3x3 BSR IFC2.
 
     The precomputed sorted storage graph is the canonical lexicographic block
@@ -103,6 +103,9 @@ def merge_colored_second_order(plan_dir, shard_dirs, *, output_dir=None, warning
     Projection ASR preserves the fixed block pattern, transpose symmetry,
     and zero atom-row sums. ``match_dense`` reproduces kALDo's legacy onsite
     correction, which sums BSR columns and may break transpose symmetry.
+
+    The result carries ``atoms``, which must match the plan geometry and may
+    set masses; by default it is the plan's structure with standard masses.
     """
     options = {"apply_acoustic_sum": bool(apply_acoustic_sum), "asr_mode": asr_mode,
                "symmetrize": bool(symmetrize), "asr_tolerance": float(asr_tolerance),
@@ -113,6 +116,10 @@ def merge_colored_second_order(plan_dir, shard_dirs, *, output_dir=None, warning
             not isinstance(asr_max_iter, int) or asr_max_iter < 1):
         raise ValueError("invalid sparse IFC processing options")
     plan = load_colored_second_order_plan(plan_dir)
+    if atoms is None:
+        atoms = plan.atoms.copy()
+    elif atoms_hash(atoms) != plan.metadata["atoms_sha256"]:
+        raise ValueError("merge atoms do not match the colored IFC plan geometry")
     shards, description = _load_shards(plan, shard_dirs)
     source_entries = [(manifest["shard"], [(chunk["file"], chunk["sha256"], chunk["task_ids"])
                                           for chunk in manifest["chunks"]])
@@ -131,6 +138,8 @@ def merge_colored_second_order(plan_dir, shard_dirs, *, output_dir=None, warning
                 result = SparseSecondOrder.load(output_dir)
                 diagnostics = json.loads((output_dir / "diagnostics.json").read_text())
                 _log_processing(options, diagnostics["processing_report"], cached=True)
+                result.atoms = atoms
+                result.save_atoms(output_dir)
                 return result
             except (OSError, ValueError, KeyError, TypeError):
                 pass  # Interrupted output write: reconstruct from verified chunks.
@@ -180,7 +189,7 @@ def merge_colored_second_order(plan_dir, shard_dirs, *, output_dir=None, warning
         if diagnostics[f"relative_{label}_response"] > warning_threshold:
             warnings.warn(f"colored IFC {label} response exceeds {warning_threshold:g} of median onsite block",
                           RuntimeWarning, stacklevel=2)
-    result = SparseSecondOrder(matrix, metadata={"plan_sha256": plan.plan_hash,
+    result = SparseSecondOrder(matrix, atoms=atoms, metadata={"plan_sha256": plan.plan_hash,
                                                  "atoms_sha256": plan.metadata["atoms_sha256"],
                                                  "source_sha256": source_hash,
                                                  "processing_sha256": processing_hash,

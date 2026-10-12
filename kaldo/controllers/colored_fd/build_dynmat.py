@@ -11,8 +11,11 @@ Example (submit each ``run`` index as a separate scheduler job)::
         --workdir /scratch/colored-si
 
 The factory must be importable and take no arguments. It must return an ASE
-calculator. The result is a SciPy 3x3 BSR matrix in kALDo dynamical units;
-``SecondOrder`` and ``second.npy`` are never used.
+calculator. ``finalize`` writes ``merged/`` (the processed IFC2, loadable with
+``ForceConstants.from_folder(folder, format='colored', only_second=True)``),
+``dynmat_bsr.npz`` (a SciPy 3x3 BSR matrix in kALDo dynamical units), and
+``harmonic/`` (the atom-block input of the distributed QHGK reducer).
+``second.npy`` is never written.
 """
 
 from __future__ import annotations
@@ -231,6 +234,8 @@ def finalize(args):
     plan_dir = colored_plan.directory
     plan_hash = colored_plan.plan_hash
     n_atoms = colored_plan.n_atoms
+    atoms = colored_plan.atoms.copy()
+    atoms.set_masses(masses)
     del colored_plan
     shard_dirs = [workdir / f"shard_{index:04d}_of_{config['n_shards']:04d}"
                   for index in range(config["n_shards"])]
@@ -240,7 +245,7 @@ def finalize(args):
     sparse_ifc = merge_colored_second_order(
         plan_dir, shard_dirs, output_dir=workdir / "merged",
         warning_threshold=response_threshold, apply_acoustic_sum=True,
-        asr_mode="projection", symmetrize=True)
+        asr_mode="projection", symmetrize=True, atoms=atoms)
     diagnostics_path = workdir / "merged" / "diagnostics.json"
     diagnostics = json.loads(diagnostics_path.read_text())
     for key in ("relative_outside_response", "relative_truncation_response"):
@@ -269,16 +274,36 @@ def finalize(args):
             raise ValueError("existing dynamical matrix does not match verified inputs; "
                              "use a new workdir")
         _LOG.info("Reusing sparse dynamical matrix: %s", output)
+    else:
+        weighted = sparse_ifc.dynmat
+        atomic_write(output, lambda stream: save_npz(stream, weighted, compressed=True))
+        atomic_write_json(metadata_path, {**source, "n_atoms": n_atoms,
+                                          "nnz_blocks": sparse_ifc.nnz_blocks,
+                                          "storage_bytes": weighted.data.nbytes + weighted.indices.nbytes +
+                                                           weighted.indptr.nbytes,
+                                          "arrays_sha256": sha256_file(output)})
+        _LOG.info("Saved %d x %d BSR dynamical matrix (%d blocks): %s", weighted.shape[0],
+                  weighted.shape[1], sparse_ifc.nnz_blocks, output)
+    _write_sparse_harmonic(workdir / "harmonic", sparse_ifc, source)
+
+
+def _write_sparse_harmonic(directory, sparse_ifc, source):
+    """Write the mass-weighted atom-block input for the distributed QHGK reducer, once.
+
+    Pair displacements are minimum-image vectors, which the planning check
+    (coloring radius at most half the narrowest cell width) makes unique.
+    """
+    provenance = {key: source[key] for key in ("plan_sha256", "ifc2_arrays_sha256", "masses_sha256")}
+    metadata_path = directory / "metadata.json"
+    if metadata_path.exists():
+        if json.loads(metadata_path.read_text()).get("colored_ifc_provenance") != provenance:
+            raise ValueError("existing sparse harmonic does not match verified inputs; use a new workdir")
+        _LOG.info("Reusing sparse harmonic: %s", directory)
         return
-    weighted = sparse_ifc.mass_weighted_bsr(masses)
-    atomic_write(output, lambda stream: save_npz(stream, weighted, compressed=True))
-    atomic_write_json(metadata_path, {**source, "n_atoms": n_atoms,
-                                      "nnz_blocks": sparse_ifc.nnz_blocks,
-                                      "storage_bytes": weighted.data.nbytes + weighted.indices.nbytes +
-                                                       weighted.indptr.nbytes,
-                                      "arrays_sha256": sha256_file(output)})
-    _LOG.info("Saved %d x %d BSR dynamical matrix (%d blocks): %s", weighted.shape[0],
-              weighted.shape[1], sparse_ifc.nnz_blocks, output)
+    harmonic = sparse_ifc.to_sparse_harmonic()
+    harmonic.metadata["colored_ifc_provenance"] = provenance
+    harmonic.save(directory)
+    _LOG.info("Saved sparse harmonic for distributed QHGK: %s", directory)
 
 
 def main(argv=None):
