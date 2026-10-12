@@ -6,6 +6,7 @@ from opt_einsum import contract
 import numpy as np
 from kaldo.phonons import Phonons
 from kaldo.controllers.dirac_kernel import lorentz_delta, gaussian_delta, triangular_delta
+from kaldo.controllers.qhgk import calculate_qhgk_blocked, diffusivity_kernel
 from kaldo.storable import lazy_property, Storable
 import kaldo.observables.harmonic_with_q_temp as hwqwt
 from kaldo.helpers.logger import get_logger, log_size
@@ -26,26 +27,11 @@ def calculate_conductivity_per_mode(heat_capacity, velocity, mfp, physical_mode,
 def calculate_diffusivity(omega, sij_left, sij_right, diffusivity_bandwidth, physical_mode, curve,
                           is_diffusivity_including_antiresonant=False,
                           diffusivity_threshold=None):
-    # TODO: cache this
-    sigma = 2 * (diffusivity_bandwidth[:, np.newaxis] + diffusivity_bandwidth[np.newaxis, :])
-    physical_mode = physical_mode.astype(bool)
-    delta_energy = omega[:, np.newaxis] - omega[np.newaxis, :]
-    kernel = curve(delta_energy, sigma)
-    if diffusivity_threshold is not None:
-        condition = (np.abs(delta_energy) < diffusivity_threshold * 2 * np.pi * diffusivity_bandwidth)
-        kernel[np.invert(condition)] = 0
-    if is_diffusivity_including_antiresonant:
-        sum_energy = omega[:, np.newaxis] + omega[np.newaxis, :]
-        kernel += curve(sum_energy, sigma)
-    kernel = kernel * np.pi
-    kernel[np.isnan(kernel)] = 0
-    mu_unphysical = np.argwhere(np.invert(physical_mode)).T
-    kernel[:, :] = kernel / omega[:, np.newaxis]
-    kernel[:, :] = kernel[:, :] / omega[np.newaxis, :] / 4
-    kernel[mu_unphysical, :] = 0
-    kernel[:, mu_unphysical] = 0
-    diffusivity = sij_left * kernel * sij_right
-    return diffusivity
+    kernel = diffusivity_kernel(omega, omega, diffusivity_bandwidth, diffusivity_bandwidth,
+                                physical_mode, physical_mode, curve,
+                                is_including_antiresonant=is_diffusivity_including_antiresonant,
+                                diffusivity_threshold=diffusivity_threshold)
+    return sij_left * kernel * sij_right
 
 
 def mfp_matthiessen(gamma, velocity, length, physical_mode):
@@ -349,30 +335,23 @@ class Conductivity(Storable):
         The temporary harmonic objects receive the same NAC BvK convention as
         ``self.phonons``. This keeps their frequencies, eigenvectors, heat
         capacities, and flux operators on one dynamical-matrix definition.
+
+        A Gamma-only amorphous calculation is reduced in bounded mode blocks
+        (:func:`kaldo.controllers.qhgk.reduce_qhgk_blocks`), so no full
+        ``(n_modes, n_modes)`` flux, heat-capacity, or kernel field is formed.
+        Other calculations loop over q points.
         """
         phonons = self.phonons
-        omega = phonons.omega.reshape((phonons.n_k_points, phonons.n_modes))
-        volume = np.abs(np.linalg.det(phonons.atoms.cell))
-        q_points = phonons._reciprocal_grid.fractional_points
-        physical_mode = phonons.physical_mode
-        conductivity_per_mode = np.zeros((self.phonons.n_k_points, self.phonons.n_modes, 3, 3), dtype=np.float32)
-        diffusivity_with_axis = np.zeros_like(conductivity_per_mode)
-
         match self.diffusivity_shape:
             case 'lorentz':
                 logging.info('Using Lorentzian diffusivity_shape')
-                curve = lorentz_delta
             case 'gauss':
                 logging.info('Using Gaussian diffusivity_shape')
-                curve = gaussian_delta
             case 'triangle':
                 logging.info('Using triangular diffusivity_shape')
-                curve = triangular_delta
             case _:
                 logging.error('Diffusivity shape not implemented')
                 return None, None
-
-        is_diffusivity_including_antiresonant = self.is_diffusivity_including_antiresonant
 
         if self.diffusivity_bandwidth is not None:
             logging.info('Using diffusivity bandwidth from input')
@@ -382,22 +361,65 @@ class Conductivity(Storable):
             diffusivity_bandwidth = self.phonons.bandwidth.reshape((phonons.n_k_points, phonons.n_modes)) / 2.
 
         logging.info('Start calculation diffusivity')
+        if phonons._is_amorphous:
+            phonon = self._qhgk_harmonic(np.zeros(3))
+            # The flux operator is undefined on the NAC path; the per-q loop raises the explanatory error.
+            if not phonon.is_nac:
+                return self._calculate_qhgk_gamma_blocked(phonon, diffusivity_bandwidth[0])
+        return self._calculate_qhgk_by_q_point(diffusivity_bandwidth)
+
+    def _qhgk_harmonic(self, q_point):
+        phonons = self.phonons
+        return hwqwt.HarmonicWithQTemp(
+            q_point=q_point,
+            second=phonons.forceconstants.second,
+            distance_threshold=phonons.forceconstants.distance_threshold,
+            folder=self.folder,
+            storage=self.storage,
+            temperature=self.temperature,
+            is_classic=self.is_classic,
+            is_nw=phonons.is_nw,
+            ifc_interpolation=phonons.ifc_interpolation,
+            is_amorphous=phonons._is_amorphous,
+            is_nac=phonons.is_nac,
+            nac_bvk_supercell_matrix=phonons.nac_bvk_supercell_matrix,
+        )
+
+    def _calculate_qhgk_gamma_blocked(self, phonon, diffusivity_bandwidth, block_size=512):
+        """Reduce real amorphous Gamma QHGK in bounded blocks; returns the per-q-loop shapes."""
+        phonons = self.phonons
+        omega = phonons.omega.reshape(-1)
+        # The reducer needs sorted frequencies; permute the modes and restore their order afterwards.
+        order = np.argsort(omega, kind='stable')
+        eigenvectors = np.real(np.asarray(phonon._eigensystem))[1:, order]
+        operators = tuple(np.real(np.asarray(derivative)) for derivative in (
+            phonon._dynmat_derivatives_x, phonon._dynmat_derivatives_y, phonon._dynmat_derivatives_z))
+        conductivity, diffusivity = calculate_qhgk_blocked(
+            omega[order], np.asarray(diffusivity_bandwidth, dtype=np.float64).reshape(-1)[order],
+            phonons.physical_mode.reshape(-1)[order], self.temperature, self.is_classic,
+            np.abs(np.linalg.det(phonons.atoms.cell)), eigenvectors, operators,
+            broadening_shape=self.diffusivity_shape, block_size=block_size,
+            diffusivity_threshold=self.diffusivity_threshold,
+            is_including_antiresonant=self.is_diffusivity_including_antiresonant,
+            is_tensor=True, compute_dtype=np.float64)
+        inverse = np.argsort(order)
+        return conductivity[inverse], diffusivity[inverse].reshape((1, phonons.n_modes))
+
+    def _calculate_qhgk_by_q_point(self, diffusivity_bandwidth):
+        """Form each q point's full mode-pair fields and contract them."""
+        phonons = self.phonons
+        omega = phonons.omega.reshape((phonons.n_k_points, phonons.n_modes))
+        volume = np.abs(np.linalg.det(phonons.atoms.cell))
+        q_points = phonons._reciprocal_grid.fractional_points
+        physical_mode = phonons.physical_mode
+        conductivity_per_mode = np.zeros((self.phonons.n_k_points, self.phonons.n_modes, 3, 3), dtype=np.float32)
+        diffusivity_with_axis = np.zeros_like(conductivity_per_mode)
+        curve = {'lorentz': lorentz_delta, 'gauss': gaussian_delta, 'triangle': triangular_delta}[
+            self.diffusivity_shape]
+        is_diffusivity_including_antiresonant = self.is_diffusivity_including_antiresonant
 
         for k_index, q_point in enumerate(q_points):
-            phonon = hwqwt.HarmonicWithQTemp(
-                q_point=q_point,
-                second=self.phonons.forceconstants.second,
-                distance_threshold=self.phonons.forceconstants.distance_threshold,
-                folder=self.folder,
-                storage=self.storage,
-                temperature=self.temperature,
-                is_classic=self.is_classic,
-                is_nw=phonons.is_nw,
-                ifc_interpolation=phonons.ifc_interpolation,
-                is_amorphous=phonons._is_amorphous,
-                is_nac=phonons.is_nac,
-                nac_bvk_supercell_matrix=phonons.nac_bvk_supercell_matrix,
-            )
+            phonon = self._qhgk_harmonic(q_point)
             heat_capacity_2d = phonon.heat_capacity_2d
             if phonons.n_modes > 100:
                 logging.info('calculating conductivity for q = ' + str(q_point))

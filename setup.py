@@ -50,6 +50,13 @@ setup(
     # url='http://www.my_package.com',  # Website
     install_requires=requirements,              # Required packages, pulls from pip if needed; do not use for Conda deployment
 
+    # Optional distributed Gamma-point QHGK: MPI row distribution (kaldo.parallel.distributed_qhgk)
+    # and PETSc/SLEPc interval eigensolves (kaldo.parallel.slepc_eigensolver). Both need MPI.
+    extras_require={
+        'mpi': ['mpi4py>=3.1'],
+        'slepc': ['mpi4py>=3.1', 'petsc4py>=3.18', 'slepc4py>=3.18'],
+    },
+
     # platforms=['Linux',
     #            'Mac OS-X',
     #            'Unix',

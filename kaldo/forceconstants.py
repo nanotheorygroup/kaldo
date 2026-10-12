@@ -212,8 +212,11 @@ class ForceConstants:
             diagonal supercell. For TDEP, the matrix inferred from
             ``infile.ucposcar`` and ``infile.ssposcar`` is authoritative.
             Default: (1, 1, 1)
-        format : 'numpy', 'eskm', 'lammps', 'vasp-sheng', 'qe-sheng', 'vasp-d3q', 'qe-d3q', 'hiphive', 'tdep', 'gpumd'
+        format : 'numpy', 'eskm', 'lammps', 'vasp-sheng', 'qe-sheng', 'vasp-d3q', 'qe-d3q', 'hiphive', 'tdep',
+                 'gpumd', 'colored'
             Format of force constant information being loaded into ForceConstants object.
+            ``'colored'`` is a merged colored finite-difference IFC2 for one
+            Gamma-only cell; it has no IFC3, so pass ``only_second=True``.
             Default is ``'numpy'``
         third_energy_threshold : float, optional
             When importing sparse third order force constant matrices, energies below
