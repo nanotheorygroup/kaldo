@@ -5,7 +5,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from kaldo.controllers.qhgk import calculate_qhgk_isotropic_blocked
+from kaldo.controllers.qhgk import calculate_qhgk_blocked
 from kaldo.conductivity import Conductivity
 from kaldo.forceconstants import ForceConstants
 from kaldo.observables.harmonic_with_q import HarmonicWithQ
@@ -44,7 +44,7 @@ def test_blocked_reducer_matches_conductivity_qhgk(forceconstants, gamma_harmoni
 
     eigenvectors, operators = gamma_harmonic
     omega = phonons.omega.reshape(-1)
-    actual_conductivity, actual_diffusivity = calculate_qhgk_isotropic_blocked(
+    actual_conductivity, actual_diffusivity = calculate_qhgk_blocked(
         omega, DIFFUSIVITY_BANDWIDTH, phonons.physical_mode.reshape(-1), TEMPERATURE, is_classic,
         np.abs(np.linalg.det(phonons.atoms.cell)), eigenvectors, operators,
         broadening_shape=shape, block_size=100, compute_dtype=np.float64)

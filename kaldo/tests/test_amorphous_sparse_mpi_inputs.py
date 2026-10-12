@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 
 from kaldo.controllers.bandwidth import DirectBandwidth, TabulatedBandwidth
-from kaldo.controllers.qhgk import calculate_qhgk_isotropic_blocked, calculate_qhgk_isotropic_dense
+from kaldo.controllers.qhgk import calculate_qhgk_blocked, calculate_qhgk_isotropic_dense
 from kaldo.observables.sparse_harmonic import (SparseHarmonic, convert_legacy_dense, convert_legacy_dynform,
                                                from_sparse_force_constants)
 from kaldo.parallel.spectrum_slicing import approximate_dos_boundaries, eigenvalue_window_intervals
@@ -76,11 +76,11 @@ def test_sparse_converter_action_validation_and_projection(small_harmonic, tmp_p
                   broadening_shape="triangle", compute_dtype=np.float64)
     dense_result = calculate_qhgk_isotropic_dense(
         **kwargs, harmonic_operator=tuple(np.load(path) for path in derivative_paths))
-    sparse_result = calculate_qhgk_isotropic_blocked(
+    sparse_result = calculate_qhgk_blocked(
         **kwargs, harmonic_operator=loaded.operators, block_size=5)
     for actual, expected in zip(sparse_result, dense_result):
         np.testing.assert_allclose(actual, expected, rtol=2e-13, atol=1e-13)
-    mixed = calculate_qhgk_isotropic_blocked(
+    mixed = calculate_qhgk_blocked(
         **{**kwargs, "compute_dtype": np.float32},
         harmonic_operator=loaded.operators, block_size=5)
     relative_total = abs(mixed[0].sum() - dense_result[0].sum()) / abs(dense_result[0].sum())
@@ -230,21 +230,21 @@ def test_tracked_ifc_sparse_projection_matches_symmetrized_dense():
                   broadening_shape="triangle", compute_dtype=np.float64)
     reference = calculate_qhgk_isotropic_dense(
         **inputs, harmonic_operator=tuple(dense_operators))
-    result = calculate_qhgk_isotropic_blocked(
+    result = calculate_qhgk_blocked(
         **inputs, harmonic_operator=harmonic.operators, block_size=17)
     for actual, expected in zip(result, reference):
         np.testing.assert_allclose(actual, expected, rtol=1e-12, atol=1e-13)
     # At this narrow width, the only supported physical pairs have zero
     # projected flux. Float32 roundoff must not turn self-pairs into transport.
-    narrow_mixed = calculate_qhgk_isotropic_blocked(
+    narrow_mixed = calculate_qhgk_blocked(
         **{**inputs, "compute_dtype": np.float32},
         harmonic_operator=harmonic.operators, block_size=17)
     assert all(np.all(vector == 0) for vector in (*reference, *narrow_mixed))
 
     broad_inputs = {**inputs, "diffusivity_bandwidth": 1.0}
-    broad_reference = calculate_qhgk_isotropic_blocked(
+    broad_reference = calculate_qhgk_blocked(
         **broad_inputs, harmonic_operator=harmonic.operators, block_size=17)[0]
-    broad_mixed = calculate_qhgk_isotropic_blocked(
+    broad_mixed = calculate_qhgk_blocked(
         **{**broad_inputs, "compute_dtype": np.float32},
         harmonic_operator=harmonic.operators, block_size=17)[0]
     assert abs(broad_mixed.sum()-broad_reference.sum())/broad_reference.sum() < 1e-6
@@ -281,7 +281,7 @@ def test_exact_triangle_block_skip_and_bounds():
     expected = calculate_qhgk_isotropic_dense(**common)
     for block in (1, 3, 7, m):
         stats = {}
-        actual = calculate_qhgk_isotropic_blocked(**common, block_size=block, stats=stats)
+        actual = calculate_qhgk_blocked(**common, block_size=block, stats=stats)
         for got, wanted in zip(actual, expected):
             np.testing.assert_allclose(got, wanted, rtol=1e-13, atol=1e-13)
         assert stats["evaluated_pairs"] < m*m

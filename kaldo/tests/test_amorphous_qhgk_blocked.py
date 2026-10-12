@@ -10,7 +10,7 @@ import pytest
 from scipy import sparse
 from ase.io import read
 
-from kaldo.controllers.qhgk import (calculate_qhgk_isotropic_blocked as blocked,
+from kaldo.controllers.qhgk import (calculate_qhgk_blocked as blocked,
                                    calculate_qhgk_isotropic_dense as dense,
                                    generalized_heat_capacity, qhgk_pair_factors)
 from kaldo.observables.eigenvector_source import NpyEigensystemSource
@@ -75,6 +75,31 @@ def test_full_tensor_trace_reference(system):
     np.testing.assert_allclose(blocked(**inputs, block_size=4)[0],
                                np.trace(tensor, axis1=1, axis2=2) / 3,
                                rtol=1e-14, atol=1e-14)
+    full, diffusivity = blocked(**inputs, block_size=4, is_tensor=True)
+    assert full.shape == (9, 3, 3)
+    np.testing.assert_allclose(full, tensor, rtol=1e-13, atol=1e-14)
+    np.testing.assert_allclose(diffusivity, blocked(**inputs, block_size=4)[1], rtol=1e-15, atol=0)
+
+
+@pytest.mark.parametrize("shape", ["triangle", "lorentz"])
+def test_antiresonant_terms_match_full_kernel(system, shape):
+    from kaldo.controllers.qhgk import _CURVES, diffusivity_kernel
+
+    omega, _, physical, temperature, e, operators = system
+    # The lowest physical pair (0.8 + 0.8 rad/ps) lies inside the triangle only above b = 0.4.
+    bw = np.full(len(omega), 0.5)
+    kernel = diffusivity_kernel(omega, omega, bw, bw, physical, physical, _CURVES[shape],
+                                is_including_antiresonant=True)
+    heat = generalized_heat_capacity(omega, omega, physical, physical, temperature=temperature,
+                                     is_classic=False)
+    s2 = sum((e.T @ operator @ e) ** 2 for operator in operators) / 3
+    np.fill_diagonal(s2, 0)
+    expected = np.sum(heat * kernel * s2, axis=1) * (units.kB / units.J) * 1e22 / 125.
+    inputs = kwargs(system, shape=shape, bandwidth=bw)
+    resonant = blocked(**inputs, block_size=3)[0]
+    actual = blocked(**inputs, block_size=3, is_including_antiresonant=True)[0]
+    assert not np.allclose(actual, resonant, rtol=1e-6, atol=0)
+    np.testing.assert_allclose(actual, expected, rtol=1e-13, atol=1e-14)
 
 
 def test_quantum_heat_capacity_and_masks():
@@ -202,12 +227,12 @@ def test_amorphous_reducer_does_not_import_tensorflow():
     script = (
         "import sys\n"
         "import numpy as np\n"
-        "from kaldo.controllers.qhgk import calculate_qhgk_isotropic_blocked\n"
+        "from kaldo.controllers.qhgk import calculate_qhgk_blocked\n"
         "from kaldo.observables.sparse_harmonic import SparseHarmonic\n"
         "from kaldo.parallel.distributed_qhgk import run_distributed_qhgk\n"
         "e = np.eye(6)\n"
         "operators = tuple(np.zeros((6, 6)) for _ in range(3))\n"
-        "calculate_qhgk_isotropic_blocked(np.linspace(1, 2, 6), 0.1, np.ones(6, bool), 300., False,\n"
+        "calculate_qhgk_blocked(np.linspace(1, 2, 6), 0.1, np.ones(6, bool), 300., False,\n"
         "                                 10., e, operators, block_size=2)\n"
         "assert 'tensorflow' not in sys.modules, 'the Gamma QHGK stack imported tensorflow'\n"
     )

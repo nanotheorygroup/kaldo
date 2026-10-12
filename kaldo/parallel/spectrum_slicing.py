@@ -12,7 +12,8 @@ from pathlib import Path
 
 import numpy as np
 
-from kaldo.helpers.atomic_io import atomic_save_npy, atomic_write_json, sha256_file, sha256_json
+from kaldo.helpers.atomic_io import sha256_file
+from kaldo.helpers.checkpoint_store import CheckpointStore
 from kaldo.observables.eigenvector_source import RowShardedEigenvectorSource
 from kaldo.parallel.distributed_qhgk import run_distributed_qhgk
 from kaldo.parallel.slepc_eigensolver import SlepcRowEigenvectorSource
@@ -102,9 +103,6 @@ def run_interval_pipeline(harmonic, eigenvalue_boundaries, max_bandwidth,
         raise ValueError("max_windows must be a nonnegative integer")
     intervals = eigenvalue_window_intervals(eigenvalue_boundaries, max_bandwidth)
     directory = Path(output_directory)
-    if rank == 0:
-        directory.mkdir(parents=True, exist_ok=True)
-    comm.Barrier()
     config = {"format": "kaldo-amorphous-interval-pipeline-v1",
               "harmonic_arrays_sha256": harmonic.input_hashes,
               "rank_count": comm.Get_size(),
@@ -119,10 +117,7 @@ def run_interval_pipeline(harmonic, eigenvalue_boundaries, max_bandwidth,
               "dtypes": {"compute": str(np.dtype(compute_dtype)),
                          "accumulator": str(np.dtype(accumulator_dtype))},
               "broadening_policy": "triangle exact support, exact zero self flux"}
-    config_hash = sha256_json(config)
-    manifest_path = directory / "manifest.json"
-    if manifest_path.exists() and json.loads(manifest_path.read_text()).get("config_sha256") != config_hash:
-        raise ValueError("interval pipeline configuration changed")
+    store = CheckpointStore(directory, config, comm=comm, label="interval pipeline")
     completed = []
     core_data = []
     new_windows = 0
@@ -184,12 +179,8 @@ def run_interval_pipeline(harmonic, eigenvalue_boundaries, max_bandwidth,
     core_count = sum(item["core_modes"] for item in completed)
     if complete_windows and core_count != 3*harmonic.n_atoms:
         raise RuntimeError(f"spectrum windows returned {core_count} of {3*harmonic.n_atoms} modes")
-    manifest = {**config, "config_sha256": config_hash,
-                "completed_windows": completed,
-                "complete": complete_windows,
-                "core_mode_count": core_count,
-                "evaluated_pairs": sum(item["evaluated_pairs"] for item in completed)}
-    atomic_write_json(manifest_path, manifest)
+    store.write_manifest(completed_windows=completed, complete=complete_windows, core_mode_count=core_count,
+                         evaluated_pairs=sum(item["evaluated_pairs"] for item in completed))
     if not complete_windows:
         return None
     arrays = [np.concatenate([item[column] for item in core_data])
@@ -197,5 +188,5 @@ def run_interval_pipeline(harmonic, eigenvalue_boundaries, max_bandwidth,
     ordering = np.argsort(arrays[0], kind="stable")
     for filename, array in zip(("eigenvalues", "omega", "physical_mode",
                                 "conductivity", "diffusivity"), arrays):
-        atomic_save_npy(directory / (filename + ".npy"), array[ordering])
+        store.save_array(filename, array[ordering])
     return arrays[3][ordering], arrays[4][ordering]

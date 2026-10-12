@@ -13,7 +13,7 @@ from time import perf_counter
 
 import numpy as np
 
-from kaldo.controllers.qhgk import calculate_qhgk_isotropic_blocked
+from kaldo.controllers.qhgk import calculate_qhgk_blocked
 from kaldo.observables.eigenvector_source import NpyEigensystemSource
 from kaldo.observables.sparse_harmonic import SparseHarmonic
 
@@ -41,7 +41,7 @@ def probe(n_atoms, block, directory):
     physical = omega > 0
     stats = {}
     start = perf_counter()
-    conductivity, diffusivity = calculate_qhgk_isotropic_blocked(
+    conductivity, diffusivity = calculate_qhgk_blocked(
         omega, 0.04, physical, 300., False, 1000., source,
         harmonic.operators, block_size=block, stats=stats)
     elapsed = perf_counter() - start

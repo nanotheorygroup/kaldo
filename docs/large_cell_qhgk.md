@@ -1,6 +1,6 @@
 # Large-cell Gamma-point QHGK
 
-`calculate_qhgk_isotropic_blocked` computes per-mode isotropic conductivity
+`calculate_qhgk_blocked` computes per-mode isotropic conductivity
 (W/(m K)) and diffusivity (mm²/s) from sorted angular frequencies (rad/ps),
 `diffusivity_bandwidth` (rad/ps), a physical-mode mask, real coordinate-major
 eigenvectors, and three real derivative operators. Volume is in Å³. It keeps

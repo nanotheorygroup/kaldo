@@ -1,9 +1,10 @@
-"""Coordinate-row distributed sparse harmonic action and QHGK contraction.
+"""Coordinate-row distributed sparse harmonic action and QHGK flux projection.
 
 Each rank owns atom rows of the mass-weighted dynamical matrix and the same
 coordinate rows of every eigenvector. For a partner mode panel, ranks exchange
 only eigenvector rows for off-rank neighbor atoms, apply their local derivative
-rows, and reduce bounded flux blocks to the owner of the core mode rows.
+rows, and reduce bounded flux blocks to the owner of the core mode rows. The
+reduction loop itself is :func:`kaldo.controllers.qhgk.reduce_qhgk_blocks`.
 """
 
 from __future__ import annotations
@@ -15,11 +16,10 @@ from time import perf_counter
 
 import numpy as np
 
-from kaldo.helpers.atomic_io import (atomic_save_npy, atomic_savez, atomic_write_json,
-                                     sha256_arrays, sha256_file, sha256_json)
+from kaldo.controllers.qhgk import check_dtypes, check_mode_inputs, read_panel, reduce_qhgk_blocks
+from kaldo.helpers.atomic_io import sha256_arrays, sha256_file, sha256_json
+from kaldo.helpers.checkpoint_store import CheckpointStore
 from kaldo.observables.eigenvector_source import RowShardedEigenvectorSource, atom_row_bounds
-from kaldo.controllers.qhgk import (_finish, _triangle_block_outside_support, _zero_self_pairs,
-                                   qhgk_pair_factors)
 from kaldo.observables.sparse_harmonic import apply_derivative_panel
 
 
@@ -146,8 +146,55 @@ def _mpi():
     return MPI
 
 
-def _checkpoint_path(directory, start, stop):
-    return directory / f"rows_{start:09d}_{stop:09d}.npz"
+class DistributedFluxProjector:
+    """Flux blocks whose coordinate rows are split across MPI ranks.
+
+    Core-mode block ``k`` belongs to rank ``k % size``. Every rank contracts
+    its local coordinate rows, and the partial flux blocks are summed onto the
+    owner, so ``flux`` is collective and returns the block only on the owner.
+    """
+
+    def __init__(self, eigenvectors, harmonic, *, dtype):
+        if (not isinstance(eigenvectors, RowShardedEigenvectorSource) or
+                eigenvectors.rank != harmonic.rank or eigenvectors.size != harmonic.size or
+                (eigenvectors.atom_start, eigenvectors.atom_stop) != (harmonic.atom_start, harmonic.atom_stop)):
+            raise ValueError("eigenvector and harmonic atom-row ownership must match")
+        if eigenvectors.global_n_coordinates != 3 * harmonic.n_atoms:
+            raise ValueError("eigenvectors and sparse harmonic describe different systems")
+        self.source = eigenvectors
+        self.harmonic = harmonic
+        self.comm = harmonic.comm
+        self.rank, self.size = harmonic.rank, harmonic.size
+        self.n_modes = eigenvectors.n_modes
+        self.dtype = np.dtype(dtype)
+        self.stats = {"panel_io_seconds": 0., "panel_io_bytes": 0, "exchange_seconds": 0.,
+                      "operator_seconds": 0., "contraction_seconds": 0.}
+
+    def owner(self, block_index):
+        return block_index % self.size
+
+    def core_panel(self, start, stop):
+        t = perf_counter()
+        panel = read_panel(self.source, start, stop, self.dtype)
+        self.stats["panel_io_seconds"] += perf_counter() - t
+        self.stats["panel_io_bytes"] += panel.nbytes
+        return panel
+
+    def flux(self, core_panel, start, stop, owner):
+        partner = self.core_panel(start, stop)
+        t = perf_counter()
+        extended = self.harmonic.exchange_panel(partner)
+        self.stats["exchange_seconds"] += perf_counter() - t
+        flux = np.empty((3, core_panel.shape[1], stop - start), dtype=self.dtype) if self.rank == owner else None
+        for axis in range(3):
+            t = perf_counter()
+            y = self.harmonic.directional_action(axis, extended)
+            self.stats["operator_seconds"] += perf_counter() - t
+            t = perf_counter()
+            local = np.ascontiguousarray(core_panel.T @ y)
+            self.comm.Reduce(local, flux[axis] if flux is not None else None, root=owner)
+            self.stats["contraction_seconds"] += perf_counter() - t
+        return flux
 
 
 def run_distributed_qhgk(omega, bandwidth_provider, physical_mode, temperature,
@@ -165,41 +212,16 @@ def run_distributed_qhgk(omega, bandwidth_provider, physical_mode, temperature,
     """
     comm = harmonic.comm
     rank, size = comm.Get_rank(), comm.Get_size()
-    if (not isinstance(eigenvectors, RowShardedEigenvectorSource) or
-            eigenvectors.rank != rank or eigenvectors.size != size or
-            (eigenvectors.atom_start, eigenvectors.atom_stop) !=
-            (harmonic.atom_start, harmonic.atom_stop)):
-        raise ValueError("eigenvector and harmonic atom-row ownership must match")
-    if (not isinstance(block_size, (int, np.integer)) or block_size < 1 or
-            max_blocks is not None and
-            (not isinstance(max_blocks, (int, np.integer)) or max_blocks < 0)):
-        raise ValueError("block_size and max_blocks must be nonnegative integers")
-    if broadening_shape not in ("triangle", "gauss", "lorentz"):
-        raise ValueError("unsupported broadening shape")
-    m = eigenvectors.n_modes
-    if core_stop is None:
-        core_stop = m
-    if not 0 <= core_start <= core_stop <= m:
-        raise ValueError("invalid window core mode range")
+    work, accum = check_dtypes(compute_dtype, accumulator_dtype)
+    projector = DistributedFluxProjector(eigenvectors, harmonic, dtype=work)
+    m = projector.n_modes
+    core_stop = m if core_stop is None else core_stop
     w = np.asarray(omega, dtype=np.float64)
-    physical = np.asarray(physical_mode, dtype=bool)
-    bw = bandwidth_provider.evaluate(w, temperature) if hasattr(bandwidth_provider, "evaluate") else np.asarray(bandwidth_provider, dtype=np.float64)
-    if bw.ndim == 0:
-        bw = np.full(m, bw)
-    if (w.shape != (m,) or physical.shape != (m,) or bw.shape != (m,) or
-            np.any(np.diff(w) < 0) or not np.isfinite(w).all() or
-            not np.isfinite(bw).all() or np.any(bw < 0) or
-            not np.isfinite(volume) or volume <= 0 or
-            eigenvectors.global_n_coordinates != 3*harmonic.n_atoms or
-            not np.isfinite(temperature)):
-        raise ValueError("invalid distributed QHGK inputs")
-    work, accum = np.dtype(compute_dtype), np.dtype(accumulator_dtype)
-    if work not in (np.dtype("float32"), np.dtype("float64")) or accum not in (np.dtype("float32"), np.dtype("float64")):
-        raise ValueError("unsupported work or accumulation dtype")
-    directory = Path(output_directory)
-    if rank == 0:
-        directory.mkdir(parents=True, exist_ok=True)
-    comm.Barrier()
+    bw = (bandwidth_provider.evaluate(w, temperature) if hasattr(bandwidth_provider, "evaluate")
+          else bandwidth_provider)
+    w, bw, physical = check_mode_inputs(w, bw, physical_mode, volume, temperature)
+    if w.shape != (m,):
+        raise ValueError("omega must have one entry per eigenvector mode")
     # Row shards fix the rank count; their hashes also bind restarts to exact
     # eigenvector data. Each rank checks its own file and all ranks agree.
     local_hash = sha256_file(eigenvectors.directory / eigenvectors.shard["file"])
@@ -208,10 +230,9 @@ def run_distributed_qhgk(omega, bandwidth_provider, physical_mode, temperature,
     hash_errors = comm.allgather(local_hash_error)
     if any(hash_errors):
         raise ValueError("; ".join(error for error in hash_errors if error))
-    source_hash = sha256_json(eigenvectors.manifest)
     config = {"format": "kaldo-distributed-amorphous-qhgk-v1",
               "rank_count": size, "mode_count": m,
-              "eigenvector_source_sha256": source_hash,
+              "eigenvector_source_sha256": sha256_json(eigenvectors.manifest),
               "harmonic_source_sha256": harmonic.metadata.get("source_sha256"),
               "harmonic_metadata_sha256": sha256_json(harmonic.metadata),
               "harmonic_arrays_sha256": harmonic.input_hashes,
@@ -229,142 +250,41 @@ def run_distributed_qhgk(omega, bandwidth_provider, physical_mode, temperature,
                                     "triangular_support": "exact" if broadening_shape == "triangle" else None,
                                     "self_pair_flux": "exact_zero",
                                     "legacy_asymmetric_threshold": diffusivity_threshold}}
-    config_hash = sha256_json(config)
-    old = directory / "manifest.json"
-    if old.exists() and json.loads(old.read_text()).get("config_sha256") != config_hash:
-        raise ValueError("distributed checkpoint configuration changed")
-    block = min(block_size, max(1, m-1))
-    ownership = [(first, min(first+block, core_stop))
-                 for first in range(core_start, core_stop, block)]
-    local_results = []
-    local_stats = {"evaluated_pairs": 0, "skipped_blocks": 0,
-                   "panel_io_bytes": 0, "panel_io_seconds": 0.,
-                   "exchange_seconds": 0., "operator_seconds": 0.,
-                   "contraction_seconds": 0., "reduction_seconds": 0.}
-    completed_new = 0
-    for index, (i0, i1) in enumerate(ownership):
-        owner = index % size
-        path = _checkpoint_path(directory, i0, i1)
-        exists = path.exists() if rank == owner else None
-        exists = comm.bcast(exists, root=owner)
-        if exists:
-            checkpoint_error = None
-            if rank == owner:
-                try:
-                    with np.load(path, allow_pickle=False) as saved:
-                        c, d = saved["conductivity"].copy(), saved["diffusivity"].copy()
-                        digest = str(saved["result_sha256"])
-                        pair_count = int(saved["evaluated_pairs"])
-                        if (str(saved["config_sha256"]) != config_hash or
-                                int(saved["start"]) != i0 or int(saved["stop"]) != i1 or
-                                c.shape != (i1-i0,) or d.shape != (i1-i0,) or
-                                digest != sha256_arrays(c, d)):
-                            raise ValueError("checkpoint fields or result hash differ")
-                except Exception as exc:
-                    checkpoint_error = f"invalid distributed checkpoint {path}: {exc}"
-            checkpoint_error = comm.bcast(checkpoint_error, root=owner)
-            if checkpoint_error is not None:
-                raise ValueError(checkpoint_error)
-            if rank == owner:
-                local_results.append((i0, i1, c, d, digest, pair_count))
-            continue
-        compute = max_blocks is None or completed_new < max_blocks
-        # Every rank follows the same block schedule. A cap is global rather
-        # than per-owner so a partial run cannot strand a collective.
-        if not compute:
-            continue
-        t = perf_counter()
-        ei = eigenvectors.read_modes(i0, i1, dtype=work)
-        local_stats["panel_io_seconds"] += perf_counter()-t
-        local_stats["panel_io_bytes"] += ei.nbytes
-        if rank == owner:
-            local_c = np.zeros(i1-i0, dtype=accum)
-            local_d = np.zeros(i1-i0, dtype=accum)
-            pair_count = 0
-        for j0 in range(0, m, block):
-            j1 = min(j0+block, m)
-            if broadening_shape == "triangle" and _triangle_block_outside_support(
-                    w[i0:i1], w[j0:j1], bw[i0:i1], bw[j0:j1]):
-                if rank == owner:
-                    local_stats["skipped_blocks"] += 1
-                continue
-            t = perf_counter()
-            ej = eigenvectors.read_modes(j0, j1, dtype=work)
-            local_stats["panel_io_seconds"] += perf_counter()-t
-            local_stats["panel_io_bytes"] += ej.nbytes
-            t = perf_counter()
-            extended = harmonic.exchange_panel(ej)
-            local_stats["exchange_seconds"] += perf_counter()-t
-            flux2 = np.zeros((i1-i0, j1-j0), dtype=work) if rank == owner else None
-            for axis in range(3):
-                t = perf_counter()
-                y = harmonic.directional_action(axis, extended)
-                local_stats["operator_seconds"] += perf_counter()-t
-                t = perf_counter()
-                local_flux = np.ascontiguousarray(ei.T @ y)
-                if rank == owner:
-                    flux = np.empty_like(local_flux)
-                else:
-                    flux = None
-                comm.Reduce(local_flux, flux, root=owner)
-                local_stats["contraction_seconds"] += perf_counter()-t
-                if rank == owner:
-                    flux2 += flux*flux
-            if rank == owner:
-                t = perf_counter()
-                flux2 /= 3
-                _zero_self_pairs(flux2, i0, j0)
-                kernel, heat = qhgk_pair_factors(
-                    w[i0:i1], w[j0:j1], bw[i0:i1], bw[j0:j1],
-                    physical[i0:i1], physical[j0:j1], temperature=temperature,
-                    is_classic=is_classic, broadening_shape=broadening_shape,
-                    diffusivity_threshold=diffusivity_threshold, dtype=work)
-                kernel *= flux2
-                local_d += np.sum(kernel, axis=1, dtype=accum)
-                kernel *= heat
-                local_c += np.sum(kernel, axis=1, dtype=accum)
-                local_stats["reduction_seconds"] += perf_counter()-t
-                local_stats["evaluated_pairs"] += (i1-i0)*(j1-j0)
-                pair_count += (i1-i0)*(j1-j0)
-        if rank == owner:
-            c, d = _finish(local_c, local_d, volume)
-            digest = sha256_arrays(c, d)
-            atomic_savez(path, config_sha256=config_hash, start=i0, stop=i1,
-                         conductivity=c, diffusivity=d, result_sha256=digest,
-                         evaluated_pairs=pair_count)
-            local_results.append((i0, i1, c, d, digest, pair_count))
-        completed_new += 1
-    gathered = comm.gather(local_results, root=0)
-    metrics = comm.gather({**local_stats, "rank": rank,
+    store = CheckpointStore(output_directory, config, comm=comm, label="distributed QHGK")
+    blocks, stats = reduce_qhgk_blocks(
+        projector, w, bw, physical, temperature=temperature, is_classic=is_classic, volume=volume,
+        core_start=core_start, core_stop=core_stop, block_size=block_size,
+        broadening_shape=broadening_shape, diffusivity_threshold=diffusivity_threshold,
+        accumulator_dtype=accum, checkpoint=store, max_blocks=max_blocks)
+    gathered = comm.gather(blocks, root=0)
+    metrics = comm.gather({**stats, "rank": rank,
                            "sparse_storage_bytes": harmonic.storage_bytes,
                            "peak_rss_kib": resource.getrusage(resource.RUSAGE_SELF).ru_maxrss},
                           root=0)
     if rank != 0:
         return None
+    block = min(block_size, max(1, m - 1))
+    ownership = [(first, min(first + block, core_stop)) for first in range(core_start, core_stop, block)]
     conductivity = np.zeros(m, dtype=accum)
     diffusivity = np.zeros(m, dtype=accum)
     completed = []
     for owner, items in enumerate(gathered):
-        for i0, i1, c, d, digest, pair_count in items:
+        for i0, i1, c, d, pairs in items:
             conductivity[i0:i1], diffusivity[i0:i1] = c, d
             completed.append({"start": i0, "stop": i1, "rank": owner,
-                              "result_sha256": digest,
-                              "evaluated_pairs": pair_count})
+                              "result_sha256": sha256_arrays(c, d), "evaluated_pairs": pairs})
     completed.sort(key=lambda item: item["start"])
     complete = len(completed) == len(ownership)
-    manifest = {**config, "config_sha256": config_hash,
-                "mode_ownership": [{"start": a, "stop": b, "rank": index % size}
-                                   for index, (a,b) in enumerate(ownership)],
-                "coordinate_ownership": [{"rank": index, "atom_start": a,
-                                          "atom_stop": b} for index, (a,b) in
-                                         enumerate(harmonic.bounds)],
-                "completed_core_ranges": completed, "complete": complete,
-                "metrics_per_rank": metrics,
-                "evaluated_pairs": sum(item["evaluated_pairs"] for item in completed),
-                "executed_pairs_this_run": sum(item["evaluated_pairs"] for item in metrics)}
-    atomic_write_json(directory / "manifest.json", manifest)
-    if complete:
-        atomic_save_npy(directory / "conductivity.npy", conductivity)
-        atomic_save_npy(directory / "diffusivity.npy", diffusivity)
-        return conductivity, diffusivity
-    return None
+    store.write_manifest(
+        mode_ownership=[{"start": a, "stop": b, "rank": projector.owner(index)}
+                        for index, (a, b) in enumerate(ownership)],
+        coordinate_ownership=[{"rank": index, "atom_start": a, "atom_stop": b}
+                              for index, (a, b) in enumerate(harmonic.bounds)],
+        completed_core_ranges=completed, complete=complete, metrics_per_rank=metrics,
+        evaluated_pairs=sum(item["evaluated_pairs"] for item in completed),
+        executed_pairs_this_run=sum(item["evaluated_pairs"] for item in metrics))
+    if not complete:
+        return None
+    store.save_array("conductivity", conductivity)
+    store.save_array("diffusivity", diffusivity)
+    return conductivity, diffusivity

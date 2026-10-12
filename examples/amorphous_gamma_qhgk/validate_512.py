@@ -18,7 +18,7 @@ import ase.units as units
 import numpy as np
 from scipy import sparse
 
-from kaldo.controllers.qhgk import calculate_qhgk_isotropic_blocked, generalized_heat_capacity
+from kaldo.controllers.qhgk import calculate_qhgk_blocked, generalized_heat_capacity
 from kaldo.observables.eigenvector_source import NpyEigensystemSource
 from kaldo.observables.sparse_harmonic import SparseHarmonic
 
@@ -117,7 +117,7 @@ def main(argv=None):
                   harmonic_operator=operators, broadening_shape=args.shape)
     results = {}
     for size in (16, 64, 257, 512, len(omega)):
-        result = calculate_qhgk_isotropic_blocked(**common, block_size=size,
+        result = calculate_qhgk_blocked(**common, block_size=size,
                                                    compute_dtype=np.float64)[0]
         results[size] = result
         print(f"float64 block={size}: saved={_error(result, expected)} "
@@ -127,13 +127,13 @@ def main(argv=None):
         if 64 in results and _error(result, results[64])["max_rel_to_peak"] > 1e-10:
             raise AssertionError(f"block-size mismatch at block {size}")
     sparse_operators = tuple(sparse.csr_matrix(operator) for operator in operators)
-    sparse_result = calculate_qhgk_isotropic_blocked(
+    sparse_result = calculate_qhgk_blocked(
         **{**common, "harmonic_operator": sparse_operators}, block_size=64,
         compute_dtype=np.float64)[0]
     print("CSR versus dense:", _error(sparse_result, results[64]))
     if _error(sparse_result, results[64])["max_rel_to_peak"] > 1e-10:
         raise AssertionError("CSR versus dense mismatch")
-    mixed_result = calculate_qhgk_isotropic_blocked(
+    mixed_result = calculate_qhgk_blocked(
         **{**common, "harmonic_operator": sparse_operators}, block_size=64,
         compute_dtype=np.float32)[0]
     print("mixed versus float64:", _error(mixed_result, results[64]))
@@ -150,7 +150,7 @@ def main(argv=None):
             print(f"atom-block flux {axis}: {error}")
             if error["max_rel_to_peak"] > args.saved_rtol:
                 raise AssertionError(f"atom-block flux {axis} mismatch")
-        atom_result = calculate_qhgk_isotropic_blocked(
+        atom_result = calculate_qhgk_blocked(
             **{**common, "harmonic_operator": atom_blocks.operators},
             block_size=64, compute_dtype=np.float64)[0]
         if _error(atom_result, results[64])["max_rel_to_peak"] > 1e-10:

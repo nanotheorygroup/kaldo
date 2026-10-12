@@ -1,10 +1,19 @@
 """Mode-pair kernels and the blocked real Gamma-point QHGK reducer.
 
 The kernels are shared by every QHGK diffusivity and conductivity path,
-including ``Conductivity(method='qhgk')``. Angular frequencies ``omega`` and the QHGK ``diffusivity_bandwidth`` are in
-rad/ps. Each function takes two mode blocks, so a caller can evaluate a full
-``(M, M)`` pair field or a bounded ``(B_i, B_j)`` tile with identical values.
-Only modes that are physical and have positive frequency contribute.
+including ``Conductivity(method='qhgk')``. Angular frequencies ``omega`` and
+the QHGK ``diffusivity_bandwidth`` are in rad/ps. Each kernel takes two mode
+blocks, so a caller can evaluate a full ``(M, M)`` pair field or a bounded
+``(B_i, B_j)`` tile with identical values. Only modes that are physical and
+have positive frequency contribute.
+
+The reducer, :func:`reduce_qhgk_blocks`, iterates core-mode blocks against
+partner-mode blocks and keeps only ``B x B`` pair scratch. It asks a *flux
+projector* for each flux block ``e_i^T (dD/dx_a) e_j``: a
+:class:`LocalFluxProjector` holds every coordinate row in one process, and
+``kaldo.parallel.distributed_qhgk.DistributedFluxProjector`` holds one MPI
+rank's rows. Volume is in Å³, conductivity in W/(m K), diffusivity in mm²/s.
+Eigenvector panels are coordinate-major ``(3*N, modes)``.
 """
 
 from time import perf_counter
@@ -132,43 +141,41 @@ def _physical(value, n_modes):
 def qhgk_pair_factors(omega_i, omega_j, bandwidth_i, bandwidth_j,
                       physical_i, physical_j, *, temperature, is_classic,
                       broadening_shape="triangle", diffusivity_threshold=None,
-                      dtype=np.float32):
-    """Return the resonant diffusivity kernel and ``C_ij/k_B`` for one block in ``dtype``."""
+                      is_including_antiresonant=False, dtype=np.float32):
+    """Return the diffusivity kernel and ``C_ij/k_B`` for one block in ``dtype``."""
     try:
         curve = _CURVES[broadening_shape]
     except KeyError as exc:
         raise ValueError(f"unknown broadening_shape {broadening_shape!r}") from exc
     kernel = diffusivity_kernel(omega_i, omega_j, bandwidth_i, bandwidth_j, physical_i, physical_j,
-                                curve, diffusivity_threshold=diffusivity_threshold)
+                                curve, is_including_antiresonant=is_including_antiresonant,
+                                diffusivity_threshold=diffusivity_threshold)
     heat = generalized_heat_capacity(omega_i, omega_j, physical_i, physical_j,
                                      temperature=temperature, is_classic=is_classic)
     return kernel.astype(dtype, copy=False), heat.astype(dtype, copy=False)
 
 
-def _inputs(omega, diffusivity_bandwidth, physical_mode, volume, eigenvectors,
-            harmonic_operator, compute_dtype, accumulator_dtype):
-    work = np.dtype(compute_dtype)
-    accum = np.dtype(accumulator_dtype)
+def check_dtypes(compute_dtype, accumulator_dtype):
+    work, accum = np.dtype(compute_dtype), np.dtype(accumulator_dtype)
     supported = (np.dtype("float32"), np.dtype("float64"))
     if work not in supported or accum not in supported:
         raise ValueError("compute_dtype and accumulator_dtype must be float32 or float64")
+    return work, accum
+
+
+def check_mode_inputs(omega, diffusivity_bandwidth, physical_mode, volume, temperature):
+    """Validate sorted rad/ps frequencies, nonnegative bandwidths, and the cell volume."""
     w = np.asarray(omega, dtype=np.float64)
     if w.ndim != 1 or not w.size or not np.all(np.isfinite(w)) or np.any(np.diff(w) < 0):
         raise ValueError("omega must be a finite, nonempty, sorted 1D array")
     if not np.isfinite(volume) or volume <= 0:
         raise ValueError("volume must be finite and positive")
-    source = eigenvectors if hasattr(eigenvectors, "read_modes") else NumpyEigenvectorSource(eigenvectors)
-    if source.n_modes != w.size or source.n_coordinates != w.size:
-        raise ValueError("Gamma-point eigenvectors must have shape (M, M)")
-    if len(harmonic_operator) != 3:
-        raise ValueError("harmonic_operator must contain three derivative operators")
-    for operator in harmonic_operator:
-        if operator.shape != (w.size, w.size) or not hasattr(operator, "__matmul__"):
-            raise ValueError("each derivative operator must support @ panel and have shape (M, M)")
+    if not np.isfinite(temperature):
+        raise ValueError("temperature must be finite")
     bw = _vector(diffusivity_bandwidth, w.size, "diffusivity_bandwidth", np.float64)
     if np.any(bw < 0):
         raise ValueError("diffusivity_bandwidth must be nonnegative")
-    return w, bw, _physical(physical_mode, w.size), source, work, accum
+    return w, bw, _physical(physical_mode, w.size)
 
 
 def _finish(conductivity, diffusivity, volume):
@@ -183,9 +190,10 @@ def _work_operators(operators, dtype):
                  else operator for operator in operators)
 
 
-def _read_panel(source, start, stop, dtype, n_coordinates):
+def read_panel(source, start, stop, dtype):
+    """Read a real ``(source.n_coordinates, stop-start)`` eigenvector panel in ``dtype``."""
     panel = np.asarray(source.read_modes(start, stop, dtype=dtype))
-    if panel.shape != (n_coordinates, stop - start) or np.iscomplexobj(panel):
+    if panel.shape != (source.n_coordinates, stop - start) or np.iscomplexobj(panel):
         raise ValueError("eigenvector source returned a non-real or incorrectly shaped panel")
     return panel.astype(dtype, copy=False)
 
@@ -197,112 +205,199 @@ def _triangle_block_outside_support(wi, wj, bi, bj):
 
 
 def _zero_self_pairs(pair_block, core_start, partner_start):
-    """Enforce the zero diagonal of a real skew-derivative projection."""
+    """Enforce the zero diagonal of a real skew-derivative projection (last two axes)."""
     lo = max(core_start, partner_start)
-    hi = min(core_start + pair_block.shape[0],
-             partner_start + pair_block.shape[1])
+    hi = min(core_start + pair_block.shape[-2],
+             partner_start + pair_block.shape[-1])
     if hi > lo:
         modes = np.arange(lo, hi)
-        pair_block[modes-core_start, modes-partner_start] = 0
+        pair_block[..., modes-core_start, modes-partner_start] = 0
 
 
-def calculate_qhgk_isotropic_blocked(omega, diffusivity_bandwidth, physical_mode,
-                                      temperature, is_classic, volume, eigenvectors,
-                                      harmonic_operator, *, core_start=0, core_stop=None,
-                                      broadening_shape="triangle", block_size=1024,
-                                      diffusivity_threshold=None,
-                                      compute_dtype=np.float32,
-                                      accumulator_dtype=np.float64, stats=None):
-    """Return per-mode isotropic conductivity and diffusivity for modes ``[core_start, core_stop)``.
+class LocalFluxProjector:
+    """Flux blocks ``e_i^T (dD/dx_a) e_j`` from eigenvectors and operators held by one process.
 
-    Only coordinate-by-``B`` eigenvector panels and ``B×B`` pair scratch live
-    during a partner iteration. Even ``block_size >= M`` is capped at ``M-1``
-    for ``M>1`` so no global ``M×M`` pair field is formed. Operators may be
-    NumPy arrays, SciPy CSR/BSR matrices, or objects supporting ``@ panel``.
-    They should use ``compute_dtype`` to avoid promotion during projection.
+    Operators may be NumPy arrays, SciPy CSR/BSR matrices, or objects
+    supporting ``@ panel``; they are cast once to ``dtype``.
     """
-    w, bw, physical, source, work, accum = _inputs(
-        omega, diffusivity_bandwidth, physical_mode, volume,
-        eigenvectors, harmonic_operator, compute_dtype, accumulator_dtype)
-    if not isinstance(block_size, (int, np.integer)) or block_size < 1:
-        raise ValueError("block_size must be a positive integer")
-    m = w.size
+
+    rank = 0
+
+    def __init__(self, eigenvectors, harmonic_operator, *, dtype):
+        self.source = eigenvectors if hasattr(eigenvectors, "read_modes") else NumpyEigenvectorSource(eigenvectors)
+        self.n_modes = self.source.n_modes
+        self.dtype = np.dtype(dtype)
+        if self.source.n_coordinates != self.n_modes:
+            raise ValueError("Gamma-point eigenvectors must have shape (M, M)")
+        if len(harmonic_operator) != 3:
+            raise ValueError("harmonic_operator must contain three derivative operators")
+        for operator in harmonic_operator:
+            if operator.shape != (self.n_modes, self.n_modes) or not hasattr(operator, "__matmul__"):
+                raise ValueError("each derivative operator must support @ panel and have shape (M, M)")
+        self.operators = _work_operators(harmonic_operator, self.dtype)
+        self.stats = {"panel_io_seconds": 0., "panel_io_bytes": 0,
+                      "operator_seconds": 0., "contraction_seconds": 0.}
+
+    def owner(self, block_index):
+        return 0
+
+    def core_panel(self, start, stop):
+        t = perf_counter()
+        panel = read_panel(self.source, start, stop, self.dtype)
+        self.stats["panel_io_seconds"] += perf_counter() - t
+        self.stats["panel_io_bytes"] += panel.nbytes
+        return panel
+
+    def flux(self, core_panel, start, stop, owner=0):
+        """Return the ``(3, core modes, stop-start)`` flux block."""
+        partner = self.core_panel(start, stop)
+        flux = np.empty((3, core_panel.shape[1], stop - start), dtype=self.dtype)
+        for axis, operator in enumerate(self.operators):
+            t = perf_counter()
+            y = np.asarray(operator @ partner)
+            self.stats["operator_seconds"] += perf_counter() - t
+            if y.shape != partner.shape:
+                raise ValueError("derivative operator returned an invalid panel shape")
+            t = perf_counter()
+            flux[axis] = core_panel.T @ y.astype(self.dtype, copy=False)
+            self.stats["contraction_seconds"] += perf_counter() - t
+        return flux
+
+
+def reduce_qhgk_blocks(projector, omega, diffusivity_bandwidth, physical_mode, *, temperature,
+                       is_classic, volume, core_start=0, core_stop=None, block_size=1024,
+                       broadening_shape="triangle", diffusivity_threshold=None,
+                       is_including_antiresonant=False, is_tensor=False, accumulator_dtype=np.float64,
+                       checkpoint=None, max_blocks=None):
+    """Reduce core-mode blocks of ``[core_start, core_stop)`` and return this rank's results.
+
+    Every rank must call this with identical arguments: all ranks visit the
+    same blocks in the same order, so a distributed projector's collectives
+    match. Only a block's owner forms pair factors and accumulates.
+
+    Returns ``(blocks, stats)``. ``blocks`` lists ``(start, stop, conductivity,
+    diffusivity, evaluated_pairs)`` for the blocks this rank owns and
+    finished, from ``checkpoint`` or computed now; ``conductivity`` has shape
+    ``(modes,)`` or, with ``is_tensor``, ``(modes, 3, 3)``. Even
+    ``block_size >= M`` is capped at ``M-1`` so no global pair field forms.
+    ``max_blocks`` caps blocks newly computed in this call, for restart tests.
+    """
+    w, bw, physical = omega, diffusivity_bandwidth, physical_mode
+    m = projector.n_modes
     if core_stop is None:
         core_stop = m
-    if not 0 <= core_start <= core_stop <= m:
+    if not 0 <= core_start <= core_stop <= m or w.shape != (m,):
         raise ValueError("invalid core mode range")
+    if (not isinstance(block_size, (int, np.integer)) or block_size < 1 or
+            max_blocks is not None and (not isinstance(max_blocks, (int, np.integer)) or max_blocks < 0)):
+        raise ValueError("block_size must be a positive integer and max_blocks nonnegative")
+    if broadening_shape not in _CURVES:
+        raise ValueError(f"unknown broadening_shape {broadening_shape!r}")
+    work, accum = projector.dtype, np.dtype(accumulator_dtype)
+    # The triangle has compact support only for the resonant term.
+    skip_blocks = broadening_shape == "triangle" and not is_including_antiresonant
     block = min(block_size, max(1, m - 1))
-    operators = _work_operators(harmonic_operator, work)
-    conductivity = np.zeros(core_stop - core_start, dtype=accum)
-    diffusivity = np.zeros(core_stop - core_start, dtype=accum)
-    if stats is not None:
-        stats.update(evaluated_pairs=0, skipped_blocks=0, panel_io_seconds=0.,
-                     panel_io_bytes=0,
-                     operator_seconds=0., contraction_seconds=0.,
-                     pair_seconds=0., reduction_seconds=0.)
-    # TODO(distributed-qhgk): exploit symmetric unordered-pair ownership so
-    # (m, n) is evaluated once and contributes to both mode accumulators.
-    for i0 in range(core_start, core_stop, block):
+    stats = {"evaluated_pairs": 0, "skipped_blocks": 0, "pair_seconds": 0., "reduction_seconds": 0.}
+    blocks = []
+    computed = 0
+    for index, i0 in enumerate(range(core_start, core_stop, block)):
         i1 = min(i0 + block, core_stop)
-        t = perf_counter()
-        ei = _read_panel(source, i0, i1, work, m)
-        if stats is not None:
-            stats["panel_io_seconds"] += perf_counter() - t
-            stats["panel_io_bytes"] += m * (i1 - i0) * work.itemsize
-        local_c = np.zeros(i1 - i0, dtype=accum)
-        local_d = np.zeros(i1 - i0, dtype=accum)
+        owner = projector.owner(index)
+        is_owner = owner == projector.rank
+        c_shape = (i1 - i0, 3, 3) if is_tensor else (i1 - i0,)
+        if checkpoint is not None:
+            saved = checkpoint.load_block(i0, i1, owner=owner,
+                                          shapes={"conductivity": c_shape, "diffusivity": (i1 - i0,)})
+            if saved is not None:
+                if is_owner:
+                    blocks.append((i0, i1, saved["conductivity"], saved["diffusivity"],
+                                   int(saved["evaluated_pairs"])))
+                continue
+        if max_blocks is not None and computed >= max_blocks:
+            continue
+        ei = projector.core_panel(i0, i1)
+        if is_owner:
+            conductivity = np.zeros(c_shape, dtype=accum)
+            diffusivity = np.zeros(i1 - i0, dtype=accum)
+            pairs = 0
         for j0 in range(0, m, block):
             j1 = min(j0 + block, m)
-            if broadening_shape == "triangle" and _triangle_block_outside_support(
-                    w[i0:i1], w[j0:j1], bw[i0:i1], bw[j0:j1]):
-                if stats is not None:
-                    stats["skipped_blocks"] += 1
+            if skip_blocks and _triangle_block_outside_support(w[i0:i1], w[j0:j1], bw[i0:i1], bw[j0:j1]):
+                stats["skipped_blocks"] += is_owner
+                continue
+            flux = projector.flux(ei, j0, j1, owner)
+            if not is_owner:
                 continue
             t = perf_counter()
-            ej = _read_panel(source, j0, j1, work, m)
-            if stats is not None:
-                stats["panel_io_seconds"] += perf_counter() - t
-                stats["panel_io_bytes"] += m * (j1 - j0) * work.itemsize
-                stats["evaluated_pairs"] += (i1 - i0) * (j1 - j0)
-            t = perf_counter()
             kernel, heat = qhgk_pair_factors(
-                w[i0:i1], w[j0:j1], bw[i0:i1], bw[j0:j1],
-                physical[i0:i1], physical[j0:j1], temperature=temperature,
-                is_classic=is_classic, broadening_shape=broadening_shape,
-                diffusivity_threshold=diffusivity_threshold, dtype=work)
-            if stats is not None:
-                stats["pair_seconds"] += perf_counter() - t
-            s2 = np.zeros((i1 - i0, j1 - j0), dtype=work)
-            for operator in operators:
-                t = perf_counter()
-                y = np.asarray(operator @ ej)
-                if stats is not None:
-                    stats["operator_seconds"] += perf_counter() - t
-                if y.shape != (m, j1 - j0):
-                    raise ValueError("derivative operator returned an invalid panel shape")
-                if y.dtype != work:
-                    y = y.astype(work, copy=False)
-                t = perf_counter()
-                s = ei.T @ y
-                if stats is not None:
-                    stats["contraction_seconds"] += perf_counter() - t
-                np.multiply(s, s, out=s)
-                s2 += s
-            s2 /= 3
-            # Real Gamma skew derivatives have exactly zero self projection.
-            _zero_self_pairs(s2, i0, j0)
+                w[i0:i1], w[j0:j1], bw[i0:i1], bw[j0:j1], physical[i0:i1], physical[j0:j1],
+                temperature=temperature, is_classic=is_classic, broadening_shape=broadening_shape,
+                diffusivity_threshold=diffusivity_threshold,
+                is_including_antiresonant=is_including_antiresonant, dtype=work)
+            stats["pair_seconds"] += perf_counter() - t
             t = perf_counter()
-            np.multiply(kernel, s2, out=kernel)
-            local_d += np.sum(kernel, axis=1, dtype=accum)
-            np.multiply(kernel, heat, out=kernel)
-            local_c += np.sum(kernel, axis=1, dtype=accum)
-            if stats is not None:
-                stats["reduction_seconds"] += perf_counter() - t
+            # Real Gamma skew derivatives have exactly zero self projection.
+            _zero_self_pairs(flux, i0, j0)
+            s2 = np.einsum("aij,aij->ij", flux, flux) / 3
+            diffusivity += np.sum(kernel * s2, axis=1, dtype=accum)
+            weight = kernel * heat
+            if is_tensor:
+                for a in range(3):
+                    for b in range(a, 3):
+                        conductivity[:, a, b] += np.sum(weight * flux[a] * flux[b], axis=1, dtype=accum)
+                        conductivity[:, b, a] = conductivity[:, a, b]
+            else:
+                conductivity += np.sum(weight * s2, axis=1, dtype=accum)
+            stats["reduction_seconds"] += perf_counter() - t
+            stats["evaluated_pairs"] += (i1 - i0) * (j1 - j0)
+            pairs += (i1 - i0) * (j1 - j0)
             # All pair and partner-panel scratch dies at the next iteration.
-            del ej, kernel, heat, s2, y, s
-        conductivity[i0-core_start:i1-core_start] = local_c
-        diffusivity[i0-core_start:i1-core_start] = local_d
-    return _finish(conductivity, diffusivity, volume)
+            del flux, kernel, heat, s2, weight
+        if is_owner:
+            conductivity, diffusivity = _finish(conductivity, diffusivity, volume)
+            if checkpoint is not None:
+                checkpoint.save_block(i0, i1, conductivity=conductivity, diffusivity=diffusivity,
+                                      evaluated_pairs=np.int64(pairs))
+            blocks.append((i0, i1, conductivity, diffusivity, pairs))
+        computed += 1
+    return blocks, {**stats, **projector.stats}
+
+
+def calculate_qhgk_blocked(omega, diffusivity_bandwidth, physical_mode, temperature, is_classic, volume,
+                           eigenvectors, harmonic_operator, *, core_start=0, core_stop=None,
+                           broadening_shape="triangle", block_size=1024, diffusivity_threshold=None,
+                           is_including_antiresonant=False, is_tensor=False, compute_dtype=np.float32,
+                           accumulator_dtype=np.float64, stats=None):
+    """Return per-mode conductivity and diffusivity for modes ``[core_start, core_stop)``.
+
+    Conductivity is the isotropic trace/3 with shape ``(modes,)``, or the full
+    ``(modes, 3, 3)`` tensor with ``is_tensor=True``. ``eigenvectors`` is an
+    ``(M, M)`` array or any eigenvector source; ``harmonic_operator`` holds the
+    three real derivative operators. Operators should use ``compute_dtype`` to
+    avoid promotion during projection. ``stats``, when given, receives pair
+    counts and timings.
+    """
+    work, accum = check_dtypes(compute_dtype, accumulator_dtype)
+    w, bw, physical = check_mode_inputs(omega, diffusivity_bandwidth, physical_mode, volume, temperature)
+    projector = LocalFluxProjector(eigenvectors, harmonic_operator, dtype=work)
+    if projector.n_modes != w.size:
+        raise ValueError("Gamma-point eigenvectors must have shape (M, M)")
+    core_stop = w.size if core_stop is None else core_stop
+    blocks, measured = reduce_qhgk_blocks(
+        projector, w, bw, physical, temperature=temperature, is_classic=is_classic, volume=volume,
+        core_start=core_start, core_stop=core_stop, block_size=block_size,
+        broadening_shape=broadening_shape, diffusivity_threshold=diffusivity_threshold,
+        is_including_antiresonant=is_including_antiresonant, is_tensor=is_tensor,
+        accumulator_dtype=accum)
+    if stats is not None:
+        stats.update(measured)
+    shape = (core_stop - core_start, 3, 3) if is_tensor else (core_stop - core_start,)
+    conductivity = np.zeros(shape, dtype=accum)
+    diffusivity = np.zeros(core_stop - core_start, dtype=accum)
+    for i0, i1, c, d, _ in blocks:
+        conductivity[i0 - core_start:i1 - core_start] = c
+        diffusivity[i0 - core_start:i1 - core_start] = d
+    return conductivity, diffusivity
 
 
 def calculate_qhgk_isotropic_dense(omega, diffusivity_bandwidth, physical_mode,
@@ -312,17 +407,16 @@ def calculate_qhgk_isotropic_dense(omega, diffusivity_bandwidth, physical_mode,
                                     compute_dtype=np.float64,
                                     accumulator_dtype=np.float64):
     """Small-system NumPy reference; deliberately forms complete pair fields."""
-    w, bw, physical, source, work, accum = _inputs(
-        omega, diffusivity_bandwidth, physical_mode, volume,
-        eigenvectors, harmonic_operator, compute_dtype, accumulator_dtype)
-    e = _read_panel(source, 0, w.size, work, w.size)
-    operators = _work_operators(harmonic_operator, work)
+    work, accum = check_dtypes(compute_dtype, accumulator_dtype)
+    w, bw, physical = check_mode_inputs(omega, diffusivity_bandwidth, physical_mode, volume, temperature)
+    projector = LocalFluxProjector(eigenvectors, harmonic_operator, dtype=work)
+    e = projector.core_panel(0, w.size)
     kernel, heat = qhgk_pair_factors(
         w, w, bw, bw, physical, physical, temperature=temperature,
         is_classic=is_classic, broadening_shape=broadening_shape,
         diffusivity_threshold=diffusivity_threshold, dtype=work)
     s2 = np.zeros((w.size, w.size), dtype=work)
-    for operator in operators:
+    for operator in projector.operators:
         s = e.T @ (operator @ e)
         s2 += s * s
     s2 /= 3

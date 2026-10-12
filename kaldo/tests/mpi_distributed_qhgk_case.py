@@ -11,7 +11,7 @@ from mpi4py import MPI
 import numpy as np
 
 from kaldo.controllers.bandwidth import DirectBandwidth
-from kaldo.controllers.qhgk import calculate_qhgk_isotropic_blocked
+from kaldo.controllers.qhgk import calculate_qhgk_blocked
 from kaldo.observables.eigenvector_source import (NpyEigensystemSource, NumpyEigenvectorSource,
                                                   RowShardedEigenvectorSource)
 from kaldo.observables.sparse_harmonic import SparseHarmonic
@@ -108,7 +108,7 @@ def main():
                 row_source, harmonic, result_dir, block_size=4,
                 compute_dtype=np.float64)
         except ValueError as exc:
-            rejected = "invalid distributed checkpoint" in str(exc)
+            rejected = "invalid checkpoint" in str(exc)
         else:
             rejected = False
         assert all(comm.allgather(rejected))
@@ -130,7 +130,7 @@ def main():
                     block_size=5, broadening_shape=shape,
                     compute_dtype=dtype)
                 if comm.rank == 0:
-                    reference = calculate_qhgk_isotropic_blocked(
+                    reference = calculate_qhgk_blocked(
                         adjusted, provider.evaluate(adjusted, 300.), physical,
                         300., False, 200.,
                         NpyEigensystemSource(root / "eigensystem.npy"),
@@ -158,7 +158,7 @@ def main():
                   "--bandwidth", "0.035", "--block", "4",
                   "--compute-dtype", "float64"])
         if comm.rank == 0:
-            expected = calculate_qhgk_isotropic_blocked(
+            expected = calculate_qhgk_blocked(
                 omega, provider.evaluate(omega, 300.), np.ones(len(omega), bool),
                 300., False, 200., NpyEigensystemSource(root / "eigensystem.npy"),
                 SparseHarmonic.load(root / "sparse").operators,
@@ -181,7 +181,7 @@ def main():
                 print("interval pipeline partial", comm.size)
             else:
                 assert manifest["complete"] and manifest["core_mode_count"] == len(omega)
-                reference = calculate_qhgk_isotropic_blocked(
+                reference = calculate_qhgk_blocked(
                     omega, provider.evaluate(omega, 300.), np.ones(len(omega), bool),
                     300., False, 200., NpyEigensystemSource(root / "eigensystem.npy"),
                     SparseHarmonic.load(root / "sparse").operators,
@@ -202,7 +202,7 @@ def main():
             print("distributed partial", comm.size)
         else:
             assert manifest["complete"]
-            reference = calculate_qhgk_isotropic_blocked(
+            reference = calculate_qhgk_blocked(
                 omega, provider.evaluate(omega, 300.), np.ones(len(omega), bool),
                 300., False, 200., NpyEigensystemSource(root / "eigensystem.npy"),
                 SparseHarmonic.load(root / "sparse").operators,
