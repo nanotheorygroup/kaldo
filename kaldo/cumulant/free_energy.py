@@ -472,8 +472,7 @@ def adaptive_sigma(radius_inv_ang, group_vel_alpha_nb, default_sigma_nb, scale=1
     (α, band); kaldo expects ``(n_k, n_b, 3)``. We reshape to a single-q call
     and drop the leading axis.
 
-    Note: anharmonic free energy (F2) uses :func:`smearingparameter` instead —
-    that is what TDEP's ``anharmonic_free_energy`` actually calls.
+    F2 uses this helper for the quantum resonant denominators.
     """
     from kaldo.controllers.anharmonic import calculate_adaptive_sigma_tdep
     v = np.asarray(group_vel_alpha_nb).T[np.newaxis, ...]  # (1, n_b, 3)
@@ -486,10 +485,10 @@ def adaptive_sigma(radius_inv_ang, group_vel_alpha_nb, default_sigma_nb, scale=1
 
 def smearingparameter(scaled_rec_basis, group_vel_alpha_nb, default_sigma_nb, scale=1.0):
     """
-    TDEP ``qp%smearingparameter`` used by anharmonic free energy.
+    TDEP ``qp%smearingparameter`` from Fortran ``anharmonic_free_energy``.
 
-    Shim on :func:`kaldo.controllers.anharmonic.calculate_smearingparameter_tdep`
-    with the cumulant per-q ``(3, n_b)`` velocity layout.
+    Not used by F2. Shim on
+    :func:`kaldo.controllers.anharmonic.calculate_smearingparameter_tdep`.
     """
     from kaldo.controllers.anharmonic import calculate_smearingparameter_tdep
     v = np.asarray(group_vel_alpha_nb).T[np.newaxis, ...]  # (1, n_b, 3)
@@ -505,9 +504,9 @@ def F2_vectorized(neighbors_pair, triplets, masses_kg, uc_positions, uc_cell,
     """
     F2 / S2 / Cv2 / U2 cubic cumulant evaluator on a regular MP q-mesh.
 
-    If ``sigma_THz`` is None (default), uses TDEP ``smearingparameter``
-    (the adaptive σ that ``anharmonic_free_energy`` actually calls — not
-    ``adaptive_sigma``). If a float, uses a fixed isotropic σ.
+    If ``sigma_THz`` is None (default), uses per-mode adaptive σ from the
+    Brillouin-zone cell radius and ``|v|``, clamped to the default-smearing
+    window. If a float, uses a fixed isotropic σ.
 
     ``use_q_symmetry=True`` reduces the outer q1 loop to spglib IBZ reps
     weighted by orbit size. See ``F1_vectorized`` for the invariance
@@ -553,41 +552,39 @@ def F2_vectorized(neighbors_pair, triplets, masses_kg, uc_positions, uc_cell,
     logging.info(f"eigs {nq} qs in {time.time()-t0:.1f}s")
 
     # Adaptive σ only needed for the quantum (resonant) branch.
-    # Match TDEP anharmonic_free_energy (thirdorder.f90): default_smearing from
-    # *IBZ* frequencies, σ from qp%smearingparameter (NOT qp%adaptive_sigma),
-    # evaluated on IBZ velocities and broadcast via ir_mapping.
+    # default_smearing from IBZ frequencies; per-mode σ from BZ-cell radius
+    # and group velocity on IBZ q-points, then broadcast via ir_mapping.
     if not is_classic:
         if sigma_THz is None:
             t_sig = time.time()
             if atoms is None:
                 raise ValueError(
                     "adaptive sigma (sigma_THz=None) requires atoms= ASE Atoms "
-                    "so default_smearing / σ can be built on the IBZ, matching TDEP"
+                    "so default_smearing / σ can be built on the IBZ"
                 )
             from kaldo.phonons import _get_ir_kgrid_data
+            from kaldo.controllers.anharmonic import calculate_bz_cell_radius
             ir_mapping, _, ibz_indices, _ = _get_ir_kgrid_data(
                 atoms, kpts=list(kmesh), grid_type='C')
             ibz_indices = np.asarray(ibz_indices, dtype=int)
-            # scaledrecbasis[:, i] = b_i / N_i  (b_i includes 2π)
-            scaled_rec_basis = recip / np.asarray(kmesh, dtype=float)[None, :]
             default_sigma_bands = compute_default_smearing(omegas[ibz_indices])
+            radius = calculate_bz_cell_radius(np.linalg.inv(uc_cell), nq)
             sigma_ibz = np.empty((len(ibz_indices), nb))
             for ii, iq in enumerate(ibz_indices):
                 v = compute_group_velocity_analytic(
                     neighbors_pair, uc_positions, masses_kg,
                     cart[iq], omegas[iq], egvs[iq],
                 )
-                sigma_ibz[ii] = smearingparameter(
-                    scaled_rec_basis, v, default_sigma_bands,
+                sigma_ibz[ii] = adaptive_sigma(
+                    radius, v, default_sigma_bands,
                 )
             # Broadcast IBZ σ to every full-grid q via its irreducible parent
-            # (ir_mapping[iq] is the full-grid index of the IBZ rep, matching
-            # TDEP's ap(q)%irreducible_index semantics).
+            # (ir_mapping[iq] is the full-grid index of the IBZ representative).
             sigma_by_full = np.empty((nq, nb))
             for ii, iq in enumerate(ibz_indices):
                 sigma_by_full[iq] = sigma_ibz[ii]
             sigma_table = sigma_by_full[np.asarray(ir_mapping, dtype=int)]
-            logging.info(f"smearingparameter (IBZ, AFE): {time.time()-t_sig:.1f}s, "
+            logging.info(f"adaptive_sigma (IBZ): {time.time()-t_sig:.1f}s, "
                   f"range {sigma_table.min():.2e}..{sigma_table.max():.2e} rad/s "
                   f"(~{sigma_table.min()/(2*np.pi*1e12):.3f}..{sigma_table.max()/(2*np.pi*1e12):.3f} THz)")
         else:
