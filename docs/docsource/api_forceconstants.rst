@@ -93,8 +93,9 @@ of thread and process parallelization. Try out different combinations of ``n_wor
 best results.
 
 .. note::
-   ML potentials (Orb, MACE, MatterSim, CPUNEP, ...) need a small extra step for parallel runs because their
-   PyTorch-backed instances cannot be pickled across processes. See :ref:`parallel-ml-calculators` for the
+   ML potentials (Orb, MACE, MatterSim, ...) need a small extra step for parallel runs because their
+   PyTorch-backed instances cannot be pickled across processes. A CPUNEP instance can be pickled only before
+   its first force call. See :ref:`parallel-ml-calculators` for the
    recommended pattern (a top-level factory function plus an ``if __name__ == '__main__':`` guard) and the
    ``delta_shift`` guidance for float32 calculators.
 
@@ -175,8 +176,9 @@ Parallel runs with ML calculators
 
 The serial idiom shown above (``calc = LAMMPSlib(...); fc.second.calculate(calc, ...)``) keeps working for parallel
 runs as long as the calculator can be pickled and forked safely. That's true for analytical and shared-library
-calculators (EMT, Lennard-Jones, LAMMPS), but typically *not* for ML potentials (Orb, MACE, MatterSim, CPUNEP, ...)
-that hold PyTorch models, GPU contexts, or C handles. Two issues come up in that case:
+calculators (EMT, Lennard-Jones, LAMMPS), but typically *not* for ML potentials (Orb, MACE, MatterSim, ...)
+that hold PyTorch models or GPU contexts, nor for a CPUNEP instance that has already computed forces. Two issues
+come up in that case:
 
 1. **The live calculator instance can't cross a process boundary.** Spawn-based multiprocessing pickles every
    argument; non-picklable instances raise ``TypeError`` (kALDo's parallel validator catches this with a

@@ -802,7 +802,7 @@ class ThirdOrder(ForceConstant):
 
         See the *Parallel runs with ML calculators* section of the
         ForceConstants documentation for the recommended pattern when
-        running torch-based calculators (Orb, MACE, MatterSim, CPUNEP) in
+        running ML calculators (Orb, MACE, MatterSim, CPUNEP) in
         parallel: define a no-arg factory function at module top level
         and pass it (without parentheses) as ``calculator``.
 
