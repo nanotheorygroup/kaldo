@@ -33,7 +33,10 @@ def _get_symmetry_maps(atoms, supercell, symprec=1e-5):
     grid = np.array(list(np.ndindex(nx, ny, nz)), dtype=int)
 
     lattice = atoms.cell[:]
-    scaled_pos = atoms.get_scaled_positions()
+    # Unwrapped: the force constants index atom i at atoms.positions[i] plus replica
+    # vectors, so images and cell shifts must refer to these positions. Wrapping moves
+    # an atom that sits just below a cell face into the next cell.
+    scaled_pos = atoms.get_scaled_positions(wrap=False)
     dataset = spglib.get_symmetry_dataset(
         (lattice, scaled_pos, atoms.numbers), symprec=symprec
     )
@@ -87,12 +90,10 @@ def _get_symmetry_maps(atoms, supercell, symprec=1e-5):
     for k in range(n_ops):
         R, t = rotations[k], translations[k]
         imgs    = scaled_pos @ R.T + t[np.newaxis, :]
-        shifts  = np.floor(imgs + 0.5 * symprec).astype(int)
-        imgs_w  = imgs - shifts
         for i in range(n_unit):
-            diffs = imgs_w[i] - scaled_pos
-            diffs -= np.round(diffs)
-            norms = np.linalg.norm(diffs, axis=1)
+            diffs = imgs[i] - scaled_pos
+            shifts = np.round(diffs)
+            norms = np.linalg.norm(diffs - shifts, axis=1)
             ip = int(np.argmin(norms))
             if norms[ip] > symprec * 10:
                 raise RuntimeError(
@@ -100,7 +101,7 @@ def _get_symmetry_maps(atoms, supercell, symprec=1e-5):
                     "Increase symprec or check the structure."
                 )
             atom_map[k, i]    = ip
-            cell_shifts[k, i] = shifts[i]
+            cell_shifts[k, i] = shifts[ip]
 
     return {
         'rotations': rotations,
