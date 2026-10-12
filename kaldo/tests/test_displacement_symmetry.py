@@ -195,6 +195,40 @@ def test_symmetrize_third_projects_noise_and_preserves_symmetric_input():
     assert np.abs(p1.todense() - noisy_dense).max() > 1e-5
 
 
+def _wurtzite_below_cell_face(supercell):
+    """Wurtzite with one cation 0.01 A below z = 0, as a relaxation can leave it.
+
+    The force constants index each atom at its unwrapped position. The operations
+    that exchange the two cation sites (6_3 screw, c glide) carry it across the
+    cell face, so a symmetrizer that wraps positions maps blocks to the wrong
+    replica. Lennard-Jones keeps the test free of external potentials; any pair
+    potential respects the space group.
+    """
+    from ase.calculators.lj import LennardJones
+    atoms = bulk('GaN', 'wurtzite', a=3.19, c=5.19)
+    atoms.positions[:, 2] -= 0.01
+    replicated_atoms = atoms.repeat(supercell)
+    return atoms, replicated_atoms, LennardJones(sigma=1.8, epsilon=0.1, rc=4.0)
+
+
+def test_symmetrize_second_is_a_fixed_point_on_wurtzite_below_cell_face():
+    from kaldo.controllers.displacement import symmetrize_ifc_second
+    atoms, rep, calc = _wurtzite_below_cell_face((3, 3, 2))
+    baseline = np.asarray(calculate_second(atoms, rep, second_order_delta=1e-5, n_workers=1, calculator=calc))
+    projected = symmetrize_ifc_second(baseline, atoms, (3, 3, 2))
+    np.testing.assert_allclose(projected, baseline, rtol=1e-6, atol=1e-8)
+
+
+def test_symmetrize_third_is_a_fixed_point_on_wurtzite_below_cell_face():
+    from kaldo.controllers.displacement import symmetrize_ifc_third
+    atoms, rep, calc = _wurtzite_below_cell_face((3, 3, 2))
+    # Nearest neighbours only (Ga-N bond 1.95 A); the cutoff is a distance, so it respects the group.
+    baseline = calculate_third(atoms, rep, third_order_delta=1e-4, distance_threshold=2.2,
+                               n_workers=1, calculator=calc)
+    projected = symmetrize_ifc_third(baseline, atoms, (3, 3, 2)).todense()
+    np.testing.assert_allclose(projected, baseline.todense(), rtol=1e-5, atol=1e-4)
+
+
 def test_calculate_second_symmetrize_flag_and_method(tmp_path):
     from kaldo.forceconstants import ForceConstants
     from kaldo.controllers.displacement import symmetrize_ifc_second
