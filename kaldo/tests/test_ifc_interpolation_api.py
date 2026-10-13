@@ -60,3 +60,30 @@ def test_invalid_or_removed_interpolation_arguments_fail_loudly(cu_second):
         np.zeros(3), cu_second, storage="memory", is_unfolding=True
     )
     assert unfolding.ifc_interpolation_resolved == "wigner-seitz"
+
+
+
+@pytest.fixture(scope="module")
+def cu_forceconstants(tmp_path_factory):
+    atoms = bulk("Cu", "fcc", a=3.61, cubic=True)
+    return ForceConstants(atoms=atoms, supercell=(2, 2, 2),
+                          folder=str(tmp_path_factory.mktemp("fc_cu_keywords")))
+
+
+def test_phonons_warns_about_unknown_keywords(cu_forceconstants):
+    """Unknown keywords used to vanish silently, e.g. ifc_interpolation= on Phonons."""
+    from kaldo.phonons import Phonons
+
+    with pytest.warns(FutureWarning, match="ifc_interpolation"):
+        Phonons(forceconstants=cu_forceconstants, kpts=(2, 2, 2), storage="memory",
+                ifc_interpolation="periodic")
+
+
+def test_phonons_known_keywords_do_not_warn(cu_forceconstants):
+    import warnings
+    from kaldo.phonons import Phonons
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", FutureWarning)
+        Phonons(forceconstants=cu_forceconstants, kpts=(2, 2, 2), storage="memory",
+                is_unfolding=True)

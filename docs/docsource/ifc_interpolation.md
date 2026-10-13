@@ -3,12 +3,12 @@
 Interatomic force constants (IFCs) describe interactions between atoms in
 periodic copies of a simulation cell. To calculate a phonon at an arbitrary q
 point, kALDo must decide which periodic copy represents each interaction and
-which Fourier phase belongs to it. The `ifc_interpolation` option controls that
-choice.
+which Fourier phase belongs to it. The `is_unfolding` option of `Phonons`
+controls that choice.
 
 ## The short answer
 
-For normal calculations, use the default:
+For normal calculations, keep the default:
 
 ```python
 from kaldo.phonons import Phonons
@@ -16,56 +16,54 @@ from kaldo.phonons import Phonons
 phonons = Phonons(
     forceconstants=forceconstants,
     kpts=(9, 9, 9),
-    # ifc_interpolation="auto",  # This is the default.
+    # is_unfolding=False,  # This is the default.
     storage="numpy",
 )
 ```
 
-`"auto"` uses information recorded by the force-constant loader to select the
-representation appropriate for each input. This is the recommended setting for
-crystalline and periodically repeated amorphous systems.
-
-Only change the option when reproducing a specific interpolation convention or
-diagnosing a difference from an older calculation.
+The default uses information recorded by the force-constant loader to select
+the representation appropriate for each input. This is the recommended setting
+for crystalline and periodically repeated amorphous systems.
 
 ## Available options
 
 <table>
   <thead>
     <tr>
-      <th>Value</th>
+      <th>Setting</th>
       <th>What kALDo does</th>
       <th>When to use it</th>
     </tr>
   </thead>
   <tbody>
     <tr>
-      <td><code>"auto"</code></td>
+      <td><code>is_unfolding=False</code></td>
       <td>Uses the representation associated with the loaded IFC source.</td>
       <td>All normal calculations. This is the default and recommended choice.</td>
     </tr>
     <tr>
-      <td><code>"wigner-seitz"</code></td>
-      <td>Assigns each compact IFC block to the shortest periodic image of its specific atom pair. Geometrically tied images share the block.</td>
+      <td><code>is_unfolding=True</code></td>
+      <td>Assigns every IFC block, from every source, to the shortest periodic image of its atom pair. Geometrically tied images share the block. Literal translations from TDEP and ShengBTE files are first folded into periodic classes, and QE d3q third-order IFCs use these images instead of their native direct-periodic convention. Requires periodic boundary conditions in all three directions.</td>
       <td>Controlled comparisons or an explicit compact-IFC calculation.</td>
-    </tr>
-    <tr>
-      <td><code>"periodic"</code></td>
-      <td>Uses the translation stored inside the finite supercell instead of choosing the shortest image for each atom pair, matching kALDo's historical interpolation.</td>
-      <td>Developer diagnostics and comparison with legacy NAC-off results. It is not recommended for production calculations.</td>
     </tr>
   </tbody>
 </table>
 
-`ifc_interpolation` refers to the interpolation of real-space force constants.
-It does not unfold a phonon band structure.
+Despite its name, `is_unfolding` selects the interpolation of real-space force
+constants. It does not unfold a phonon band structure.
 
-## Why `"auto"` is source aware
+The private argument `_ifc_interpolation="periodic"` selects kALDo's historical
+direct-periodic representation, which uses the translation stored inside the
+finite supercell instead of the shortest image of each atom pair. It is meant
+for developer diagnostics and comparison with legacy NAC-off results, not for
+production calculations.
+
+## Why the default is source aware
 
 Different file formats do not store the translation axes of their IFC tensors
 in the same way. Applying one interpolation rule to every source can move,
 merge, or discard interactions. The loaders therefore retain enough
-provenance for `"auto"` to make the following choices.
+provenance for the default to make the following choices.
 
 ### Compact periodic IFCs
 
@@ -85,7 +83,7 @@ non-analytic correction (NAC).
 ### Files with explicit translations
 
 TDEP and ShengBTE `FORCE_CONSTANTS_3RD` can store the actual lattice
-translation of each interaction. `"auto"` preserves those translations rather
+translation of each interaction. The default preserves those translations rather
 than folding them into a compact supercell representation.
 
 ### QE d3q IFC3
@@ -112,20 +110,20 @@ the coherence contribution to thermal conductivity.
 
 ## Polar materials and NAC
 
-For a polar calculation, leave `ifc_interpolation="auto"`. kALDo then uses the
-Wigner--Seitz representation needed to combine the interpolated short-range
-IFCs with the long-range dipole term.
+For a polar calculation, keep the default. kALDo then uses the Wigner--Seitz
+representation needed to combine the interpolated short-range IFCs with the
+long-range dipole term.
 
-The `"periodic"` mode deliberately uses the historical direct-periodic
-representation and cannot be combined consistently with active NAC. kALDo
-rejects that combination. A developer who intentionally wants the legacy
-short-range diagnostic must also set `is_nac=False`:
+The historical direct-periodic representation cannot be combined consistently
+with active NAC, and kALDo rejects that combination. A developer who
+intentionally wants the legacy short-range diagnostic must also set
+`is_nac=False`:
 
 ```python
 legacy_diagnostic = Phonons(
     forceconstants=forceconstants,
     kpts=(9, 9, 9),
-    ifc_interpolation="periodic",
+    _ifc_interpolation="periodic",  # private developer option
     is_nac=False,
     storage="numpy",
 )
@@ -144,30 +142,24 @@ boundary conditions in all three directions.
   disordered cell is the reference cell, and boundary-crossing pairs receive
   their nearest periodic images without assuming crystal symmetry.
 - True slabs, nanowires, and isolated clusters are not yet supported by the
-  Wigner--Seitz interpolation kernel. An explicit
-  `ifc_interpolation="wigner-seitz"` request therefore raises an error.
+  Wigner--Seitz interpolation kernel. `is_unfolding=True` therefore raises an
+  error for them.
 
-For compatibility with earlier kALDo releases, `ifc_interpolation="auto"`
-instead selects the historical periodic representation for systems that are
-not periodic in all three directions. This fallback lets existing workflows
+For compatibility with earlier kALDo releases, the default instead selects the
+historical periodic representation for the harmonic properties of systems that
+are not periodic in all three directions. This fallback lets existing workflows
 run, but it is not a validated shortest-image treatment for slabs, wires, or
 isolated systems. Treat results from such models with care.
 
 The `is_nw=True` option changes the Gamma-point acoustic-mode mask; it does not
 provide axis-only IFC interpolation for a nanowire.
 
-## Migrating from `is_unfolding`
+## Relation to earlier releases
 
-The former `is_unfolding` name is deprecated because it described the
-operation poorly. New workflows should use `ifc_interpolation`.
-
-- `is_unfolding=True` maps to `ifc_interpolation="wigner-seitz"` during the
-  compatibility period.
-- `is_unfolding=False` maps to `ifc_interpolation="auto"`.
-- The old direct-periodic result is selected explicitly with
-  `ifc_interpolation="periodic"`; it is not the meaning of the new default.
-
-Do not pass both the old and new controls in the same calculation.
+In kALDo 2.2 and earlier, the default `is_unfolding=False` used the
+direct-periodic representation. From 2.3 the default is source aware, which
+means pair-dependent Wigner--Seitz images for compact periodic data. The
+`is_unfolding` argument and its default are unchanged.
 
 ## Interpreting changed results
 
@@ -188,24 +180,25 @@ longer needed.
 
 ### A warning says explicit translations are being folded
 
-The input file stores literal lattice translations, but an explicit override
-requested a compact representation. Prefer `"auto"` unless that conversion is
+The input file stores literal lattice translations, but `is_unfolding=True`
+requested a compact representation. Keep the default unless that conversion is
 the purpose of the calculation.
 
-### `"periodic"` is rejected for a polar input
+### The direct-periodic representation is rejected for a polar input
 
-NAC is active. Use the default `"auto"` for the physical polar calculation.
-Use `is_nac=False` only when deliberately constructing a legacy short-range
+NAC is active. Use the default for the physical polar calculation. Use
+`is_nac=False` only when deliberately constructing a legacy short-range
 comparison.
 
 ### Wigner--Seitz interpolation rejects the boundary conditions
 
-Wigner--Seitz interpolation was explicitly requested for a structure that is
-not periodic in all three directions. This interpolation is currently
-supported only for fully periodic systems.
+`is_unfolding=True` was set for a structure that is not periodic in all three
+directions. Wigner--Seitz interpolation currently supports only fully periodic
+systems.
 
-With `"auto"`, kALDo retains the historical periodic representation for slabs,
-wires, and isolated systems. That compatibility path is not a validated
-shortest-image treatment for partially periodic or nonperiodic geometries. Use
-a fully periodic model when Wigner--Seitz interpolation is required, and assess
-other geometries according to the assumptions of your calculation.
+With the default, kALDo retains the historical periodic representation for the
+harmonic properties of slabs, wires, and isolated systems. That compatibility
+path is not a validated shortest-image treatment for partially periodic or
+nonperiodic geometries. Use a fully periodic model when Wigner--Seitz
+interpolation is required, and assess other geometries according to the
+assumptions of your calculation.

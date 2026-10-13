@@ -7,6 +7,7 @@ Anharmonic Lattice Dynamics
 import functools
 from hashlib import sha256
 import os
+import warnings
 
 from kaldo.storable import is_calculated
 from kaldo.storable import lazy_property, Storable
@@ -462,10 +463,15 @@ class Phonons(Storable):
         simulations where it may be difficult to get a sufficiently dense k-point grid.
         Default: False
     is_unfolding : bool
-        If the second order force constants need to be unfolded like in P. B. Allen
-        et al., Phys. Rev. B 87, 085322 (2013) set this to True. Folding and
-        unfolding now use pair-dependent Wigner--Seitz images of each atom
-        pair, and sources that provide literal translations keep them.
+        Selects how real-space force constants are interpolated to arbitrary q.
+        False lets each source keep its own convention: pair-dependent
+        Wigner--Seitz images for compact periodic data and QE q2r, literal
+        translations for TDEP and for ShengBTE third order, and the native
+        gauge for QE d3q third order. True applies pair-dependent Wigner--Seitz
+        images to every source and requires periodic boundary conditions in
+        all three directions. For systems that are not fully periodic, False
+        keeps the historical periodic representation for harmonic properties.
+        Despite the name, it does not unfold a phonon band structure.
         Default: False
     is_nac : bool or None, optional
         Controls the harmonic long-range correction. ``None`` automatically
@@ -600,6 +606,12 @@ class Phonons(Storable):
                  nac_q_direction=(1, 0, 0),
                  _ifc_interpolation: str | None = None,
                  **kwargs):
+        if kwargs:
+            warnings.warn(
+                f"Phonons ignores unknown keyword arguments {sorted(kwargs)}; "
+                "passing them will raise TypeError in a future release.",
+                FutureWarning, stacklevel=2,
+            )
         self.forceconstants = forceconstants
         if n_workers is not None and n_workers < 1:
             raise ValueError(f"n_workers must be >= 1 or None, got {n_workers}")

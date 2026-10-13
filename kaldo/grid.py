@@ -339,8 +339,7 @@ class WignerSeitzImages:
                 "Wigner-Seitz IFC interpolation currently requires periodic "
                 "boundary conditions in all three directions. Partial-periodic "
                 "nanowires and slabs need an axis-restricted image search, which "
-                "is not implemented. ifc_interpolation='periodic' is available "
-                "only as an explicit diagnostic representation."
+                "is not implemented."
             )
         fractional = np.array(positions @ np.linalg.inv(cell), copy=True)
         super_lattice = np.array(support.supercell.matrix @ cell, copy=True)

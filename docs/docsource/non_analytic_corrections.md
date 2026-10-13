@@ -111,15 +111,16 @@ such a request.
 
 ### Interpolation choice
 
-For normal calculations, leave `ifc_interpolation` at its default value,
-`"auto"`. kALDo then chooses the interpolation that matches the force-constant
-source. When NAC is active, kALDo automatically uses the interpolation needed
-to combine the short-range force constants with the long-range dipole term.
+For normal calculations, keep `is_unfolding` at its default value, `False`.
+kALDo then chooses the interpolation that matches the force-constant source.
+When NAC is active, kALDo automatically uses the interpolation needed to
+combine the short-range force constants with the long-range dipole term.
 
-The `"periodic"` setting is only a developer option for comparing against
-legacy NAC-off results; kALDo rejects it when NAC is active. See
+Developers can select the historical direct-periodic representation with the
+private argument `_ifc_interpolation="periodic"` to compare against legacy
+NAC-off results; kALDo rejects it when NAC is active. See
 [Choosing IFC interpolation](https://github.com/nanotheorygroup/kaldo/blob/main/docs/docsource/ifc_interpolation.md)
-for the available modes and guidance.
+for guidance.
 
 ## Input conventions and provenance
 
