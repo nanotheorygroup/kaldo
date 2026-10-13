@@ -25,6 +25,39 @@ HBAR = units._hbar
 THZ_TO_MEV = units.J * HBAR * 2 * np.pi * 1e15
 
 
+def accumulate_ps_and_gamma_mode(row, nu_single, is_plus, sparse_phase_nu, sparse_potential_nu,
+                                 population, is_balanced, n_phonons, is_gamma_tensor_enabled, hbar_factor):
+    """Reduce one (mode, channel) pair of sparse tensors into its ps_and_gamma row.
+
+    ``row`` is ``ps_and_gamma[nu_single]`` and is updated in place, so the
+    Gamma-point path can drop the tensors right after this call.
+    """
+    population_0 = population[nu_single]
+    nup_vec, nupp_vec = tf.unstack(sparse_phase_nu.indices, axis=1)
+    phase_values = sparse_phase_nu.values
+    # Apply hbar_factor to potential values for classical/quantum
+    pot_values = sparse_potential_nu.values * hbar_factor
+
+    population_1 = tf.gather(population, nup_vec)
+    population_2 = tf.gather(population, nupp_vec)
+    single_pop_delta = population_delta(is_plus, population_1, population_2, population_0, is_balanced)
+
+    row[0] += tf.reduce_sum(phase_values * single_pop_delta)
+    contrib = pot_values * phase_values * single_pop_delta
+    row[1] += tf.reduce_sum(contrib)
+
+    if is_gamma_tensor_enabled:
+        nup = tf.cast(nup_vec, tf.int32)
+        nupp = tf.cast(nupp_vec, tf.int32)
+        result_nup = tf.math.bincount(nup, contrib, n_phonons)
+        result_nupp = tf.math.bincount(nupp, contrib, n_phonons)
+        if is_plus:
+            row[2:] -= result_nup
+        else:
+            row[2:] += result_nup
+        row[2:] += result_nupp
+
+
 def calculate_ps_and_gamma(sparse_phase, sparse_potential, population, is_balanced, n_phonons, is_amorphous,
                            is_gamma_tensor_enabled=False, hbar_factor=1):
     # Set up the output array
@@ -36,41 +69,15 @@ def calculate_ps_and_gamma(sparse_phase, sparse_potential, population, is_balanc
         ps_and_gamma = np.zeros((n_phonons, 2))
 
     for nu_single in range(n_phonons):
-        population_0 = population[nu_single]
-
         for is_plus in (0, 1):
             if sparse_phase[nu_single][is_plus] is None:
                 continue
+            accumulate_ps_and_gamma_mode(
+                ps_and_gamma[nu_single], nu_single, is_plus,
+                sparse_phase[nu_single][is_plus], sparse_potential[nu_single][is_plus],
+                population, is_balanced, n_phonons, is_gamma_tensor_enabled, hbar_factor,
+            )
 
-            # Extract indices - both cases use the same 2D format now
-            nup_vec, nupp_vec = tf.unstack(sparse_phase[nu_single][is_plus].indices, axis=1)
-            sparse_phase_nu = sparse_phase[nu_single][is_plus].values
-            # Apply hbar_factor to potential values for classical/quantum
-            sparse_pot_nu = sparse_potential[nu_single][is_plus].values * hbar_factor
-            
-            # Use direct indexing for both cases
-            population_1 = tf.gather(population, nup_vec)
-            population_2 = tf.gather(population, nupp_vec)
-                
-            single_pop_delta = population_delta(is_plus, population_1, population_2, population_0, is_balanced)
-
-            # Accumulate phase space and gamma
-            ps_and_gamma[nu_single, 0] += tf.reduce_sum(sparse_phase_nu * single_pop_delta)
-            contrib = sparse_pot_nu * sparse_phase_nu * single_pop_delta
-            ps_and_gamma[nu_single, 1] += tf.reduce_sum(contrib)
-
-            # Handle gamma tensor for crystal case
-            if is_gamma_tensor_enabled:
-                nup = tf.cast(nup_vec, tf.int32)
-                nupp = tf.cast(nupp_vec, tf.int32)
-                result_nup = tf.math.bincount(nup, contrib, n_phonons)
-                result_nupp = tf.math.bincount(nupp, contrib, n_phonons)
-                if is_plus:
-                    ps_and_gamma[nu_single, 2:] -= result_nup
-                else:
-                    ps_and_gamma[nu_single, 2:] += result_nup
-                ps_and_gamma[nu_single, 2:] += result_nupp
-                    
     return ps_and_gamma
 
 
