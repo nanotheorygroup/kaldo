@@ -8,6 +8,8 @@ Relevant code:
 
 import logging as _logging
 import os
+import pickle
+import threading
 from unittest import mock
 
 import pytest
@@ -188,8 +190,29 @@ def test_resolve_headroom_env_reduces_safe_workers(monkeypatch):
 
 def test_probe_reattaches_calculator_when_none():
     """Regression: Atoms.copy() drops the attached calculator, so the
-    calculator=None path must reattach the original one before get_forces()."""
+    calculator=None path must probe a copy of the attached one."""
     atoms = bulk('Al', 'fcc', a=4.05, cubic=True).repeat((1, 1, 2))
     atoms.calc = EMT()
     delta = probe_calculator_memory_mb(None, atoms)
     assert delta >= 0.0
+
+
+class _LazyHandleCalculator(EMT):
+    """Picklable while fresh, like calorine's CPUNEP; the first force call
+    creates a handle that cannot be pickled."""
+
+    def calculate(self, *args, **kwargs):
+        self._handle = threading.Lock()
+        super().calculate(*args, **kwargs)
+
+
+@pytest.mark.parametrize('attached', [False, True], ids=['argument', 'atoms_calc'])
+def test_probe_leaves_the_callers_calculator_picklable(attached):
+    """The probe evaluates forces on a copy, so the instance that is later
+    pickled for the workers has never run a force call."""
+    atoms = bulk('Al', 'fcc', a=4.05, cubic=True).repeat((1, 1, 2))
+    calc = _LazyHandleCalculator()
+    if attached:
+        atoms.calc = calc
+    probe_calculator_memory_mb(None if attached else calc, atoms)
+    pickle.dumps(calc)

@@ -5,12 +5,15 @@ would otherwise exhaust memory through swap thrashing (Linux fork+overcommit
 hides the true cost from the OOM killer).
 
 Known limitation: the probe measures host RSS only; GPU memory used by
-TensorFlow/torch calculators is not captured by the estimate.
+TensorFlow/torch calculators is not captured by the estimate. An instance that
+holds torch weights on a GPU is copied there by the probe, which the estimate
+does not see either; pass a factory for GPU calculators.
 """
 
 import gc
 import math
 import os
+import pickle
 import psutil
 from kaldo.helpers.logger import get_logger
 
@@ -36,15 +39,18 @@ ASE_ATOMS_METADATA_BYTES = 4096
 
 
 def probe_calculator_memory_mb(calculator, replicated_atoms):
-    """Instantiate one calculator and run one force evaluation to measure RSS delta.
+    """Instantiate or copy one calculator and run one force evaluation to measure RSS delta.
 
     Parameters
     ----------
     calculator : callable or ASE Calculator instance or None
         The calculator factory or instance. If callable, called with no
-        arguments to produce a calculator. If None, probes using whatever
-        calculator is already attached to ``replicated_atoms`` (matching
-        how workers behave when ``calculator=None`` in ``calculate_third``).
+        arguments to produce a calculator. An instance is copied through
+        pickle, the way each worker receives it, so the probe never
+        initialises the object that is later sent to the workers.
+        If None, probes a copy of the calculator attached to
+        ``replicated_atoms`` (matching how workers behave when
+        ``calculator=None`` in ``calculate_third``).
     replicated_atoms : ASE Atoms
         The supercell atoms object used for the probe force evaluation.
 
@@ -63,12 +69,14 @@ def probe_calculator_memory_mb(calculator, replicated_atoms):
     rss_before = process.memory_info().rss
 
     atoms_copy = replicated_atoms.copy()
-    if calculator is not None:
-        atoms_copy.calc = calculator() if callable(calculator) else calculator
-    else:
-        # Atoms.copy() drops the attached calculator; reattach it so the
-        # None path probes the same calculator the workers will use.
-        atoms_copy.calc = replicated_atoms.calc
+    if calculator is None:
+        # Atoms.copy() drops the attached calculator; probe the one the workers will use.
+        calculator = replicated_atoms.calc
+    # Probe a copy made through pickle, as each worker gets one, never the caller's
+    # instance: the force call initialises lazy calculators (calorine's CPUNEP
+    # builds its C++ handle on first use), after which the instance can no
+    # longer be pickled for the workers.
+    atoms_copy.calc = calculator() if callable(calculator) else pickle.loads(pickle.dumps(calculator))
     atoms_copy.get_forces()
 
     gc.collect()

@@ -15,11 +15,14 @@ Covers:
    both auto-resolve ``scratch_dir`` in parallel runs only.
 5. ``maybe_warn_ml_delta_shift`` heuristic fires for orb/MACE/MatterSim/
    calorine calculators below 1e-2 and stays silent for analytical ones.
+6. A calculator instance that stops pickling after its first force call
+   (calorine's CPUNEP) runs in parallel: the memory probe uses a copy.
 """
 
 import functools
 import os
 import tempfile
+import threading
 import warnings
 
 import numpy as np
@@ -42,6 +45,15 @@ class _UnpicklableCalculator(EMT):
 
     def __reduce__(self):
         raise TypeError("this calculator is intentionally non-picklable (test stand-in)")
+
+
+class _LazyHandleCalculator(EMT):
+    """EMT subclass that behaves like calorine's CPUNEP: picklable while fresh,
+    but the first force call creates a native handle that cannot be pickled."""
+
+    def calculate(self, *args, **kwargs):
+        self._handle = threading.Lock()
+        super().calculate(*args, **kwargs)
 
 
 @pytest.fixture(scope="module")
@@ -125,6 +137,26 @@ def test_parallel_via_partial_matches_serial(al_atoms, calculate_fn, densify, at
         densify(serial), densify(parallel), rtol=1e-7, atol=atol,
         err_msg="Parallel via functools.partial diverges from serial.",
     )
+
+
+@pytest.mark.parametrize('calculate_fn,densify,attached', [
+    (calculate_second, lambda x: x, False),
+    (calculate_third, lambda x: x.todense(), True),
+], ids=['second-argument', 'third-atoms_calc'])
+def test_parallel_accepts_lazily_initialised_instance(al_atoms, calculate_fn, densify, attached):
+    """The memory probe runs one force evaluation before dispatch. Run on the
+    user's instance, it would initialise a lazy calculator, which then could not
+    be pickled for the workers. Both ways of passing the instance must work."""
+    atoms, _ = al_atoms
+    serial = calculate_fn(atoms, atoms.repeat((1, 1, 2)), 1e-5, n_workers=1, calculator=EMT())
+    replicated = atoms.repeat((1, 1, 2))
+    if attached:
+        replicated.calc = _LazyHandleCalculator()
+        calculator = None
+    else:
+        calculator = _LazyHandleCalculator()
+    parallel = calculate_fn(atoms, replicated, 1e-5, n_workers=2, calculator=calculator)
+    np.testing.assert_allclose(densify(serial), densify(parallel), rtol=1e-7, atol=1e-9)
 
 
 # -- Serial-mode guarantees --------------------------------------------------

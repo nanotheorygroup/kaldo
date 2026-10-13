@@ -122,9 +122,9 @@ def validate_parallel_calculator(calculator, method):
         multiprocessing.
 
     Rejected with a copy-pasteable fix message:
-      - Non-picklable instances (MatterSim, MACE, CPUNEP, orb, ...), which
+      - Non-picklable instances (MatterSim, MACE, orb, ...), which
         hold PyTorch models, GPU contexts, or C handles that don't survive
-        pickle.
+        pickle. A CPUNEP instance is one once it has computed forces.
 
     Parameters
     ----------
