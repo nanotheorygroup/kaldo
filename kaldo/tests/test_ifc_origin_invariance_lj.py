@@ -18,11 +18,6 @@ from functools import partial
 import numpy as np
 from ase import Atoms
 from ase.calculators.lj import LennardJones
-try:
-    from ase.filters import FrechetCellFilter as CellFilter  # ASE >= 3.23
-except ImportError:
-    from ase.constraints import ExpCellFilter as CellFilter  # ASE 3.22
-from ase.optimize import LBFGS
 
 from kaldo.conductivity import Conductivity
 from kaldo.forceconstants import ForceConstants
@@ -30,32 +25,28 @@ from kaldo.phonons import Phonons
 
 
 def _relaxed_argon_reference():
-    """Return the three-atom trigonal LJ crystal used by the reproducer."""
-    a, c = 4.44, 6.10
+    """Return FCC argon in a three-atom hexagonal cell, relaxed once and pinned.
+
+    Relaxing at test time made the structure depend on the installed ASE
+    version. Band folding makes many modes (near-)degenerate. The third atom
+    sits at negative fractional coordinates, which the translated copy wraps
+    into the cell.
+    """
     cell = np.array(
         [
-            [a, 0.0, 0.0],
-            [-a / 2.0, a * np.sqrt(3.0) / 2.0, 0.0],
-            [0.0, 0.0, c],
+            [3.719747779668492, 1.7036413759748925e-16, 5.017496633257669e-16],
+            [-1.8598738898342444, 3.2213960728643447, -1.0038131725575458e-12],
+            [-7.455783275549184e-14, -1.215204313724951e-12, 9.111516256278476],
         ]
     )
-    x = 0.2648
-    atoms = Atoms(
-        "Ar3",
-        cell=cell,
-        scaled_positions=np.array(
-            [
-                [x, 0.0, 1.0 / 3.0],
-                [0.0, x, 2.0 / 3.0],
-                [-x, -x, 0.0],
-            ]
-        ),
-        pbc=True,
+    positions = np.array(
+        [
+            [1.24000153, -0.0, 3.03717209],
+            [-0.62000076, 1.07387282, 6.07434417],
+            [-0.62000076, -1.07387282, 0.0],
+        ]
     )
-    atoms.calc = LennardJones(sigma=3.4, epsilon=0.01, rc=9.0, smooth=True)
-    LBFGS(CellFilter(atoms), logfile=None).run(fmax=1e-4, steps=300)
-    atoms.calc = None
-    return atoms
+    return Atoms("Ar3", cell=cell, positions=positions, pbc=True)
 
 
 def _lj_phonons(atoms, folder):
@@ -87,11 +78,15 @@ def _lj_phonons(atoms, folder):
         n_workers=1,
         symmetrize=False,
     )
+    # A fixed width keeps linewidths independent of the eigenvector basis
+    # inside degenerate subspaces, which differs between the two runs.
+    # Adaptive widths inherit that basis through per-mode velocities.
     return Phonons(
         forceconstants=forceconstants,
         kpts=[6, 6, 6],
         is_classic=False,
         temperature=300.0,
+        third_bandwidth=0.05,
         folder=str(folder / "ald"),
         storage="memory",
     )
@@ -133,6 +128,15 @@ def test_calculator_factory_rta_is_invariant_to_wrapped_crystal_origin(tmp_path)
         atol=2e-6,
     )
 
+    # Linewidths test the anharmonic interpolation directly; with a fixed
+    # width they agree to about 4e-8.
+    physical = reference.physical_mode
+    np.testing.assert_allclose(
+        translated.bandwidth[physical],
+        reference.bandwidth[physical],
+        rtol=1e-5,
+    )
+
     reference_kappa = Conductivity(
         phonons=reference,
         method="rta",
@@ -147,9 +151,13 @@ def test_calculator_factory_rta_is_invariant_to_wrapped_crystal_origin(tmp_path)
     assert np.isfinite(translated_kappa).all()
     assert np.linalg.norm(reference_kappa) > 0.0
     assert np.linalg.norm(translated_kappa) > 0.0
+    # Per-mode velocities inside degenerate subspaces follow the eigensolver
+    # basis, so kappa xx/yy differ by up to ~1e-5 between the runs (zz by
+    # 1e-8, since its velocity block is diagonal there). A wrong interpolation
+    # gauge changes kappa by factors.
     np.testing.assert_allclose(
         translated_kappa,
         reference_kappa,
-        rtol=1e-7,
-        atol=1e-12,
+        rtol=0.0,
+        atol=1e-4 * np.abs(reference_kappa).max(),
     )
