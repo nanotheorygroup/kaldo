@@ -134,8 +134,8 @@ boundary conditions in all three directions.
   error for them.
 
 For compatibility with earlier kALDo releases, the default instead selects the
-historical periodic representation for the harmonic properties of systems that
-are not periodic in all three directions. This fallback lets existing workflows
+historical periodic representation for systems that are not periodic in all
+three directions. This fallback lets existing workflows
 run, but it is not a validated shortest-image treatment for slabs, wires, or
 isolated systems. Treat results from such models with care.
 
@@ -177,13 +177,12 @@ the purpose of the calculation.
 
 ### Wigner--Seitz interpolation rejects the boundary conditions
 
-This error appears when `is_unfolding=True` is set for a structure that is not
-periodic in all three directions, or with the default when anharmonic
-properties of a slab or wire are computed from compact third-order IFCs.
-Wigner--Seitz interpolation currently supports only fully periodic systems.
+`is_unfolding=True` was set for a structure that is not periodic in all three
+directions. Wigner--Seitz interpolation currently supports only fully periodic
+systems.
 
-With the default, kALDo retains the historical periodic representation for the
-harmonic properties of slabs, wires, and isolated systems. That compatibility
+With the default, kALDo retains the historical periodic representation for
+slabs, wires, and isolated systems. That compatibility
 path is not a validated shortest-image treatment for partially periodic or
 nonperiodic geometries. Use a fully periodic model when Wigner--Seitz
 interpolation is required, and assess other geometries according to the

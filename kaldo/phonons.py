@@ -470,8 +470,7 @@ class Phonons(Storable):
         gauge for QE d3q third order. True applies pair-dependent Wigner--Seitz
         images to every source and requires periodic boundary conditions in
         all three directions. For systems that are not fully periodic, False
-        keeps the historical periodic representation for harmonic properties;
-        anharmonic properties of such systems raise NotImplementedError.
+        keeps the historical periodic representation.
         Despite the name, it does not unfold a phonon band structure.
         Default: False
     is_nac : bool or None, optional
