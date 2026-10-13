@@ -1565,8 +1565,3 @@ def interpolator(k_list, observable, fourier_order=0, interpolation_order=0, is_
 def create_k_and_symmetry_space(atoms, n_k_points=300, symprec=1e-05, manually_defined_path=None):
     """Create k-point path and symmetry labels for band structure plotting."""
     return _Plotter._create_k_and_symmetry_space(atoms, n_k_points, symprec, manually_defined_path)
-
-
-def set_fig_properties(ax_list, panel_color_str='black', line_width=2):
-    """Apply consistent formatting to matplotlib axes."""
-    _Plotter._set_fig_properties(ax_list, panel_color_str, line_width)
