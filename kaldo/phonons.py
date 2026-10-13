@@ -474,9 +474,13 @@ class Phonons(Storable):
         NAC-off model; ``True`` requires complete polar metadata.
         Default: None
     g_factor : (n_atoms) array , optional
-        It contains the isotopic g factor for each atom of the unit cell. 
-        g factor is the natural isotopic distributions of each element. 
+        It contains the isotopic g factor for each atom of the unit cell.
+        g factor is the natural isotopic distributions of each element.
         More reference can be found: M. Berglund, M.E. Wieser, Isotopic compositions of the elements 2009 (IUPAC technical report), Pure Appl. Chem. 83 (2011) 397–410.
+        When left to None, the g factors are downloaded from the NIST database, falling back to the
+        bundled legacy copy of that database when the network is unreachable. Elements with no
+        stable isotopic composition (Tc, Pm, and most of Z>83) are absent from both and raise a
+        ValueError, so pass this argument explicitly to study them.
         Default: None
     is_symmetrizing_frequency : bool, optional
         Reserved compatibility option. It is retained in the public
