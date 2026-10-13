@@ -35,7 +35,7 @@ The QHGK formalism uniquely extends thermal transport predictions beyond crystal
 
 ### Physical Corrections
 - **Isotopic scattering** via Tamura perturbation theory
-- **[Non-analytical corrections (NAC)](https://github.com/nanotheorygroup/kaldo/blob/main/docs/docsource/non_analytic_corrections.md)** for polar materials (LO-TO splitting)
+- **Non-analytical corrections (NAC)** for polar materials (LO-TO splitting)
 - **Finite-size effects** and boundary scattering
 - **Anharmonicity quantification** (σ_A score)
 
@@ -57,7 +57,7 @@ Run κALDo interactively on Google Colab:
 ## Installation
 
 ```bash
-uv pip install kaldo
+pip install kaldo
 ```
 
 Docker deployment:
@@ -144,6 +144,8 @@ For detailed theoretical background on anharmonic lattice dynamics, the Boltzman
 ## Examples
 
 Detailed examples for various materials and workflows are available [in a stand-alone repository](https://github.com/nanotheorygroup/kaldo-examples).
+
+A recipe on phonon uncertainty quantification with `PhononsEnsemble` and PET-MAD committee models is on the [Atomistic Cookbook](https://atomistic-cookbook.org/examples/kaldo-phonons-uq/kaldo-phonons-uq.html).
 
 ## Citations
 
