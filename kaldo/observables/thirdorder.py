@@ -192,9 +192,8 @@ class ThirdOrder(ForceConstant):
             resolved = (hint or "wigner-seitz") if mode == "auto" else mode
             if support.provenance == "file" and mode != "auto":
                 logging.warning(
-                    "ifc_interpolation=%r folds %d file-provided IFC3 "
-                    "translations into %d periodic classes by explicit "
-                    "user request.",
+                    "%r interpolation folds %d file-provided IFC3 "
+                    "translations into %d periodic classes.",
                     mode,
                     support.size,
                     support.supercell.size,

@@ -1,5 +1,7 @@
 """Public API contract for ordinary IFC interpolation."""
 
+import warnings
+
 import numpy as np
 import pytest
 from ase.build import bulk
@@ -7,6 +9,7 @@ from ase.calculators.emt import EMT
 
 from kaldo.forceconstants import ForceConstants
 from kaldo.observables.harmonic_with_q import HarmonicWithQ
+from kaldo.phonons import Phonons
 
 
 @pytest.fixture(scope="module")
@@ -62,7 +65,6 @@ def test_invalid_or_removed_interpolation_arguments_fail_loudly(cu_second):
     assert unfolding.ifc_interpolation_resolved == "wigner-seitz"
 
 
-
 @pytest.fixture(scope="module")
 def cu_forceconstants(tmp_path_factory):
     atoms = bulk("Cu", "fcc", a=3.61, cubic=True)
@@ -70,20 +72,10 @@ def cu_forceconstants(tmp_path_factory):
                           folder=str(tmp_path_factory.mktemp("fc_cu_keywords")))
 
 
-def test_phonons_warns_about_unknown_keywords(cu_forceconstants):
-    """Unknown keywords used to vanish silently, e.g. ifc_interpolation= on Phonons."""
-    from kaldo.phonons import Phonons
-
+def test_phonons_warns_only_about_unknown_keywords(cu_forceconstants):
+    """An unknown keyword emits a FutureWarning that names it; known ones are silent."""
     with pytest.warns(FutureWarning, match="ifc_interpolation"):
-        Phonons(forceconstants=cu_forceconstants, kpts=(2, 2, 2), storage="memory",
-                ifc_interpolation="periodic")
-
-
-def test_phonons_known_keywords_do_not_warn(cu_forceconstants):
-    import warnings
-    from kaldo.phonons import Phonons
-
+        Phonons(forceconstants=cu_forceconstants, storage="memory", ifc_interpolation="periodic")
     with warnings.catch_warnings():
         warnings.simplefilter("error", FutureWarning)
-        Phonons(forceconstants=cu_forceconstants, kpts=(2, 2, 2), storage="memory",
-                is_unfolding=True)
+        Phonons(forceconstants=cu_forceconstants, storage="memory")

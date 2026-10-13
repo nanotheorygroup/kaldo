@@ -97,9 +97,9 @@ guidance, examples, and source-specific behavior.
 A periodically repeated amorphous simulation cell follows the same geometry
 without assuming any space-group symmetry: the entire disordered cell is the
 reference cell and atom pairs crossing its boundary receive their nearest
-periodic images. Slabs, wires, and isolated clusters keep the historical
-periodic translation model; kALDo does not invent images through a
-nonperiodic direction.
+periodic images. For harmonic properties, slabs, wires, and isolated clusters
+keep the historical periodic translation model; kALDo does not invent images
+through a nonperiodic direction.
 
 The optional
 ``nac_bvk_supercell_matrix`` identifies the Born--von Karman cell that defines

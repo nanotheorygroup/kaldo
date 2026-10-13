@@ -115,19 +115,7 @@ representation needed to combine the interpolated short-range IFCs with the
 long-range dipole term.
 
 The historical direct-periodic representation cannot be combined consistently
-with active NAC, and kALDo rejects that combination. A developer who
-intentionally wants the legacy short-range diagnostic must also set
-`is_nac=False`:
-
-```python
-legacy_diagnostic = Phonons(
-    forceconstants=forceconstants,
-    kpts=(9, 9, 9),
-    _ifc_interpolation="periodic",  # private developer option
-    is_nac=False,
-    storage="numpy",
-)
-```
+with active NAC, and kALDo rejects that combination.
 
 For the underlying polar-phonon conventions, see
 [Non-analytic corrections for polar crystals](https://github.com/nanotheorygroup/kaldo/blob/main/docs/docsource/non_analytic_corrections.md).
@@ -159,7 +147,10 @@ provide axis-only IFC interpolation for a nanowire.
 In kALDo 2.2 and earlier, the default `is_unfolding=False` used the
 direct-periodic representation. From 2.3 the default is source aware, which
 means pair-dependent Wigner--Seitz images for compact periodic data. The
-`is_unfolding` argument and its default are unchanged.
+`is_unfolding` argument and its default are unchanged. The 2.3.0 documentation
+listed an `ifc_interpolation` argument for `Phonons`; `Phonons` ignored it, so
+those calculations used the default. Use `is_unfolding=True` for the
+Wigner--Seitz override.
 
 ## Interpreting changed results
 
@@ -184,17 +175,12 @@ The input file stores literal lattice translations, but `is_unfolding=True`
 requested a compact representation. Keep the default unless that conversion is
 the purpose of the calculation.
 
-### The direct-periodic representation is rejected for a polar input
-
-NAC is active. Use the default for the physical polar calculation. Use
-`is_nac=False` only when deliberately constructing a legacy short-range
-comparison.
-
 ### Wigner--Seitz interpolation rejects the boundary conditions
 
-`is_unfolding=True` was set for a structure that is not periodic in all three
-directions. Wigner--Seitz interpolation currently supports only fully periodic
-systems.
+This error appears when `is_unfolding=True` is set for a structure that is not
+periodic in all three directions, or with the default when anharmonic
+properties of a slab or wire are computed from compact third-order IFCs.
+Wigner--Seitz interpolation currently supports only fully periodic systems.
 
 With the default, kALDo retains the historical periodic representation for the
 harmonic properties of slabs, wires, and isolated systems. That compatibility

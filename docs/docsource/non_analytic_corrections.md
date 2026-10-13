@@ -116,9 +116,7 @@ kALDo then chooses the interpolation that matches the force-constant source.
 When NAC is active, kALDo automatically uses the interpolation needed to
 combine the short-range force constants with the long-range dipole term.
 
-Developers can select the historical direct-periodic representation with the
-private argument `_ifc_interpolation="periodic"` to compare against legacy
-NAC-off results; kALDo rejects it when NAC is active. See
+kALDo rejects the historical direct-periodic diagnostic when NAC is active. See
 [Choosing IFC interpolation](https://github.com/nanotheorygroup/kaldo/blob/main/docs/docsource/ifc_interpolation.md)
 for guidance.
 
