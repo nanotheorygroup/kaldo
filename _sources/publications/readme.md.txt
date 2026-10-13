@@ -6,9 +6,9 @@
 * M. Yazdani-Kachoei, B. Rabihavi, I. E. Brumboiu, S. Mehdi Vaez Allaei, I. Di Marco, ["Understanding the role of defects in the lattice transport properties of half-Heusler compounds: a machine learning analysis"](https://arxiv.org/abs/2412.10794), arXiv:2412.10794 (2024).
 * G. Romano, ["Openbte: a solver for ab-initio phonon transport in multidimensional structures"](https://arxiv.org/abs/2106.02764), arXiv:2106.02764 (2021).
 * Y. Xia, ["Self-Consistent Phonon Spectral Functions and Thermal Transport Beyond the Quasiparticle Approximation"](https://arxiv.org/abs/2607.10211), arXiv:2607.10211 (2026).
-* D. Park, Y. Peng, J. Deng, ["Thermal conductivity of seifertite and pyrite-type SiO2: A comparative study"](https://arxiv.org/abs/2605.16123), arXiv:2605.16123 (2026).
+* T. Maranets, H. Cui, M. Nasiri, E. Doe, Y. Wang, ["Fundamental concepts of thermal phonon coherence"](https://arxiv.org/abs/2609.36270), arXiv:2609.36270 (2026).
 
-## 2026 (13)
+## 2026 (17)
 
 * G. Barbalinardo, Z. Chen, D. Folkner, B. Li, N. W. Lundgren, N. Troup, A. Fiorentino, D. Donadio, ["κALDo 2.0: Scalable Thermal Transport from First Principles and Machine Learning Potentials"](https://doi.org/10.1016/j.cpc.2026.110282), *Comput. Phys. Commun.*, 110282 (2026).
 * V. Efremkin, S. Mossa, J.-L. Barrat, M. Holzmann, ["Nonperturbative Computation of Thermal Conductivity Based on Path Integral Monte Carlo Methods"](https://doi.org/10.1103/PhysRevLett.137.096302), *Phys. Rev. Lett.* **137**, 096302 (2026).
@@ -16,6 +16,10 @@
 * B. Póta, P. Ahlawat, G. Csányi, M. Simoncelli, ["Thermal conductivity predictions with foundation atomistic models"](https://doi.org/10.1038/s41467-026-76391-w), *Nat. Commun.* **17**, 76391 (2026).
 * Z. Zhang, R. Ma, S. Lu, S. Volz, J. Chen, ["Decoding thermal transport mechanisms induced by short-range order in amorphous system"](https://journals.aps.org/prresearch/abstract/10.1103/k5pw-jnl8), *Phys. Rev. Research* **8**, 013007 (2026).
 * Y. Xia, ["Quintic-anharmonicity-assisted three-phonon scattering: A previously overlooked same-order channel to four-phonon scattering"](https://doi.org/10.1103/PhysRevB.114.L111202), *Phys. Rev. B* **114**, L111202 (2026).
+* D. Park, Y. Peng, J. Deng, ["Thermal conductivity of seifertite and pyrite-type SiO2: A comparative study"](https://journals.aps.org/prb/abstract/10.1103/gbbx-xkqh), *Phys. Rev. B* **114**, 134310 (2026).
+* Z. Zeng, M. Simoncelli, D. E. Manolopoulos, ["Lattice thermal transport from phonon spectra beyond perturbation theory"](https://journals.aps.org/prb/abstract/10.1103/bjh1-xb7z), *Phys. Rev. B* **114**, 204303 (2026).
+* A. Ghafarollahi, M. J. Buehler, ["Autonomous in-silico inorganic materials discovery via multi-agent physics-aware scientific reasoning"](https://www.nature.com/articles/s41524-026-02205-8), *npj Comput. Mater.* (2026).
+* Y. Zhang et al., ["Microstructural evolution and thermal conductivity degradation of TRISO particle coatings under ion irradiation"](https://www.sciencedirect.com/science/article/pii/S0008622326008754), *Carbon*, 122101 (2026).
 * G. Santamaría et al., ["Anharmonic Effects Revealed by Temperature-Dependent Phonon Lifetimes and Thermal Conductivities in a π-Conjugated Molecular Crystal"](https://pubs.acs.org/doi/10.1021/acs.jctc.2026), *J. Chem. Theory Comput.* **22**, 5742–5751 (2026).
 * H. Zhang et al., ["Vibrational and diffusional thermal transport in amorphous and deeply supercooled liquid alumina"](https://doi.org/10.1103/PhysRevB.113.224318), *Phys. Rev. B* **113**, 224318 (2026).
 * A. Jain et al., ["Four-phonon thermal conductivity: Numerical sensitivities, convergence, and machine-learning acceleration"](https://doi.org/10.1063/2026), *J. Appl. Phys.* **140**, 085101 (2026).
