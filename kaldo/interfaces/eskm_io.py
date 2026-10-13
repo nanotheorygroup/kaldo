@@ -161,13 +161,6 @@ def import_sparse_third(atoms, supercell=(1, 1, 1), filename="THIRD", third_ener
         logging.info(f"File contains {total_lines:,} lines")
         
 
-        def validate_chunks():
-            if len(coords_list) % 6 != 0:
-                raise ValueError(f"Coordinate array length ({len(coords_list)}) not divisible by 6")
-            if len(coords_list) // 6 != len(values_list):
-                raise ValueError(f"Coordinate/value count mismatch: {len(coords_list)//6} vs {len(values_list)}")
-        
-
         def flush_chunk():
             nonlocal chunk_pos, non_zero_count
             if chunk_pos == 0:
