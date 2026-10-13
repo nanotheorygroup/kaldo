@@ -189,12 +189,13 @@ class ThirdOrder(ForceConstant):
         if mode == "auto" and support.provenance == "file":
             result = _ThirdOrderIFCInterpolation(value, support, "file")
         else:
-            resolved = (hint or "wigner-seitz") if mode == "auto" else mode
+            # Like second order: Wigner-Seitz images need all three directions periodic.
+            default = "wigner-seitz" if np.all(self.atoms.pbc) else "periodic"
+            resolved = (hint or default) if mode == "auto" else mode
             if support.provenance == "file" and mode != "auto":
                 logging.warning(
-                    "ifc_interpolation=%r folds %d file-provided IFC3 "
-                    "translations into %d periodic classes by explicit "
-                    "user request.",
+                    "%r interpolation folds %d file-provided IFC3 "
+                    "translations into %d periodic classes.",
                     mode,
                     support.size,
                     support.supercell.size,

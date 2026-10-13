@@ -147,7 +147,7 @@ def phonons(forceconstants, mode):
         third_bandwidth=0.05 / 4.135,
         broadening_shape="triangle",
         storage="memory",
-        ifc_interpolation=mode,
+        _ifc_interpolation=mode,
     )
 
 
