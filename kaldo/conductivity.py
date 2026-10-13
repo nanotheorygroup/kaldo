@@ -378,6 +378,12 @@ class Conductivity(Storable):
             logging.info('Using diffusivity bandwidth from input')
             diffusivity_bandwidth = self.diffusivity_bandwidth * np.ones((phonons.n_k_points, phonons.n_modes),
                                                                          dtype=np.float32)
+        elif self.phonons.interpolator is not None:
+            logging.info('Using diffusivity bandwidth from phonons.interpolator')
+            diffusivity_bandwidth = self.phonons.interpolator.predict_bandwidth(
+                phonons.frequency.reshape((phonons.n_k_points, phonons.n_modes)),
+                label='qhgk',
+            ).reshape((phonons.n_k_points, phonons.n_modes)) / 2.
         else:
             diffusivity_bandwidth = self.phonons.bandwidth.reshape((phonons.n_k_points, phonons.n_modes)) / 2.
 

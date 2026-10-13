@@ -508,6 +508,12 @@ class Phonons(Storable):
         Directory used for restartable per-q projection checkpoints. If it is
         omitted, completed per-q results are retained in memory instead.
         Default: None
+    interpolator : object, optional
+        Optional linewidth interpolator used by QHGK conductivity calculations.
+        Attaching an interpolator does not replace, overwrite, or invalidate
+        :attr:`bandwidth`, which remains the explicitly calculated anharmonic
+        linewidth.
+        Default: None
     nac_bvk_supercell_matrix : array-like (3, 3), optional
         Born--von Karman grid used by the harmonic long-range correction.
         It must describe the defining force-constant supercell because NAC
@@ -595,6 +601,7 @@ class Phonons(Storable):
                  n_workers: int = 1,
                  projection_output_dir: str | None = None,
                  use_q_symmetry: bool = False,
+                 interpolator=None,
                  is_nac: bool | None = None,
                  nac_bvk_supercell_matrix=None,
                  nac_q_direction=(1, 0, 0),
@@ -605,6 +612,7 @@ class Phonons(Storable):
             raise ValueError(f"n_workers must be >= 1 or None, got {n_workers}")
         self.n_workers = n_workers
         self.projection_output_dir = projection_output_dir
+        self.interpolator = interpolator
         self.is_classic = is_classic
         if temperature is not None:
             self.temperature = float(temperature)
@@ -1521,19 +1529,27 @@ class Phonons(Storable):
             # Load list of which mus exist
             saved_mus = np.load(f'{base_name}_mu_list.npy')
             
-            # Determine total number of mus needed
-            n_phonons = self.n_phonons
-            
-            # Initialize per_mu_data with correct size
-            per_mu_data = [{'exists': False, 'tensors': []} for _ in range(n_phonons)]
-            
-            # Load existing mu data
+            sparse_phase = [[None, None] for _ in range(self.n_phonons)]
+            sparse_potential = [[None, None] for _ in range(self.n_phonons)]
+
             for nu_single in saved_mus:
                 mu_filename = f'{base_name}_mu_{nu_single}.npy'
                 mu_data = np.load(mu_filename, allow_pickle=True).item()
-                per_mu_data[nu_single] = mu_data
-            
-            return self._convert_per_mu_arrays_to_sparse_tensors(per_mu_data)
+                if not mu_data["exists"]:
+                    continue
+
+                for tensor_data in mu_data["tensors"]:
+                    is_plus = tensor_data["is_plus"]
+                    indices = tensor_data["indices"]
+                    dense_shape = tensor_data["dense_shape"]
+                    sparse_phase[nu_single][is_plus] = self._numpy_to_sparse_tensor(
+                        (indices, tensor_data["phase_values"], dense_shape)
+                    )
+                    sparse_potential[nu_single][is_plus] = self._numpy_to_sparse_tensor(
+                        (indices, tensor_data["potential_values"], dense_shape)
+                    )
+
+            return sparse_phase, sparse_potential
         else:
             # Use parent method for other properties
             return super()._load_property(property_name, folder, format)
@@ -1760,9 +1776,10 @@ class Phonons(Storable):
         # by scaling the potential with the matching factor.
         hbar_factor = CLASSICAL_HBAR_SCALE if self.is_classic else 1
 
+        sparse_phase, sparse_potential = self._sparse_phase_and_potential
         ps_and_gamma = aha.calculate_ps_and_gamma(
-            self.sparse_phase,
-            self.sparse_potential,
+            sparse_phase,
+            sparse_potential,
             population_flat,
             self.is_balanced,
             self.n_phonons,
