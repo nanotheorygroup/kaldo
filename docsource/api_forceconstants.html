@@ -3733,8 +3733,9 @@ of thread and process parallelization. Try out different combinations of <code c
 best results.</p>
 <div class="note admonition">
 <p class="admonition-title">Note</p>
-<p>ML potentials (Orb, MACE, MatterSim, CPUNEP, …) need a small extra step for parallel runs because their
-PyTorch-backed instances cannot be pickled across processes. See <a class="reference internal" href="#parallel-ml-calculators"><span class="std std-ref">Parallel runs with ML calculators</span></a> for the
+<p>ML potentials (Orb, MACE, MatterSim, …) need a small extra step for parallel runs because their
+PyTorch-backed instances cannot be pickled across processes. A CPUNEP instance can be pickled only before
+its first force call. See <a class="reference internal" href="#parallel-ml-calculators"><span class="std std-ref">Parallel runs with ML calculators</span></a> for the
 recommended pattern (a top-level factory function plus an <code class="docutils literal notranslate"><span class="pre">if</span> <span class="pre">__name__</span> <span class="pre">==</span> <span class="pre">'__main__':</span></code> guard) and the
 <code class="docutils literal notranslate"><span class="pre">delta_shift</span></code> guidance for float32 calculators.</p>
 </div>
@@ -3811,8 +3812,9 @@ which offers more flexibility without losing access to the full LAMMPS functiona
 <h3 id="parallel-runs-with-ml-calculators"><span id="parallel-ml-calculators"></span>Parallel runs with ML calculators<a class="headerlink" href="#parallel-runs-with-ml-calculators" title="Link to this heading">¶</a></h3>
 <p>The serial idiom shown above (<code class="docutils literal notranslate"><span class="pre">calc</span> <span class="pre">=</span> <span class="pre">LAMMPSlib(...);</span> <span class="pre">fc.second.calculate(calc,</span> <span class="pre">...)</span></code>) keeps working for parallel
 runs as long as the calculator can be pickled and forked safely. That’s true for analytical and shared-library
-calculators (EMT, Lennard-Jones, LAMMPS), but typically <em>not</em> for ML potentials (Orb, MACE, MatterSim, CPUNEP, …)
-that hold PyTorch models, GPU contexts, or C handles. Two issues come up in that case:</p>
+calculators (EMT, Lennard-Jones, LAMMPS), but typically <em>not</em> for ML potentials (Orb, MACE, MatterSim, …)
+that hold PyTorch models or GPU contexts, nor for a CPUNEP instance that has already computed forces. Two issues
+come up in that case:</p>
 <ol class="arabic simple">
 <li><p><strong>The live calculator instance can’t cross a process boundary.</strong> Spawn-based multiprocessing pickles every
 argument; non-picklable instances raise <code class="docutils literal notranslate"><span class="pre">TypeError</span></code> (kALDo’s parallel validator catches this with a
@@ -4340,7 +4342,7 @@ It can either load an existing <code class="docutils literal notranslate"><span 
 the current structure and calculator.</p>
 <p>See the <em>Parallel runs with ML calculators</em> section of the
 ForceConstants documentation for the recommended pattern when
-running torch-based calculators (Orb, MACE, MatterSim, CPUNEP) in
+running ML calculators (Orb, MACE, MatterSim, CPUNEP) in
 parallel: define a no-arg factory function at module top level
 and pass it (without parentheses) as <code class="docutils literal notranslate"><span class="pre">calculator</span></code>.</p>
 <dl class="field-list simple">
@@ -4480,7 +4482,7 @@ It can load an existing stored result from <code class="docutils literal notrans
 directly from finite-difference force evaluations.</p>
 <p>See the <em>Parallel runs with ML calculators</em> section of the
 ForceConstants documentation for the recommended pattern when
-running torch-based calculators (Orb, MACE, MatterSim, CPUNEP) in
+running ML calculators (Orb, MACE, MatterSim, CPUNEP) in
 parallel: define a no-arg factory function at module top level
 and pass it (without parentheses) as <code class="docutils literal notranslate"><span class="pre">calculator</span></code>.</p>
 <dl class="field-list simple">
