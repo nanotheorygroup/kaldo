@@ -229,6 +229,15 @@ class ThirdOrder(ForceConstant):
             historical ``(central, partner-j, partner-k)`` mode ordering.
         """
         rank8 = _rank8_ifc3(self.value, len(self.atoms), self.n_translations)
+        if isinstance(rank8, COO) and rank8.coords.dtype.kind == "u":
+            rank8 = COO(
+                rank8.coords.astype(np.int64),
+                rank8.data,
+                shape=rank8.shape,
+                has_duplicates=False,
+                sorted=True,
+                fill_value=rank8.fill_value,
+            )
         n_modes = 3 * len(self.atoms)
         return rank8.sum(axis=(2, 5)).reshape((n_modes, n_modes, n_modes))
 
