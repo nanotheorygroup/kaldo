@@ -13,4 +13,5 @@ codecov>=2.1.7
 pytest-cov>=2.10.0
 pytest>=5.2.1
 psutil>=5.7.2
+threadpoolctl>=3.1.0
 hiphive>=1.1
