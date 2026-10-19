@@ -1860,6 +1860,7 @@ class Phonons(Storable):
 
             sparse_phase.append([])
             sparse_potential.append([])
+            scaled_potential_tf = None
             for is_plus in (0, 1):
 
                 # ps_and_gamma = np.zeros(2)
@@ -1877,13 +1878,14 @@ class Phonons(Storable):
                 sparse_phase[nu_single].append(dirac_delta_result)
                 mup_vec, mupp_vec = tf.unstack(dirac_delta_result.indices, axis=1)
 
-                third_nu_tf = tf.sparse.sparse_dense_matmul(
-                    third_tf, tf.reshape(evect_tf[:, nu_single], (n_modes, 1))
-                )
-                third_nu_tf = tf.reshape(third_nu_tf, (n_modes, n_modes))
-                scaled_potential_tf = tf.einsum(
-                    "ij,in,jm->nm", third_nu_tf, evect_tf, evect_tf
-                )
+                if scaled_potential_tf is None:
+                    third_nu_tf = tf.sparse.sparse_dense_matmul(
+                        third_tf, tf.reshape(evect_tf[:, nu_single], (n_modes, 1))
+                    )
+                    third_nu_tf = tf.reshape(third_nu_tf, (n_modes, n_modes))
+                    scaled_potential_tf = tf.einsum(
+                        "ij,in,jm->nm", third_nu_tf, evect_tf, evect_tf
+                    )
                 coords = tf.stack((mup_vec, mupp_vec), axis=-1)
                 pot_times_dirac = tf.gather_nd(scaled_potential_tf, coords) ** 2
                 pot_times_dirac /= tf.gather(omega[0], mup_vec) * tf.gather(omega[0], mupp_vec)
