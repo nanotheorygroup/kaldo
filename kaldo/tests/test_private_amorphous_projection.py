@@ -16,6 +16,18 @@ from kaldo.observables.thirdorder import ThirdOrder
 from kaldo.tests.test_amorphous_projection import _dense_projection_reference, _projection_input
 
 
+@pytest.fixture(params=["numpy", "numba"])
+def projection_backend(request, monkeypatch):
+    projection = importlib.import_module("kaldo.controllers._amorphous_projection")
+    if request.param == "numpy":
+        reducer = projection._run_tiles_numpy
+    else:
+        kernels = importlib.import_module("kaldo.controllers._projection_kernels")
+        reducer = kernels._run_tiles
+    monkeypatch.setattr(projection, "_load_tile_reducer", lambda: reducer)
+    return request.param
+
+
 def _third(value: np.ndarray | COO, translations: int = 1) -> ThirdOrder:
     """Build IFC3 in eV/Angstrom^3 with literal translation axes."""
     n_atoms = value.shape[0] if value.ndim == 8 else value.shape[0] // 3
@@ -153,7 +165,9 @@ def test_pair_layout_rejects_unsupported_source_without_mutation(case):
 @pytest.mark.parametrize("temperature", [50.0, 600.0])
 @pytest.mark.parametrize("is_classic", [False, True])
 @pytest.mark.parametrize("workers", [1, 2])
-def test_pair_first_matches_dense_reference_with_tail_blocks(monkeypatch, temperature, is_classic, workers):
+def test_pair_first_matches_dense_reference_with_tail_blocks(
+    monkeypatch, temperature, is_classic, workers, projection_backend,
+):
     projection = importlib.import_module("kaldo.controllers._amorphous_projection")
     for name, value in (("_COLUMN_BLOCK", 4), ("_MODE_BLOCK", 2), ("_ROW_BLOCK", 2), ("_STAGE1_COLUMNS", 3)):
         monkeypatch.setattr(projection, name, value)
@@ -188,7 +202,7 @@ def test_pair_first_matches_dense_reference_with_tail_blocks(monkeypatch, temper
 
 
 @pytest.mark.parametrize("case", ["zero_width", "no_physical", "no_pairs", "zero_ifc"])
-def test_pair_first_empty_cases_write_defined_outputs(case):
+def test_pair_first_empty_cases_write_defined_outputs(case, projection_backend):
     projection = importlib.import_module("kaldo.controllers._amorphous_projection")
     values = np.zeros((3,) * 3) if case == "zero_ifc" else np.ones((3,) * 3)
     omega = np.array([1.0, 2.0, 3.0])
@@ -212,7 +226,28 @@ def test_pair_first_empty_cases_write_defined_outputs(case):
         np.testing.assert_array_equal(counts, 0)
 
 
-def test_pair_first_cutoff_selects_inside_but_excludes_boundary_and_outside(monkeypatch):
+def test_pair_first_float32_width_keeps_float64_semantics_under_weak_promotion(projection_backend):
+    if not hasattr(np, "_set_promotion_state") or not hasattr(np, "_get_promotion_state"):
+        pytest.skip("NumPy promotion-state helpers are unavailable")
+    projection = importlib.import_module("kaldo.controllers._amorphous_projection")
+    values = np.random.default_rng(606).normal(size=(3,) * 3)
+    layout = _third(COO.from_numpy(values))._gamma_pair_csr()
+    arguments = (layout, np.eye(3), np.arange(1., 4.), np.ones(3, dtype=bool))
+    width = np.float32(.12)
+    population = np.array([1.4, .8, .2])
+    previous = np._get_promotion_state()
+    try:
+        np._set_promotion_state("weak")
+        actual, counts = projection._project(*arguments, width, population)
+        expected, expected_counts = projection._project(*arguments, float(width), population)
+    finally:
+        np._set_promotion_state(previous)
+    np.testing.assert_array_equal(counts, expected_counts)
+    np.testing.assert_allclose(actual[:, 0], expected[:, 0], rtol=1e-12, atol=1e-12)
+    np.testing.assert_allclose(actual[:, 1], expected[:, 1], rtol=1e-12, atol=1e-13)
+
+
+def test_pair_first_cutoff_selects_inside_but_excludes_boundary_and_outside(monkeypatch, projection_backend):
     projection = importlib.import_module("kaldo.controllers._amorphous_projection")
     monkeypatch.setattr(projection, "_COLUMN_BLOCK", 4)
     monkeypatch.setattr(projection, "_MODE_BLOCK", 4)

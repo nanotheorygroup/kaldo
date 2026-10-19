@@ -5,6 +5,7 @@ compatible projector; this module does not change its sparse output contract.
 """
 
 from concurrent.futures import ThreadPoolExecutor
+from collections.abc import Callable
 import os
 
 import ase.units as units
@@ -134,6 +135,15 @@ def _run_tiles_numpy(
     return reduced, counts
 
 
+def _load_tile_reducer() -> Callable[..., tuple[np.ndarray, np.ndarray]]:
+    """Load the process-local native reducer or its genuine NumPy fallback."""
+    try:
+        from kaldo.controllers._projection_kernels import _run_tiles
+    except ImportError:
+        return _run_tiles_numpy
+    return _run_tiles
+
+
 def _project(
     layout: _GammaPairCSR, eigenvectors: np.ndarray, omega: np.ndarray, physical: np.ndarray,
     sigma: float, population: np.ndarray, hbar_factor: float = 1.0, n_workers: int | None = 1,
@@ -151,6 +161,7 @@ def _project(
     n_modes = layout.n_modes
     if not _is_eligible(omega, physical, sigma):
         raise ValueError("pair-first projection requires sorted finite positive physical frequencies")
+    sigma = float(sigma)
     if (
         eigenvectors.shape != (n_modes, n_modes) or eigenvectors.dtype != np.float64
         or omega.shape != (n_modes,) or population.shape != (n_modes,)
@@ -176,19 +187,29 @@ def _project(
         return reduced, counts
     eigenvectors = np.ascontiguousarray(eigenvectors)
     eigenvectors_t = np.ascontiguousarray(eigenvectors.T)
+    omega = np.ascontiguousarray(omega, dtype=np.float64)
+    population = np.ascontiguousarray(population, dtype=np.float64)
+    physical = np.ascontiguousarray(physical)
+    tile_reducer = _load_tile_reducer()
     scales = np.zeros(n_modes, dtype=np.float64)
     scales[physical] = np.pi * units._hbar / 4 * GAMMA_TO_THZ / omega[physical]
     contracted_buffer = np.empty(layout.pair_i.size * column_block, dtype=np.float64)
     intermediate_buffer = np.empty(mode_block * n_modes * column_block, dtype=np.float64)
     edges = np.linspace(0, n_modes, min(n_modes, workers * 4) + 1, dtype=int)
-    _logging.info("Amorphous pair-first NumPy projection: workers=%d, columns=%d, modes=%d", workers, column_block, mode_block)
+    backend = "NumPy" if tile_reducer is _run_tiles_numpy else "Numba"
+    _logging.info(
+        "Amorphous pair-first %s projection: workers=%d, columns=%d, modes=%d",
+        backend, workers, column_block, mode_block,
+    )
     with ThreadPoolExecutor(workers) as pool, threadpool_limits(1):
         for column_start in range(0, n_modes, column_block):
             column_stop = min(n_modes, column_start + column_block)
             width = column_stop - column_start
             contracted = contracted_buffer[:layout.pair_i.size * width].reshape(-1, width)
             column_slices = [
-                (offset, np.ascontiguousarray(eigenvectors[:, column_start + offset:min(column_stop, column_start + offset + _STAGE1_COLUMNS)]))
+                (offset, np.ascontiguousarray(eigenvectors[
+                    :, column_start + offset:min(column_stop, column_start + offset + _STAGE1_COLUMNS)
+                ]))
                 for offset in range(0, width, _STAGE1_COLUMNS)
             ]
 
@@ -208,7 +229,9 @@ def _project(
                 np.minimum(tiles[:, 6], column_stop, out=tiles[:, 6])
                 trim_start, trim_stop = int(tiles[:, 5].min()), int(tiles[:, 6].max())
                 trim_width = trim_stop - trim_start
-                intermediate = intermediate_buffer[:block.size * n_modes * trim_width].reshape(block.size, n_modes, trim_width)
+                intermediate = intermediate_buffer[:block.size * n_modes * trim_width].reshape(
+                    block.size, n_modes, trim_width
+                )
                 initial_vectors = np.ascontiguousarray(eigenvectors[:, block])
 
                 def contract_partners(bounds: tuple[int, int]) -> None:
@@ -228,7 +251,7 @@ def _project(
 
                 def reduce_tiles(part: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
                     """Reduce one ordered group of int64 ``(tiles,7)`` plans."""
-                    return _run_tiles_numpy(
+                    return tile_reducer(
                         part, eigenvectors_t, intermediate, trim_start, omega, physical, population,
                         hbar_factor, threshold, angular_sigma, scales,
                     )
