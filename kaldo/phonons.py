@@ -1843,6 +1843,7 @@ class Phonons(Storable):
         # Same canonical-ordering requirement as the crystal projection above.
         third_tf = tf.sparse.reorder(third_tf)
         third_tf = tf.sparse.reshape(third_tf, (self.n_modes**2, self.n_modes))
+        del gamma_third, coords, data
         physical_mode = self.physical_mode.reshape((self.n_k_points, self.n_modes))
         logging.info("Projection started")
         hbar = units._hbar
