@@ -20,6 +20,7 @@ from kaldo.observables.harmonic_with_q import (
 from kaldo.observables.harmonic_with_q_temp import HarmonicWithQTemp, CLASSICAL_HBAR_SCALE
 from kaldo.forceconstants import ForceConstants
 import kaldo.controllers.anharmonic as aha
+from kaldo.controllers import _amorphous_projection
 import tensorflow as tf
 import kaldo.controllers.isotopic as isotopic
 from concurrent.futures import as_completed
@@ -1759,6 +1760,17 @@ class Phonons(Storable):
         # population carries (see harmonic_with_q_temp.CLASSICAL_HBAR_SCALE)
         # by scaling the potential with the matching factor.
         hbar_factor = CLASSICAL_HBAR_SCALE if self.is_classic else 1
+
+        if (
+            self._is_amorphous and not is_gamma_tensor_enabled
+            and not self.is_balanced and self.broadening_shape == "gauss"
+        ):
+            ps_and_gamma = _amorphous_projection._try_project(
+                self.forceconstants.third, self._rescaled_eigenvectors[0], self.frequency,
+                self.physical_mode, self.third_bandwidth, population_flat, hbar_factor, self.n_workers,
+            )
+            if ps_and_gamma is not None:
+                return ps_and_gamma
 
         ps_and_gamma = aha.calculate_ps_and_gamma(
             self.sparse_phase,

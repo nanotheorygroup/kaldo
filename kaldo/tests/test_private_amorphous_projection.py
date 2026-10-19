@@ -1,4 +1,4 @@
-"""Contracts for the dormant pair-first Gamma projection implementation."""
+"""Contracts for the private pair-first Gamma projection implementation."""
 
 import importlib
 from types import SimpleNamespace
@@ -12,7 +12,7 @@ from sparse import COO
 from kaldo.controllers import anharmonic
 from kaldo.grid import SupercellGrid, TranslationSupport
 from kaldo.observables.harmonic_with_q_temp import CLASSICAL_HBAR_SCALE, HarmonicWithQTemp
-from kaldo.observables.thirdorder import ThirdOrder
+from kaldo.observables.thirdorder import ThirdOrder, _PAIR_CHUNK_ENTRIES
 from kaldo.tests.test_amorphous_projection import _dense_projection_reference, _projection_input
 
 
@@ -311,6 +311,68 @@ def test_pair_first_workspace_budget_reduces_blocks_and_rejects_impossible_budge
     monkeypatch.setattr(projection, "virtual_memory", lambda: SimpleNamespace(available=1))
     with pytest.raises(MemoryError):
         projection._block_sizes(layout, 1)
+
+
+def _workspace_layout(n_modes: int, n_entries: int, n_pairs: int) -> SimpleNamespace:
+    """Describe float64 CSR bytes and row spans without allocating its arrays."""
+    chunks = []
+    n_chunks = (n_entries + _PAIR_CHUNK_ENTRIES - 1) // _PAIR_CHUNK_ENTRIES
+    for index in range(n_chunks):
+        start = n_pairs * index // n_chunks
+        stop = n_pairs * (index + 1) // n_chunks
+        entries = n_entries * (index + 1) // n_chunks - n_entries * index // n_chunks
+        matrix = SimpleNamespace(
+            data=SimpleNamespace(nbytes=8 * entries),
+            indices=SimpleNamespace(nbytes=4 * entries),
+            indptr=SimpleNamespace(nbytes=4 * (stop - start + 1)),
+        )
+        chunks.append((start, stop, matrix))
+    return SimpleNamespace(n_modes=n_modes, pair_i=SimpleNamespace(size=n_pairs), chunks=tuple(chunks))
+
+
+@pytest.mark.parametrize("n_modes,n_entries,n_pairs,workers,expected", [
+    (96, 75_990, 9_216, 1, (96, 96)),
+    (648, 1_479_195, 86_992, 1, (32, 256)),
+    (5760, 1_216_193_886, 2_140_000, 32, (512, 256)),
+])
+def test_pair_first_workspace_blocks_follow_problem_size(
+    monkeypatch, n_modes, n_entries, n_pairs, workers, expected,
+):
+    projection = importlib.import_module("kaldo.controllers._amorphous_projection")
+    layout = _workspace_layout(n_modes, n_entries, n_pairs)
+    monkeypatch.setattr(projection, "virtual_memory", lambda: SimpleNamespace(available=240 * 1024 ** 3))
+
+    assert projection._block_sizes(layout, workers) == expected
+
+
+@pytest.mark.parametrize("n_modes", [5760, 18000])
+@pytest.mark.parametrize("n_entries,n_pairs", [(0, 0), (100, 10)])
+def test_pair_first_workspace_cap_handles_large_sparse_or_zero_ifc(monkeypatch, n_modes, n_entries, n_pairs):
+    projection = importlib.import_module("kaldo.controllers._amorphous_projection")
+    layout = _workspace_layout(n_modes, n_entries, n_pairs)
+    monkeypatch.setattr(projection, "virtual_memory", lambda: SimpleNamespace(available=240 * 1024 ** 3))
+
+    columns, modes = projection._block_sizes(layout, 1)
+
+    assert 0 < columns < projection._COLUMN_BLOCK
+    assert 0 < modes <= projection._MODE_BLOCK
+
+
+def test_pair_first_workspace_soft_cap_does_not_reject_feasible_minimum(monkeypatch):
+    projection = importlib.import_module("kaldo.controllers._amorphous_projection")
+    layout = _workspace_layout(5760, 0, 0)
+    workers = 4096
+    minimum_bytes = 8 * (2 * 5760 ** 2 + 3 * 5760 + workers * 17 * 5760)
+    monkeypatch.setattr(
+        projection, "virtual_memory", lambda: SimpleNamespace(available=4 * minimum_bytes),
+    )
+
+    assert projection._block_sizes(layout, workers) == (1, 1)
+    monkeypatch.setattr(
+        projection, "virtual_memory", lambda: SimpleNamespace(available=4 * minimum_bytes - 4),
+    )
+    with pytest.raises(MemoryError):
+        projection._block_sizes(layout, workers)
 
 
 @pytest.mark.parametrize("workers", [0, -1, 1.5])

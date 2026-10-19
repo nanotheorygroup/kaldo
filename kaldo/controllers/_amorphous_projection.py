@@ -11,12 +11,13 @@ import os
 import ase.units as units
 import numpy as np
 from psutil import virtual_memory
+from sparse import COO as _COO
 from threadpoolctl import threadpool_limits
 
 from kaldo.controllers.anharmonic import GAMMA_TO_THZ
 from kaldo.controllers.dirac_kernel import gaussian_delta
 from kaldo.helpers.logger import get_logger
-from kaldo.observables.thirdorder import _GammaPairCSR
+from kaldo.observables.thirdorder import _GammaPairCSR, ThirdOrder as _ThirdOrder
 
 _logging = get_logger()
 _COLUMN_BLOCK = 512
@@ -24,6 +25,47 @@ _MODE_BLOCK = 256
 _ROW_BLOCK = 128
 _STAGE1_COLUMNS = 128
 _WORKSPACE_FRACTION = 0.25
+_WORKSPACE_MULTIPLIER = 8
+_MIN_WORKSPACE_BYTES = 128 * 1024 ** 2
+
+
+def _try_project(
+    third: _ThirdOrder, eigenvectors: np.ndarray, frequency: np.ndarray, physical: np.ndarray,
+    sigma: float | None, population: np.ndarray, hbar_factor: float, n_workers: int | None,
+) -> np.ndarray | None:
+    """Return scalar ``(n,2)`` phase space/THz or retain legacy dispatch.
+
+    Source IFC3 is in eV/Angstrom^3. Float64 mass-rescaled eigenvectors
+    ``(n,n)`` have inverse square-root atomic-mass units, frequency ``(1,n)``
+    and Gaussian width are in THz, and the boolean physical mask has ``n``
+    entries. Population ``(n,)`` is dimensionless with the package's hbar
+    compensation passed separately. Packing never changes source buffers.
+    """
+    value = third.value
+    if type(value) not in (np.ndarray, _COO) or value.dtype != np.float64:
+        return None
+    if (
+        any(type(array) is not np.ndarray for array in (eigenvectors, frequency, physical, population))
+        or eigenvectors.dtype != np.float64 or frequency.dtype != np.float64
+        or population.dtype != np.float64 or eigenvectors.ndim != 2
+        or eigenvectors.shape[0] != eigenvectors.shape[1]
+        or frequency.shape != (1, eigenvectors.shape[0])
+        or physical.size != eigenvectors.shape[0] or population.shape != (eigenvectors.shape[0],)
+    ):
+        return None
+    omega = 2 * np.pi * frequency.reshape(-1)
+    physical = physical.reshape(-1)
+    if (
+        not _is_eligible(omega, physical, sigma) or not np.all(np.isfinite(eigenvectors))
+        or not np.all(np.isfinite(population[physical]))
+    ):
+        return None
+    _logging.info("Projection started (amorphous pair-first)")
+    try:
+        layout = third._gamma_pair_csr()
+    except (TypeError, ValueError):
+        return None
+    return _project(layout, eigenvectors, omega, physical, sigma, population, hbar_factor, n_workers)[0]
 
 
 def _is_eligible(omega: np.ndarray, physical: np.ndarray, sigma: float) -> bool:
@@ -31,28 +73,50 @@ def _is_eligible(omega: np.ndarray, physical: np.ndarray, sigma: float) -> bool:
 
     ``physical`` is the dimensionless boolean ``(n,)`` physical-mode mask.
     """
-    return bool(
+    if not (
         omega.ndim == physical.ndim == 1 and omega.shape == physical.shape
         and physical.dtype == np.bool_ and np.ndim(sigma) == 0
         and omega.dtype.kind in "fiu" and np.asarray(sigma).dtype.kind in "fiu"
         and np.isfinite(sigma) and sigma >= 0 and np.all(np.isfinite(omega))
         and np.all(omega[1:] >= omega[:-1]) and np.all(omega[physical] > 0)
-    )
+    ):
+        return False
+    with np.errstate(over="ignore", invalid="ignore"):
+        angular_sigma = 2 * np.pi * np.float64(sigma)
+        threshold = 2 * angular_sigma
+    return bool(np.isfinite(threshold))
 
 
 def _block_sizes(layout: _GammaPairCSR, workers: int) -> tuple[int, int]:
-    """Budget float64 contraction scratch against a fraction of free bytes."""
+    """Budget float64 scratch bytes against free memory and CSR/eigenvectors.
+
+    The input-relative ceiling permits the minimum feasible block sizes.
+    """
     n_modes = layout.n_modes
     columns, modes = min(_COLUMN_BLOCK, n_modes), min(_MODE_BLOCK, n_modes)
     max_chunk = max((stop - start for start, stop, _ in layout.chunks), default=0)
-    budget = int(virtual_memory().available * _WORKSPACE_FRACTION)
-    while True:
+    value_bytes = np.dtype(np.float64).itemsize
+
+    def required_bytes(column_count: int, mode_count: int) -> int:
+        """Estimate float64 contraction scratch in bytes for block dimensions."""
         entries = (
-            2 * n_modes * n_modes + layout.pair_i.size * columns + modes * n_modes * columns
-            + n_modes * (columns + modes)
-            + workers * (max_chunk * min(columns, _STAGE1_COLUMNS) + n_modes * (modes + 16 * columns))
+            2 * n_modes * n_modes + layout.pair_i.size * column_count + mode_count * n_modes * column_count
+            + n_modes * (column_count + mode_count)
+            + workers * (
+                max_chunk * min(column_count, _STAGE1_COLUMNS) + n_modes * (mode_count + 16 * column_count)
+            )
         )
-        if entries * np.dtype(np.float64).itemsize <= budget:
+        return int(entries * value_bytes)
+
+    input_bytes = n_modes * n_modes * value_bytes + sum(
+        matrix.data.nbytes + matrix.indices.nbytes + matrix.indptr.nbytes for _, _, matrix in layout.chunks
+    )
+    budget = min(
+        int(virtual_memory().available * _WORKSPACE_FRACTION),
+        max(_MIN_WORKSPACE_BYTES, _WORKSPACE_MULTIPLIER * input_bytes, required_bytes(1, 1)),
+    )
+    while True:
+        if required_bytes(columns, modes) <= budget:
             return columns, modes
         if columns > 1:
             columns = max(1, columns // 2)
