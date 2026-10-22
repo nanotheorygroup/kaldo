@@ -87,14 +87,12 @@ pair-dependent Wigner--Seitz reconstruction validated against ``matdyn.x``,
 whether or not the optional polar metadata is present; for a polar q2r file,
 those same weights keep the short-range body consistent with QE's long-range
 restoration. QE d3q IFC3 files retain d3q's native direct-periodic
-third-order gauge. The default ``ifc_interpolation="auto"`` preserves these
-source-aware choices. ``"wigner-seitz"`` explicitly folds translations by
-periodic class and applies pair-dependent shortest images, while
-``"periodic"`` selects the historical direct-periodic diagnostic.
+third-order gauge. The default ``is_unfolding=False`` preserves these
+source-aware choices, while ``is_unfolding=True`` folds translations by
+periodic class and applies pair-dependent shortest images to every source.
 
 See :doc:`Choosing IFC interpolation <ifc_interpolation>` for user-facing
-guidance, examples, source-specific behavior, and migration from
-``is_unfolding``.
+guidance, examples, and source-specific behavior.
 
 A periodically repeated amorphous simulation cell follows the same geometry
 without assuming any space-group symmetry: the entire disordered cell is the
@@ -159,7 +157,7 @@ cases the :doc:`Introduction <introduction>` section.
      - is_symmetrizing_frequency
      - is_antisymmetrizing_velocity
    * - is_balanced
-     - ifc_interpolation
+     - is_unfolding
      - is_nac
      - is_nw
    * - g_factor

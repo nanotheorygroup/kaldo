@@ -129,8 +129,8 @@ class _HarmonicIFCInterpolation:
                 folded[:, :, class_id, :, :] += values[:, :, source_id, :, :]
             if support.provenance == "file" and support.size != support.supercell.size:
                 logging.warning(
-                    "ifc_interpolation=%r folds %d file-provided translations "
-                    "into %d periodic classes by explicit user request.",
+                    "%r interpolation folds %d file-provided translations "
+                    "into %d periodic classes.",
                     requested_mode,
                     support.size,
                     support.supercell.size,
