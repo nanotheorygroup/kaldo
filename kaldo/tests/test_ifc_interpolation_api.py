@@ -65,20 +65,15 @@ def test_invalid_or_removed_interpolation_arguments_fail_loudly(cu_second):
     assert unfolding.ifc_interpolation_resolved == "wigner-seitz"
 
 
-@pytest.fixture(scope="module")
-def cu_forceconstants(tmp_path_factory):
-    atoms = bulk("Cu", "fcc", a=3.61, cubic=True)
-    return ForceConstants(atoms=atoms, supercell=(2, 2, 2),
-                          folder=str(tmp_path_factory.mktemp("fc_cu_keywords")))
-
-
-def test_phonons_warns_only_about_unknown_keywords(cu_forceconstants):
+def test_phonons_warns_only_about_unknown_keywords(tmp_path):
     """An unknown keyword emits a FutureWarning that names it; known ones are silent."""
+    forceconstants = ForceConstants(atoms=bulk("Cu", "fcc", a=3.61, cubic=True),
+                                    supercell=(2, 2, 2), folder=str(tmp_path))
     with pytest.warns(FutureWarning, match="ifc_interpolation"):
-        Phonons(forceconstants=cu_forceconstants, storage="memory", ifc_interpolation="periodic")
+        Phonons(forceconstants=forceconstants, storage="memory", ifc_interpolation="periodic")
     with warnings.catch_warnings():
         warnings.simplefilter("error", FutureWarning)
-        Phonons(forceconstants=cu_forceconstants, storage="memory")
+        Phonons(forceconstants=forceconstants, storage="memory")
 
 
 def test_default_third_order_falls_back_to_periodic_for_a_wire(tmp_path):
