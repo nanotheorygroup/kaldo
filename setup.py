@@ -49,6 +49,8 @@ setup(
     # Additional entries you may want simply uncomment the lines you want and fill in the data
     # url='http://www.my_package.com',  # Website
     install_requires=requirements,              # Required packages, pulls from pip if needed; do not use for Conda deployment
+    # Optional accelerated LAPACK for the amorphous Gamma eigensolver, found at runtime.
+    extras_require={'mkl': ['mkl>=2023.0']},
 
     # platforms=['Linux',
     #            'Mac OS-X',

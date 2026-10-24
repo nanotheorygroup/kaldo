@@ -91,7 +91,8 @@ def test_legacy_rank3_sparse_storage_is_normalized_without_densifying():
     np.testing.assert_allclose(wigner_seitz.value.data.sum(), 2.0, rtol=0, atol=1e-15)
 
 
-def test_gamma_contraction_sums_literal_translation_axes_exactly():
+@pytest.mark.parametrize("is_dense", [False, True])
+def test_gamma_contraction_sums_literal_translation_axes_exactly(is_dense: bool) -> None:
     """Gamma-only amorphous projection depends on the IFC3 zeroth moment."""
     grid = SupercellGrid(np.diag([2, 1, 1]))
     support = TranslationSupport([[0, 0, 0], [2, 0, 0]], grid, provenance="file")
@@ -109,14 +110,68 @@ def test_gamma_contraction_sums_literal_translation_axes_exactly():
         ]
     )
     value = COO(coords, np.array([1.0, 2.0, 4.0]), shape=shape)
-    third = _third(value, support)
+    third = _third(value.todense() if is_dense else value, support)
+
+    gamma = third.gamma_contracted_value()
+
+    assert isinstance(gamma, np.ndarray if is_dense else COO)
+    assert gamma.shape == (3, 3, 3)
+    np.testing.assert_allclose(gamma[0, 0, 0], 7.0, rtol=0.0, atol=0.0)
+    assert (np.count_nonzero(gamma) if is_dense else gamma.nnz) == 1
+
+
+@pytest.mark.parametrize("n_modes", [96, 5760])
+@pytest.mark.parametrize("coordinate_dtype", [np.int64, np.uint64])
+@pytest.mark.parametrize("rank", [3, 8])
+@pytest.mark.parametrize("n_translations", [1, 2])
+def test_gamma_contraction_preserves_sparse_coordinate_inputs(
+    n_modes: int,
+    coordinate_dtype: type,
+    rank: int,
+    n_translations: int,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Fold 1000 IFC3 entries exactly without densifying or changing source buffers."""
+    entry_indices = np.arange(1000)
+    mode_indices = (entry_indices // n_translations) * 97
+    mode_coords = np.array(np.unravel_index(mode_indices, (n_modes,) * 3))
+    coords = mode_coords.copy()
+    coords[1] += (entry_indices % n_translations) * n_modes
+    coords[2] += ((entry_indices // 2) % n_translations) * n_modes
+    data = np.arange(1, 1001, dtype=np.float64)
+    value = COO(coords, data, shape=(n_modes,) + (n_translations * n_modes,) * 2)
+    if rank == 8:
+        value = value.reshape(
+            (n_modes // 3, 3, n_translations, n_modes // 3, 3,
+             n_translations, n_modes // 3, 3)
+        )
+    value = COO(
+        value.coords.astype(coordinate_dtype), value.data, shape=value.shape,
+        has_duplicates=False, sorted=True,
+    )
+    expected = COO(mode_coords, data, shape=(n_modes,) * 3)
+    source_buffers = value.coords, value.data
+    coords_before = value.coords.copy()
+    data_before = value.data.copy()
+    grid = SupercellGrid(np.eye(3, dtype=int))
+    translations = np.zeros((n_translations, 3), dtype=int)
+    translations[:, 0] = np.arange(n_translations)
+    support = TranslationSupport(translations, grid, provenance="file")
+    third = _third(value, support, positions=np.zeros((n_modes // 3, 3)))
+    monkeypatch.setattr(COO, "todense", lambda source: pytest.fail("IFC3 must stay sparse"))
 
     gamma = third.gamma_contracted_value()
 
     assert isinstance(gamma, COO)
-    assert gamma.shape == (3, 3, 3)
-    np.testing.assert_allclose(gamma[0, 0, 0], 7.0, rtol=0.0, atol=0.0)
-    assert gamma.nnz == 1
+    assert gamma.shape == (n_modes,) * 3
+    np.testing.assert_array_equal(gamma.coords, expected.coords)
+    np.testing.assert_array_equal(gamma.data, expected.data)
+    assert third.value is value
+    assert value.coords is source_buffers[0]
+    assert value.data is source_buffers[1]
+    assert value.coords.dtype == coordinate_dtype
+    np.testing.assert_array_equal(value.coords, coords_before)
+    np.testing.assert_array_equal(value.data, data_before)
 
 
 def test_sparse_save_keeps_replicated_atoms_inside_output_folder(tmp_path):
