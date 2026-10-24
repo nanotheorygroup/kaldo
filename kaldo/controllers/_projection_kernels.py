@@ -74,20 +74,26 @@ def _gemm_into(
 @numba.njit(nogil=True, error_model="numpy")
 def _reduce_tiles(
     tiles: np.ndarray, eigenvectors_t: np.ndarray, intermediate: np.ndarray, column_offset: int,
-    omega: np.ndarray, physical: np.ndarray, population: np.ndarray, hbar_factor: float,
+    omega: np.ndarray, physical: np.ndarray, populations: np.ndarray, hbar_factors: np.ndarray,
     threshold: float, sigma: float, scales: np.ndarray, potential_buffer: np.ndarray,
     reduced: np.ndarray, counts: np.ndarray,
 ) -> None:
     """Fuse operands with the shapes and units checked by ``_run_tiles``.
 
     ``potential_buffer(max_tile_area,)`` owns float64 eV/(Angstrom^3*amu^1.5)
-    contractions; ``reduced(block,2)`` and ``counts(block,2)`` are owned outputs.
+    contractions. Dimensionless ``populations(populations,n)`` pair with
+    ``hbar_factors(populations,)``; ``reduced(populations,block,2)`` and
+    ``counts(block,2)`` are owned outputs. Each occupation keeps the
+    sequential per-tile sums of the single-occupation reduction.
     """
     transpose = np.array([ord("N")], dtype=np.uint8)
     dimensions = np.empty(6, dtype=np.int32)
     scalars = np.array([1., 0.])
     normalization = 1 / np.sqrt(np.pi * sigma ** 2)
     sigma_squared = sigma ** 2
+    n_populations = populations.shape[0]
+    phase_sums = np.empty(n_populations)
+    gamma_sums = np.empty(n_populations)
     for tile in tiles:
         slot, initial, channel, row_start, row_stop, column_start, column_stop = tile
         rows, columns = row_stop - row_start, column_stop - column_start
@@ -97,7 +103,9 @@ def _reduce_tiles(
             intermediate[slot, :, column_start - column_offset:column_stop - column_offset],
             potential, transpose, dimensions, scalars,
         )
-        phase_sum, gamma_sum, selected = 0., 0., 0
+        phase_sums[:] = 0.
+        gamma_sums[:] = 0.
+        selected = 0
         for row in range(rows):
             row_mode = row_start + row
             if not physical[row_mode]:
@@ -111,15 +119,19 @@ def _reduce_tiles(
                     squared = potential[row, column] ** 2
                     squared /= omega[row_mode] * omega[column_mode]
                     squared *= scales[initial]
-                    if channel:
-                        population_delta = population[row_mode] - population[column_mode]
-                    else:
-                        population_delta = 0.5 * (1 + population[row_mode] + population[column_mode])
-                    phase_sum += phase * population_delta
-                    gamma_sum += ((squared * hbar_factor) * phase) * population_delta
+                    for index in range(n_populations):
+                        row_population = populations[index, row_mode]
+                        column_population = populations[index, column_mode]
+                        if channel:
+                            population_delta = row_population - column_population
+                        else:
+                            population_delta = 0.5 * (1 + row_population + column_population)
+                        phase_sums[index] += phase * population_delta
+                        gamma_sums[index] += ((squared * hbar_factors[index]) * phase) * population_delta
                     selected += 1
-        reduced[slot, 0] += phase_sum
-        reduced[slot, 1] += gamma_sum
+        for index in range(n_populations):
+            reduced[index, slot, 0] += phase_sums[index]
+            reduced[index, slot, 1] += gamma_sums[index]
         counts[slot, channel] += selected
 
 
@@ -137,7 +149,9 @@ def _run_tiles(
     ``physical(n,)`` and float64 ``population(n,)`` are dimensionless.
     ``scales(n,)`` contains the package hbar/angular-frequency conversion;
     ``hbar_factor`` compensates the classical occupation convention.
-    Return ``(block,2)`` phase-space/THz and int64 channel counts.
+    Return ``(block,2)`` phase-space/THz and int64 channel counts. A
+    contiguous ``(populations,n)`` occupation stack with finite float64
+    ``hbar_factor(populations,)`` returns ``(populations,block,2)``.
     """
     _validate_matrix(eigenvectors_t, "eigenvectors_t")
     n_modes = eigenvectors_t.shape[0]
@@ -156,7 +170,7 @@ def _run_tiles(
         _validate_matrix(intermediate[0], "intermediate")
     for name, vector, dtype in (
         ("omega", omega, np.float64), ("physical", physical, np.bool_),
-        ("population", population, np.float64), ("scales", scales, np.float64),
+        ("scales", scales, np.float64),
     ):
         if (
             not isinstance(vector, np.ndarray) or vector.shape != (n_modes,)
@@ -184,13 +198,30 @@ def _run_tiles(
         raise ValueError("tile table contains invalid slots, modes, channels or bounds")
     if not np.isfinite(sigma) or sigma <= 0 or not np.isfinite(threshold) or threshold < 0:
         raise ValueError("native Gaussian sigma must be positive and threshold nonnegative")
-    reduced = np.zeros((intermediate.shape[0], 2), dtype=np.float64)
+    is_stack = isinstance(population, np.ndarray) and population.ndim == 2
+    if (
+        not isinstance(population, np.ndarray) or population.shape[-1:] != (n_modes,)
+        or population.ndim not in (1, 2) or population.dtype != np.float64
+        or not population.flags.c_contiguous or not population.flags.aligned
+    ):
+        raise TypeError("population must be a contiguous float64 (n,) vector or (populations,n) stack")
+    if is_stack:
+        if (
+            not population.shape[0] or not isinstance(hbar_factor, np.ndarray)
+            or hbar_factor.shape != population.shape[:1] or hbar_factor.dtype != np.float64
+            or not hbar_factor.flags.c_contiguous or not np.all(np.isfinite(hbar_factor))
+        ):
+            raise ValueError("a population stack requires matching finite float64 hbar factors")
+        populations, hbar_factors = population, hbar_factor
+    else:
+        populations, hbar_factors = population[None], np.array([hbar_factor], dtype=np.float64)
+    reduced = np.zeros((populations.shape[0], intermediate.shape[0], 2), dtype=np.float64)
     counts = np.zeros((intermediate.shape[0], 2), dtype=np.int64)
-    if not tiles.size or threshold == 0:
-        return reduced, counts
-    area = int(np.max((tiles[:, 4] - tiles[:, 3]) * (tiles[:, 6] - tiles[:, 5])))
-    _reduce_tiles(
-        np.ascontiguousarray(tiles), eigenvectors_t, intermediate, column_offset, omega, physical,
-        population, hbar_factor, threshold, sigma, scales, np.empty(area, dtype=np.float64), reduced, counts,
-    )
-    return reduced, counts
+    if tiles.size and threshold != 0:
+        area = int(np.max((tiles[:, 4] - tiles[:, 3]) * (tiles[:, 6] - tiles[:, 5])))
+        _reduce_tiles(
+            np.ascontiguousarray(tiles), eigenvectors_t, intermediate, column_offset, omega, physical,
+            populations, hbar_factors, threshold, sigma, scales, np.empty(area, dtype=np.float64),
+            reduced, counts,
+        )
+    return (reduced if is_stack else reduced[0]), counts

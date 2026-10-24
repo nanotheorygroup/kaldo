@@ -166,8 +166,14 @@ def _run_tiles_numpy(
     phase space and linewidth in the existing package units and THz.
     ``scales`` is ``(n,)`` with ``pi*hbar*GAMMA_TO_THZ/(4*omega)`` on
     physical modes and zero elsewhere, using the package unit conversion.
+    A ``(populations,n)`` occupation stack with ``(populations,)`` hbar
+    factors returns ``(populations,block,2)``; each slice repeats the
+    single-occupation arithmetic exactly.
     """
-    reduced = np.zeros((intermediate.shape[0], 2), dtype=np.float64)
+    is_stack = np.ndim(population) == 2
+    populations = population if is_stack else population[None]
+    hbar_factors = np.reshape(hbar_factor, -1) if is_stack else (hbar_factor,)
+    reduced = np.zeros((populations.shape[0], intermediate.shape[0], 2), dtype=np.float64)
     counts = np.zeros((intermediate.shape[0], 2), dtype=np.int64)
     for slot, initial, channel, row_start, row_stop, column_start, column_stop in tiles:
         potential = eigenvectors_t[row_start:row_stop] @ intermediate[
@@ -189,14 +195,15 @@ def _run_tiles_numpy(
         row_modes, column_modes = row + row_start, column + column_start
         squared /= omega[row_modes] * omega[column_modes]
         squared *= scales[initial]
-        if channel:
-            population_delta = population[row_modes] - population[column_modes]
-        else:
-            population_delta = 0.5 * (1 + population[row_modes] + population[column_modes])
-        reduced[slot, 0] += np.sum(phase * population_delta)
-        reduced[slot, 1] += np.sum(((squared * hbar_factor) * phase) * population_delta)
+        for index, (occupation, factor) in enumerate(zip(populations, hbar_factors)):
+            if channel:
+                population_delta = occupation[row_modes] - occupation[column_modes]
+            else:
+                population_delta = 0.5 * (1 + occupation[row_modes] + occupation[column_modes])
+            reduced[index, slot, 0] += np.sum(phase * population_delta)
+            reduced[index, slot, 1] += np.sum(((squared * factor) * phase) * population_delta)
         counts[slot, channel] += row.size
-    return reduced, counts
+    return (reduced if is_stack else reduced[0]), counts
 
 
 def _load_tile_reducer() -> Callable[..., tuple[np.ndarray, np.ndarray]]:
@@ -210,7 +217,7 @@ def _load_tile_reducer() -> Callable[..., tuple[np.ndarray, np.ndarray]]:
 
 def _project(
     layout: _GammaPairCSR, eigenvectors: np.ndarray, omega: np.ndarray, physical: np.ndarray,
-    sigma: float, population: np.ndarray, hbar_factor: float = 1.0, n_workers: int | None = 1,
+    sigma: float, population: np.ndarray, hbar_factor: float | np.ndarray = 1.0, n_workers: int | None = 1,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Project Gamma IFC3 to ``(n,2)`` phase-space/THz and channel counts.
 
@@ -218,7 +225,11 @@ def _project(
     ``(n,n)`` are float64, angular frequencies ``(n,)`` are rad/ps, and
     ``physical`` is boolean ``(n,)``. ``sigma`` is a Gaussian width in THz.
     ``population`` is the package's dimensionless ``(n,)`` occupation, with
-    its classical hbar compensation supplied separately. A worker count of
+    its classical hbar compensation supplied separately. A ``(populations,n)``
+    stack, e.g. several temperatures or statistics, with ``(populations,)``
+    hbar factors shares the occupation-independent contractions and returns
+    ``(populations,n,2)``; each slice equals the single-occupation result
+    bit for bit, and the channel counts do not depend on occupation. A worker count of
     None honors CPU affinity. BLAS thread limits are process-global contexts.
     Concurrent projections can therefore interfere with each other's limits.
     """
@@ -226,16 +237,33 @@ def _project(
     if not _is_eligible(omega, physical, sigma):
         raise ValueError("pair-first projection requires sorted finite positive physical frequencies")
     sigma = float(sigma)
+    is_stack = np.ndim(population) == 2
+    if is_stack:
+        hbar_factor = np.asarray(hbar_factor)
+        if (
+            population.shape[1:] != (n_modes,) or not population.shape[0]
+            or hbar_factor.shape != population.shape[:1] or hbar_factor.dtype.kind not in "fiu"
+            or not np.all(np.isfinite(hbar_factor))
+        ):
+            raise ValueError("pair-first population stack requires (populations,n) and matching finite hbar factors")
+        hbar_factor = np.ascontiguousarray(hbar_factor, dtype=np.float64)
+    elif np.ndim(hbar_factor) != 0:
+        raise ValueError("pair-first projection of one population requires a scalar hbar factor")
     if (
         eigenvectors.shape != (n_modes, n_modes) or eigenvectors.dtype != np.float64
-        or omega.shape != (n_modes,) or population.shape != (n_modes,)
-        or not np.all(np.isfinite(eigenvectors)) or not np.all(np.isfinite(population[physical]))
+        or omega.shape != (n_modes,) or population.shape[-1:] != (n_modes,)
+        or not np.all(np.isfinite(eigenvectors)) or not np.all(np.isfinite(population[..., physical]))
     ):
         raise ValueError("pair-first projection requires finite float64 eigenvectors and physical occupations")
-    reduced = np.zeros((n_modes, 2), dtype=np.float64)
+    reduced = np.zeros((population.shape[0] if is_stack else 1, n_modes, 2), dtype=np.float64)
     counts = np.zeros((n_modes, 2), dtype=np.int64)
+
+    def result() -> tuple[np.ndarray, np.ndarray]:
+        """Return the stack, or the ``(n,2)`` single-occupation contract."""
+        return (reduced if is_stack else reduced[0]), counts
+
     if sigma == 0 or not np.any(physical):
-        return reduced, counts
+        return result()
     workers = n_workers
     if workers is None:
         workers = len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count() or 1
@@ -248,7 +276,7 @@ def _project(
     threshold = 2 * angular_sigma
     tables = [_plan_tiles(block, omega, physical, threshold) for block in blocks]
     if not any(table.size for table in tables):
-        return reduced, counts
+        return result()
     eigenvectors = np.ascontiguousarray(eigenvectors)
     eigenvectors_t = np.ascontiguousarray(eigenvectors.T)
     omega = np.ascontiguousarray(omega, dtype=np.float64)
@@ -321,7 +349,7 @@ def _project(
                     )
 
                 for partial, partial_counts in pool.map(reduce_tiles, np.split(tiles, cuts)):
-                    reduced[block] += partial
+                    reduced[:, block] += partial if is_stack else partial[None]
                     counts[block] += partial_counts
             _logging.info("Amorphous pair-first projection: columns %d/%d", column_stop, n_modes)
-    return reduced, counts
+    return result()

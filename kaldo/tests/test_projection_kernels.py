@@ -201,3 +201,47 @@ assert np.any(counts)
         env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}, timeout=90,
     )
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+def _population_stack() -> tuple[np.ndarray, np.ndarray]:
+    """Dimensionless ``(populations,n)`` occupations and their hbar factors."""
+    populations = np.stack((np.linspace(2., .1, 7), np.linspace(.3, 1.7, 7), np.full(7, .9)))
+    return populations, np.array([1., 1e-6, .5])
+
+
+@pytest.mark.parametrize("backend", ["numpy", "numba"])
+def test_reducer_population_stack_equals_separate_jobs(backend):
+    projection = importlib.import_module("kaldo.controllers._amorphous_projection")
+    reducer = projection._run_tiles_numpy if backend == "numpy" else _kernels()._run_tiles
+    arguments = list(_job())
+    populations, hbar_factors = _population_stack()
+    separate = [
+        reducer(*arguments[:6], population, hbar_factor, *arguments[8:])
+        for population, hbar_factor in zip(populations, hbar_factors)
+    ]
+    actual, counts = reducer(*arguments[:6], populations, hbar_factors, *arguments[8:])
+    assert actual.shape == (3, 3, 2) and counts.shape == (3, 2)
+    for stacked, (expected, expected_counts) in zip(actual, separate):
+        np.testing.assert_array_equal(stacked, expected)
+        np.testing.assert_array_equal(counts, expected_counts)
+
+
+@pytest.mark.parametrize("case", ["hbar_length", "hbar_scalar", "hbar_nonfinite", "empty", "rank", "length"])
+def test_native_reducer_rejects_invalid_population_stacks(case):
+    arguments = list(_job())
+    populations, hbar_factors = _population_stack()
+    if case == "hbar_length":
+        hbar_factors = hbar_factors[:2]
+    elif case == "hbar_scalar":
+        hbar_factors = 1.
+    elif case == "hbar_nonfinite":
+        hbar_factors[1] = np.nan
+    elif case == "empty":
+        populations, hbar_factors = populations[:0], hbar_factors[:0]
+    elif case == "rank":
+        populations = populations[None]
+    else:
+        populations = populations[:, :6]
+    arguments[6], arguments[7] = populations, hbar_factors
+    with pytest.raises((TypeError, ValueError), match="population|hbar"):
+        _kernels()._run_tiles(*arguments)

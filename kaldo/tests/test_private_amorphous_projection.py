@@ -383,3 +383,72 @@ def test_pair_first_rejects_invalid_worker_counts(workers):
             _third(COO.from_numpy(np.ones((3,) * 3)))._gamma_pair_csr(), np.eye(3),
             np.arange(1.0, 4.0), np.ones(3, dtype=bool), 0.1, np.ones(3), n_workers=workers,
         )
+
+
+def _stack_input() -> tuple:
+    """Return 9-mode inputs, ``(populations,n)`` occupations and hbar factors."""
+    random = np.random.default_rng(607)
+    values = random.normal(size=(9,) * 3)
+    values[random.random(values.shape) < 0.7] = 0
+    phonons = _projection_input(values, bandwidth=0.19)
+    phonons.frequency[0] = [0, 1, 1, 2, 3, 3, 4, 6, 7]
+    phonons.physical_mode[0, [0, 4]] = False
+    populations, hbar_factors = [], []
+    for temperature, is_classic in ((50., False), (300., False), (600., False), (300., True), (900., True)):
+        hbar_factor = CLASSICAL_HBAR_SCALE if is_classic else 1.0
+        phonons.temperature = temperature
+        phonons.hbar = units._hbar * hbar_factor
+        populations.append(HarmonicWithQTemp._calculate_population(phonons).flatten())
+        hbar_factors.append(hbar_factor)
+    arguments = (
+        _third(COO.from_numpy(values))._gamma_pair_csr(), phonons._rescaled_eigenvectors[0],
+        2 * np.pi * phonons.frequency[0], phonons.physical_mode[0], phonons.third_bandwidth,
+    )
+    return arguments, np.stack(populations), np.array(hbar_factors)
+
+
+@pytest.mark.parametrize("workers", [1, 2])
+def test_pair_first_population_stack_equals_separate_projections(monkeypatch, workers, projection_backend):
+    projection = importlib.import_module("kaldo.controllers._amorphous_projection")
+    for name, value in (("_COLUMN_BLOCK", 4), ("_MODE_BLOCK", 2), ("_ROW_BLOCK", 2), ("_STAGE1_COLUMNS", 3)):
+        monkeypatch.setattr(projection, name, value)
+    arguments, populations, hbar_factors = _stack_input()
+    separate = [
+        projection._project(*arguments, population, hbar_factor, workers)
+        for population, hbar_factor in zip(populations, hbar_factors)
+    ]
+
+    actual, counts = projection._project(*arguments, populations, hbar_factors, workers)
+
+    assert actual.shape == (5, 9, 2) and counts.shape == (9, 2)
+    for stacked, (expected, expected_counts) in zip(actual, separate):
+        np.testing.assert_array_equal(stacked, expected)
+        np.testing.assert_array_equal(counts, expected_counts)
+    # kaldo's classical occupation makes both population factors linear in T.
+    np.testing.assert_allclose(actual[4, :, 1], 3 * actual[3, :, 1], rtol=1e-8, atol=0)
+
+
+def test_pair_first_population_stack_empty_case_keeps_stack_shape(projection_backend):
+    projection = importlib.import_module("kaldo.controllers._amorphous_projection")
+    arguments, populations, hbar_factors = _stack_input()
+    actual, counts = projection._project(*arguments[:4], 0.0, populations, hbar_factors)
+    np.testing.assert_array_equal(actual, np.zeros((5, 9, 2)))
+    np.testing.assert_array_equal(counts, np.zeros((9, 2), dtype=np.int64))
+
+
+@pytest.mark.parametrize("case", ["hbar_length", "hbar_array_for_vector", "hbar_nonfinite", "empty", "length"])
+def test_pair_first_rejects_invalid_population_stacks(case):
+    projection = importlib.import_module("kaldo.controllers._amorphous_projection")
+    arguments, populations, hbar_factors = _stack_input()
+    if case == "hbar_length":
+        hbar_factors = hbar_factors[:2]
+    elif case == "hbar_array_for_vector":
+        populations = populations[0]
+    elif case == "hbar_nonfinite":
+        hbar_factors[0] = np.inf
+    elif case == "empty":
+        populations, hbar_factors = populations[:0], hbar_factors[:0]
+    else:
+        populations = populations[:, :8]
+    with pytest.raises(ValueError, match="population|hbar"):
+        projection._project(*arguments, populations, hbar_factors)
