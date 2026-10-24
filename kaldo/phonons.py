@@ -503,7 +503,9 @@ class Phonons(Storable):
         Default: False
     n_workers : int, optional
         Number of worker processes used for per-q projection calculations.
-        Set to 1 for serial execution.
+        Set to 1 for serial execution. For amorphous Gamma calculations it is
+        also the CPU thread count of the real dense eigensolver and the scalar
+        third-order projection; ``None`` uses the CPU affinity count.
         Default: 1
     projection_output_dir : str, optional
         Directory used for restartable per-q projection checkpoints. If it is
@@ -889,6 +891,7 @@ class Phonons(Storable):
                 is_nac=self.is_nac,
                 nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix,
                 nac_q_direction=self.nac_q_direction,
+                n_workers=self.n_workers,
             )
 
             physical_mode[ik] = phonon.physical_mode
@@ -925,6 +928,7 @@ class Phonons(Storable):
                 is_nac=self.is_nac,
                 nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix,
                 nac_q_direction=self.nac_q_direction,
+                n_workers=self.n_workers,
             )
 
             frequency[ik] = phonon.frequency
@@ -960,6 +964,7 @@ class Phonons(Storable):
                 is_nac=self.is_nac,
                 nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix,
                 nac_q_direction=self.nac_q_direction,
+                n_workers=self.n_workers,
             )
 
             participation_ratio[ik] = phonon.participation_ratio
@@ -995,6 +1000,7 @@ class Phonons(Storable):
                 is_nac=self.is_nac,
                 nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix,
                 nac_q_direction=self.nac_q_direction,
+                n_workers=self.n_workers,
             )
 
             velocity[ik] = phonon.velocity
@@ -1019,7 +1025,7 @@ class Phonons(Storable):
         q_points = self._reciprocal_grid.fractional_points
         shape = (self.n_k_points, self.n_modes + 1, self.n_modes)
         log_size(shape, name='eigensystem', type=type)
-        eigensystem = np.zeros(shape, dtype=type)
+        eigensystem = None if self._is_amorphous else np.zeros(shape, dtype=type)
         for ik in range(len(q_points)):
             q_point = q_points[ik]
             phonon = HarmonicWithQ(
@@ -1034,9 +1040,14 @@ class Phonons(Storable):
                 is_nac=self.is_nac,
                 nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix,
                 nac_q_direction=self.nac_q_direction,
+                n_workers=self.n_workers,
             )
 
-            eigensystem[ik] = phonon._eigensystem
+            if eigensystem is None:
+                # The single amorphous Gamma point is viewed, not copied.
+                eigensystem = np.asarray(phonon._eigensystem, dtype=type)[np.newaxis]
+            else:
+                eigensystem[ik] = phonon._eigensystem
 
         return eigensystem
 
@@ -1073,6 +1084,7 @@ class Phonons(Storable):
                 is_nac=self.is_nac,
                 nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix,
                 nac_q_direction=self.nac_q_direction,
+                n_workers=self.n_workers,
             )
             c_v[ik] = phonon.heat_capacity
         return c_v
@@ -1109,6 +1121,7 @@ class Phonons(Storable):
                 is_nac=self.is_nac,
                 nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix,
                 nac_q_direction=self.nac_q_direction,
+                n_workers=self.n_workers,
             )
 
             heat_capacity_2d[ik] = phonon.heat_capacity_2d
@@ -1149,6 +1162,7 @@ class Phonons(Storable):
                 is_nac=self.is_nac,
                 nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix,
                 nac_q_direction=self.nac_q_direction,
+                n_workers=self.n_workers,
             )
 
             population[ik] = phonon.population
