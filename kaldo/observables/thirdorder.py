@@ -16,6 +16,7 @@ import ase.io
 import hashlib
 import numpy as np
 from scipy.sparse import load_npz, save_npz
+from scipy.sparse import csr_matrix as _csr_matrix
 from sparse import COO
 from kaldo.interfaces.eskm_io import import_from_files
 from kaldo.interfaces.tdep_io import parse_tdep_third_forceconstant
@@ -34,6 +35,119 @@ THIRD_ORDER_FILE_SPARSE = 'third.npz'
 THIRD_ORDER_FILE = 'third.npy'
 
 _IFC_INTERPOLATION_MODES = ("auto", "wigner-seitz", "periodic")
+_PAIR_BATCH_ENTRIES = 1_000_000
+_PAIR_CHUNK_ENTRIES = 8_000_000
+
+
+@dataclass(frozen=True)
+class _GammaPairCSR:
+    """Owned Gamma IFC3 rows in eV/Angstrom^3, ordered by ``(j,i)``.
+
+    ``pair_i`` has shape ``(n_pairs,)`` and dtype int32. ``j_ptr`` has shape
+    ``(n_modes+1,)`` and dtype int64. Each chunk stores complete pair rows
+    ``[start:stop]`` as a float64 CSR matrix with ``n_modes`` columns.
+    """
+
+    n_modes: int
+    pair_i: np.ndarray
+    j_ptr: np.ndarray
+    chunks: tuple[tuple[int, int, _csr_matrix], ...]
+
+
+def _pair_coordinates(value: COO, selection: slice | np.ndarray, n_modes: int) -> tuple[np.ndarray, ...]:
+    """Read Cartesian ``(i,j,k)`` indices from rank-three/eight IFC3.
+
+    ``value`` stores eV/Angstrom^3, with flattened ``(n,S*n,S*n)`` or
+    canonical ``(N,3,S,N,3,S,N,3)`` shape. A slice or ``(batch,)`` index
+    selection returns three dimensionless ``(batch,)`` int64 arrays.
+    """
+    coords = value.coords[:, selection].astype(np.int64, copy=False)
+    if np.any(coords < 0) or any(np.any(axis >= size) for axis, size in zip(coords, value.shape)):
+        raise ValueError("third-order IFC coordinates are outside its shape")
+    if value.ndim == 3:
+        return coords[0], coords[1] % n_modes, coords[2] % n_modes
+    return 3 * coords[0] + coords[1], 3 * coords[3] + coords[4], 3 * coords[6] + coords[7]
+
+
+def _gamma_pair_layout(value: np.ndarray | COO, n_atoms: int, n_translations: int) -> _GammaPairCSR:
+    """Pack source IFC3 in eV/Angstrom^3 without a folded cube.
+
+    ``value`` has shape ``(n,S*n,S*n)`` or ``(N,3,S,N,3,S,N,3)``, where
+    ``N=n_atoms``, ``n=3*N``, and ``S=n_translations``. Source buffers are
+    never modified; literal translations are summed in owned float64 data.
+    """
+    n_modes = 3 * n_atoms
+    rank8_shape = (n_atoms, 3, n_translations, n_atoms, 3, n_translations, n_atoms, 3)
+    rank3_shape = (n_modes, n_translations * n_modes, n_translations * n_modes)
+    if value.shape not in (rank3_shape, rank8_shape):
+        raise ValueError("third-order IFC shape does not match atoms and translation support")
+    if value.dtype.kind not in "biuf" or n_modes > np.iinfo(np.int32).max:
+        raise TypeError("pair projection requires real IFC3 and int32 Cartesian indices")
+    if not isinstance(value, COO):
+        rank8 = np.asarray(value).reshape(rank8_shape)
+        pairs, chunks = [], []
+        j_ptr = np.zeros(n_modes + 1, dtype=np.int64)
+        for partner_j in range(n_modes):
+            slab = rank8[:, :, :, partner_j // 3, partner_j % 3, :, :, :].sum(axis=(2, 3), dtype=np.float64)
+            slab = slab.reshape(n_modes, n_modes)
+            if not np.all(np.isfinite(slab)):
+                raise ValueError("pair projection requires finite IFC3")
+            active = np.flatnonzero(np.any(slab != 0, axis=1)).astype(np.int32)
+            start, stop = int(j_ptr[partner_j]), int(j_ptr[partner_j]) + active.size
+            pairs.append(active)
+            if active.size:
+                chunks.append((start, stop, _csr_matrix(slab[active], dtype=np.float64)))
+            j_ptr[partner_j + 1] = stop
+        return _GammaPairCSR(n_modes, np.concatenate(pairs), j_ptr, tuple(chunks))
+    if value.fill_value != 0:
+        raise ValueError("pair projection requires zero-filled sparse IFC3")
+    pair_keys = np.empty(value.nnz, dtype=np.int64)
+    for start in range(0, value.nnz, _PAIR_BATCH_ENTRIES):
+        stop = min(start + _PAIR_BATCH_ENTRIES, value.nnz)
+        central, partner_j, _ = _pair_coordinates(value, slice(start, stop), n_modes)
+        pair_keys[start:stop] = partner_j * n_modes + central
+    order = np.argsort(pair_keys, kind="stable")
+    pair_ids, row_starts = [], []
+    previous = -1
+    for start in range(0, value.nnz, _PAIR_BATCH_ENTRIES):
+        keys = pair_keys[order[start:start + _PAIR_BATCH_ENTRIES]]
+        distinct = np.concatenate(([keys[0] != previous], keys[1:] != keys[:-1]))
+        offsets = np.flatnonzero(distinct)
+        pair_ids.append(keys[offsets])
+        row_starts.append(start + offsets)
+        previous = keys[-1]
+    del pair_keys
+    pair_ids = np.concatenate(pair_ids) if pair_ids else np.empty(0, dtype=np.int64)
+    raw_ptr = np.concatenate((*row_starts, np.array([value.nnz], dtype=np.int64)))
+    pair_i = (pair_ids % n_modes).astype(np.int32)
+    j_ptr = np.searchsorted(pair_ids, np.arange(n_modes + 1, dtype=np.int64) * n_modes)
+    del pair_ids, row_starts
+    chunks = []
+    start = 0
+    while start < pair_i.size:
+        target = min(value.nnz, int(raw_ptr[start]) + _PAIR_CHUNK_ENTRIES)
+        stop = max(start + 1, int(np.searchsorted(raw_ptr, target, side="right")) - 1)
+        stop = min(stop, pair_i.size)
+        offset, end = int(raw_ptr[start]), int(raw_ptr[stop])
+        pointer_dtype = np.int32 if end - offset <= np.iinfo(np.int32).max else np.int64
+        indices = np.empty(end - offset, dtype=pointer_dtype)
+        data = np.empty(end - offset, dtype=np.float64)
+        for position in range(offset, end, _PAIR_BATCH_ENTRIES):
+            selection = order[position:min(position + _PAIR_BATCH_ENTRIES, end)]
+            _, _, partner_k = _pair_coordinates(value, selection, n_modes)
+            destination = slice(position - offset, position - offset + selection.size)
+            indices[destination] = partner_k
+            data[destination] = value.data[selection]
+        if not np.all(np.isfinite(data)):
+            raise ValueError("pair projection requires finite IFC3")
+        indptr = (raw_ptr[start:stop + 1] - offset).astype(pointer_dtype)
+        matrix = _csr_matrix((data, indices, indptr), shape=(stop - start, n_modes), copy=False)
+        matrix.sum_duplicates()
+        if not np.all(np.isfinite(matrix.data)):
+            raise ValueError("pair projection requires finite IFC3 after Gamma folding")
+        chunks.append((start, stop, matrix))
+        start = stop
+    return _GammaPairCSR(n_modes, pair_i, j_ptr.astype(np.int64, copy=False), tuple(chunks))
 
 
 def _ifc3_source_digest(source_value):
@@ -151,6 +265,15 @@ class ThirdOrder(ForceConstant):
     explicit periodic or Wigner--Seitz diagnostics to coexist safely.
     """
 
+    def _gamma_pair_csr(self) -> _GammaPairCSR:
+        """Rebuild owned pair rows from current IFC3 in eV/Angstrom^3.
+
+        Rank-three/eight sparse input is packed directly. Dense input uses
+        one Cartesian-j slab, with at most ``(n_modes,n_modes)`` scratch.
+        No source buffer or persistent interpolation cache is modified.
+        """
+        return _gamma_pair_layout(self.value, len(self.atoms), self.n_translations)
+
     def get_interpolation(self, mode="auto"):
         """Compile IFC3 for the requested real-space interpolation rule.
 
@@ -229,6 +352,15 @@ class ThirdOrder(ForceConstant):
             historical ``(central, partner-j, partner-k)`` mode ordering.
         """
         rank8 = _rank8_ifc3(self.value, len(self.atoms), self.n_translations)
+        if isinstance(rank8, COO) and rank8.coords.dtype.kind == "u":
+            rank8 = COO(
+                rank8.coords.astype(np.int64),
+                rank8.data,
+                shape=rank8.shape,
+                has_duplicates=False,
+                sorted=True,
+                fill_value=rank8.fill_value,
+            )
         n_modes = 3 * len(self.atoms)
         return rank8.sum(axis=(2, 5)).reshape((n_modes, n_modes, n_modes))
 

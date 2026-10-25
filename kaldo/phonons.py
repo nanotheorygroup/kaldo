@@ -20,6 +20,7 @@ from kaldo.observables.harmonic_with_q import (
 from kaldo.observables.harmonic_with_q_temp import HarmonicWithQTemp, CLASSICAL_HBAR_SCALE
 from kaldo.forceconstants import ForceConstants
 import kaldo.controllers.anharmonic as aha
+from kaldo.controllers import _amorphous_projection
 import tensorflow as tf
 import kaldo.controllers.isotopic as isotopic
 from concurrent.futures import as_completed
@@ -502,7 +503,9 @@ class Phonons(Storable):
         Default: False
     n_workers : int, optional
         Number of worker processes used for per-q projection calculations.
-        Set to 1 for serial execution.
+        Set to 1 for serial execution. For amorphous Gamma calculations it is
+        also the CPU thread count of the real dense eigensolver and the scalar
+        third-order projection; ``None`` uses the CPU affinity count.
         Default: 1
     projection_output_dir : str, optional
         Directory used for restartable per-q projection checkpoints. If it is
@@ -888,6 +891,7 @@ class Phonons(Storable):
                 is_nac=self.is_nac,
                 nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix,
                 nac_q_direction=self.nac_q_direction,
+                n_workers=self.n_workers,
             )
 
             physical_mode[ik] = phonon.physical_mode
@@ -924,6 +928,7 @@ class Phonons(Storable):
                 is_nac=self.is_nac,
                 nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix,
                 nac_q_direction=self.nac_q_direction,
+                n_workers=self.n_workers,
             )
 
             frequency[ik] = phonon.frequency
@@ -959,6 +964,7 @@ class Phonons(Storable):
                 is_nac=self.is_nac,
                 nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix,
                 nac_q_direction=self.nac_q_direction,
+                n_workers=self.n_workers,
             )
 
             participation_ratio[ik] = phonon.participation_ratio
@@ -994,6 +1000,7 @@ class Phonons(Storable):
                 is_nac=self.is_nac,
                 nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix,
                 nac_q_direction=self.nac_q_direction,
+                n_workers=self.n_workers,
             )
 
             velocity[ik] = phonon.velocity
@@ -1018,7 +1025,7 @@ class Phonons(Storable):
         q_points = self._reciprocal_grid.fractional_points
         shape = (self.n_k_points, self.n_modes + 1, self.n_modes)
         log_size(shape, name='eigensystem', type=type)
-        eigensystem = np.zeros(shape, dtype=type)
+        eigensystem = None if self._is_amorphous else np.zeros(shape, dtype=type)
         for ik in range(len(q_points)):
             q_point = q_points[ik]
             phonon = HarmonicWithQ(
@@ -1033,9 +1040,14 @@ class Phonons(Storable):
                 is_nac=self.is_nac,
                 nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix,
                 nac_q_direction=self.nac_q_direction,
+                n_workers=self.n_workers,
             )
 
-            eigensystem[ik] = phonon._eigensystem
+            if eigensystem is None:
+                # The single amorphous Gamma point is viewed, not copied.
+                eigensystem = np.asarray(phonon._eigensystem, dtype=type)[np.newaxis]
+            else:
+                eigensystem[ik] = phonon._eigensystem
 
         return eigensystem
 
@@ -1072,6 +1084,7 @@ class Phonons(Storable):
                 is_nac=self.is_nac,
                 nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix,
                 nac_q_direction=self.nac_q_direction,
+                n_workers=self.n_workers,
             )
             c_v[ik] = phonon.heat_capacity
         return c_v
@@ -1108,6 +1121,7 @@ class Phonons(Storable):
                 is_nac=self.is_nac,
                 nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix,
                 nac_q_direction=self.nac_q_direction,
+                n_workers=self.n_workers,
             )
 
             heat_capacity_2d[ik] = phonon.heat_capacity_2d
@@ -1148,6 +1162,7 @@ class Phonons(Storable):
                 is_nac=self.is_nac,
                 nac_bvk_supercell_matrix=self.nac_bvk_supercell_matrix,
                 nac_q_direction=self.nac_q_direction,
+                n_workers=self.n_workers,
             )
 
             population[ik] = phonon.population
@@ -1760,6 +1775,17 @@ class Phonons(Storable):
         # by scaling the potential with the matching factor.
         hbar_factor = CLASSICAL_HBAR_SCALE if self.is_classic else 1
 
+        if (
+            self._is_amorphous and not is_gamma_tensor_enabled
+            and not self.is_balanced and self.broadening_shape == "gauss"
+        ):
+            ps_and_gamma = _amorphous_projection._try_project(
+                self.forceconstants.third, self._rescaled_eigenvectors[0], self.frequency,
+                self.physical_mode, self.third_bandwidth, population_flat, hbar_factor, self.n_workers,
+            )
+            if ps_and_gamma is not None:
+                return ps_and_gamma
+
         ps_and_gamma = aha.calculate_ps_and_gamma(
             self.sparse_phase,
             self.sparse_potential,
@@ -1843,6 +1869,7 @@ class Phonons(Storable):
         # Same canonical-ordering requirement as the crystal projection above.
         third_tf = tf.sparse.reorder(third_tf)
         third_tf = tf.sparse.reshape(third_tf, (self.n_modes**2, self.n_modes))
+        del gamma_third, coords, data
         physical_mode = self.physical_mode.reshape((self.n_k_points, self.n_modes))
         logging.info("Projection started")
         hbar = units._hbar
@@ -1859,6 +1886,7 @@ class Phonons(Storable):
 
             sparse_phase.append([])
             sparse_potential.append([])
+            scaled_potential_tf = None
             for is_plus in (0, 1):
 
                 # ps_and_gamma = np.zeros(2)
@@ -1876,13 +1904,14 @@ class Phonons(Storable):
                 sparse_phase[nu_single].append(dirac_delta_result)
                 mup_vec, mupp_vec = tf.unstack(dirac_delta_result.indices, axis=1)
 
-                third_nu_tf = tf.sparse.sparse_dense_matmul(
-                    third_tf, tf.reshape(evect_tf[:, nu_single], (n_modes, 1))
-                )
-                third_nu_tf = tf.reshape(third_nu_tf, (n_modes, n_modes))
-                scaled_potential_tf = tf.einsum(
-                    "ij,in,jm->nm", third_nu_tf, evect_tf, evect_tf
-                )
+                if scaled_potential_tf is None:
+                    third_nu_tf = tf.sparse.sparse_dense_matmul(
+                        third_tf, tf.reshape(evect_tf[:, nu_single], (n_modes, 1))
+                    )
+                    third_nu_tf = tf.reshape(third_nu_tf, (n_modes, n_modes))
+                    scaled_potential_tf = tf.einsum(
+                        "ij,in,jm->nm", third_nu_tf, evect_tf, evect_tf
+                    )
                 coords = tf.stack((mup_vec, mupp_vec), axis=-1)
                 pot_times_dirac = tf.gather_nd(scaled_potential_tf, coords) ** 2
                 pot_times_dirac /= tf.gather(omega[0], mup_vec) * tf.gather(omega[0], mupp_vec)

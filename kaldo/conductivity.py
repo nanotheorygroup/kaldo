@@ -397,6 +397,7 @@ class Conductivity(Storable):
                 is_amorphous=phonons._is_amorphous,
                 is_nac=phonons.is_nac,
                 nac_bvk_supercell_matrix=phonons.nac_bvk_supercell_matrix,
+                n_workers=phonons.n_workers,
             )
             heat_capacity_2d = phonon.heat_capacity_2d
             if phonons.n_modes > 100:
