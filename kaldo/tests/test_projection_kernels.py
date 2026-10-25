@@ -88,9 +88,9 @@ def test_native_reducer_matches_numpy_with_mask_gaps_and_repeated_jobs(hbar_fact
     projection = importlib.import_module("kaldo.controllers._amorphous_projection")
     arguments = list(_job())
     arguments[7] = hbar_factor
-    expected, expected_counts = projection._run_tiles_numpy(*arguments)
+    expected, expected_counts, _ = projection._run_tiles_numpy(*arguments)
     for _ in range(2):
-        actual, counts = _kernels()._run_tiles(*arguments)
+        actual, counts, _ = _kernels()._run_tiles(*arguments)
         np.testing.assert_array_equal(counts, expected_counts)
         np.testing.assert_allclose(actual[:, 0], expected[:, 0], rtol=1e-12, atol=1e-12)
         np.testing.assert_allclose(actual[:, 1], expected[:, 1], rtol=1e-12, atol=1e-13)
@@ -105,8 +105,8 @@ def test_native_reducer_preserves_numpy_ieee_semantics_on_underflow(case):
     else:
         arguments[4] = arguments[4] * 1e-200
     with np.errstate(divide="ignore", invalid="ignore", over="ignore"):
-        expected, expected_counts = projection._run_tiles_numpy(*arguments)
-        actual, counts = _kernels()._run_tiles(*arguments)
+        expected, expected_counts, _ = projection._run_tiles_numpy(*arguments)
+        actual, counts, _ = _kernels()._run_tiles(*arguments)
     np.testing.assert_array_equal(counts, expected_counts)
     np.testing.assert_allclose(actual, expected, rtol=1e-12, atol=1e-13, equal_nan=True)
 
@@ -146,7 +146,7 @@ def test_native_reducer_rejects_unsafe_intermediate_and_vectors():
 def test_native_empty_plan_returns_owned_zeros():
     arguments = list(_job())
     arguments[0] = np.empty((0, 7), dtype=np.int64)
-    actual, counts = _kernels()._run_tiles(*arguments)
+    actual, counts, _ = _kernels()._run_tiles(*arguments)
     np.testing.assert_array_equal(actual, np.zeros((3, 2)))
     np.testing.assert_array_equal(counts, np.zeros((3, 2), dtype=np.int64))
 
@@ -219,9 +219,9 @@ def test_reducer_population_stack_equals_separate_jobs(backend):
         reducer(*arguments[:6], population, hbar_factor, *arguments[8:])
         for population, hbar_factor in zip(populations, hbar_factors)
     ]
-    actual, counts = reducer(*arguments[:6], populations, hbar_factors, *arguments[8:])
+    actual, counts, _ = reducer(*arguments[:6], populations, hbar_factors, *arguments[8:])
     assert actual.shape == (3, 3, 2) and counts.shape == (3, 2)
-    for stacked, (expected, expected_counts) in zip(actual, separate):
+    for stacked, (expected, expected_counts, _) in zip(actual, separate):
         np.testing.assert_array_equal(stacked, expected)
         np.testing.assert_array_equal(counts, expected_counts)
 
@@ -245,3 +245,28 @@ def test_native_reducer_rejects_invalid_population_stacks(case):
     arguments[6], arguments[7] = populations, hbar_factors
     with pytest.raises((TypeError, ValueError), match="population|hbar"):
         _kernels()._run_tiles(*arguments)
+
+
+def test_native_reducer_matches_numpy_partner_credits():
+    projection = importlib.import_module("kaldo.controllers._amorphous_projection")
+    arguments = list(_job())
+    arguments[0] = projection._plan_tiles(np.array([1, 4, 6]), arguments[4], arguments[5], 2., symmetric=True)
+    populations, hbar_factors = _population_stack()
+    for population, hbar_factor in ((arguments[6], arguments[7]), (populations, hbar_factors)):
+        arguments[6], arguments[7] = population, hbar_factor
+        expected = projection._run_tiles_numpy(*arguments, True)
+        actual = _kernels()._run_tiles(*arguments, True)
+        (offset, partner, partner_counts), (expected_offset, expected_partner, expected_partner_counts) = (
+            actual[2], expected[2]
+        )
+        assert offset == expected_offset and partner_counts.sum() > 0
+        np.testing.assert_array_equal(actual[1], expected[1])
+        np.testing.assert_array_equal(partner_counts, expected_partner_counts)
+        np.testing.assert_allclose(actual[0], expected[0], rtol=1e-12, atol=1e-12)
+        np.testing.assert_allclose(partner, expected_partner, rtol=1e-12, atol=1e-12)
+    assert np.all(arguments[0][arguments[0][:, 2] == 1, 3] >= arguments[0][arguments[0][:, 2] == 1, 1])
+
+
+def test_native_reducer_rejects_nonboolean_symmetry_flag():
+    with pytest.raises(TypeError, match="symmetric"):
+        _kernels()._run_tiles(*_job(), 1)

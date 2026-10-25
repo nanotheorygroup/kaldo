@@ -1,6 +1,9 @@
 """Private float64 pair-first Gamma projection for scalar Gaussian results.
 
-No permutation symmetry is assumed. Unsupported public options stay on the
+The Gamma-folded IFC3 is tested for symmetry under exchange of its first two
+Cartesian indices. When it holds, each absorption pair is evaluated once and
+credited to both of its lower modes; otherwise every pair is evaluated. No
+other permutation symmetry is assumed. Unsupported public options stay on the
 compatible projector; this module does not change its sparse output contract.
 """
 
@@ -27,6 +30,8 @@ _STAGE1_COLUMNS = 128
 _WORKSPACE_FRACTION = 0.25
 _WORKSPACE_MULTIPLIER = 8
 _MIN_WORKSPACE_BYTES = 128 * 1024 ** 2
+_SYMMETRY_RTOL = 1e-12
+_SYMMETRY_PROBES = 2
 
 
 def _try_project(
@@ -126,13 +131,52 @@ def _block_sizes(layout: _GammaPairCSR, workers: int) -> tuple[int, int]:
             raise MemoryError("insufficient available memory for pair-first projection workspace")
 
 
-def _plan_tiles(modes: np.ndarray, omega: np.ndarray, physical: np.ndarray, threshold: float) -> np.ndarray:
+def _is_ij_symmetric(layout: _GammaPairCSR, pool: ThreadPoolExecutor) -> bool:
+    """Test Gamma IFC3 in eV/Angstrom^3 for ``Phi[i,j,k] == Phi[j,i,k]``.
+
+    Fixed random probes ``c(n,probes)`` contract the third index into pair
+    values ``Psi[i,j] = sum_k Phi[i,j,k] c[k]``, which must be symmetric pair
+    by pair to ``_SYMMETRY_RTOL`` of ``sum_k |Phi| |c|`` over both orders. A
+    pair whose transpose is absent must vanish. Any asymmetry, including one
+    confined to a single pair, fails with probability one.
+    """
+    n_modes, n_pairs = layout.n_modes, layout.pair_i.size
+    if not n_pairs:
+        return True
+    probes = np.random.default_rng(0x5EED).standard_normal((n_modes, _SYMMETRY_PROBES))
+    contracted = np.empty((n_pairs, _SYMMETRY_PROBES))
+    bound = np.empty((n_pairs, _SYMMETRY_PROBES))
+
+    def contract_chunk(chunk: tuple[int, int, object]) -> None:
+        """Contract owned CSR pair rows with the probes and their bound."""
+        start, stop, matrix = chunk
+        contracted[start:stop] = matrix @ probes
+        bound[start:stop] = abs(matrix) @ np.abs(probes)
+
+    list(pool.map(contract_chunk, layout.chunks))
+    partner_j = np.repeat(np.arange(n_modes, dtype=np.int64), np.diff(layout.j_ptr))
+    keys = partner_j * n_modes + layout.pair_i  # ascending: rows are ordered by (j,i)
+    transposed = layout.pair_i.astype(np.int64) * n_modes + partner_j
+    del partner_j
+    position = np.minimum(np.searchsorted(keys, transposed), n_pairs - 1)
+    found = (keys[position] == transposed)[:, None]
+    del keys, transposed
+    mirror = np.where(found, contracted[position], 0.)
+    mirror_bound = np.where(found, bound[position], 0.)
+    return bool(np.all(np.abs(contracted - mirror) <= _SYMMETRY_RTOL * (bound + mirror_bound)))
+
+
+def _plan_tiles(
+    modes: np.ndarray, omega: np.ndarray, physical: np.ndarray, threshold: float, symmetric: bool = False,
+) -> np.ndarray:
     """Plan int64 ``(tiles,7)`` mode/channel/row/column spans in rad/ps.
 
     Columns conservatively enclose the cutoff. Exact strict selection is
     applied in the reducer, including degeneracies and holes in the mask.
     ``modes`` contains ``(block,)`` initial indices, ``omega`` is ``(n,)``
     in rad/ps, and ``physical`` is a dimensionless boolean ``(n,)`` mask.
+    With ``symmetric`` IFC3, absorption rows below the initial mode are
+    omitted: the reducer credits each such pair from the lower mode.
     """
     plans = []
     padding = threshold * 1e-6 + 1e-12
@@ -142,6 +186,8 @@ def _plan_tiles(modes: np.ndarray, omega: np.ndarray, physical: np.ndarray, thre
             lower = np.searchsorted(omega, targets - threshold - padding, side="left")
             upper = np.searchsorted(omega, targets + threshold + padding, side="right")
             rows = np.flatnonzero((upper > lower) & physical)
+            if symmetric and channel:
+                rows = rows[rows >= initial]
             for offset in range(0, rows.size, _ROW_BLOCK):
                 row_start = rows[offset]
                 row_stop = rows[min(offset + _ROW_BLOCK, rows.size) - 1] + 1
@@ -154,8 +200,8 @@ def _plan_tiles(modes: np.ndarray, omega: np.ndarray, physical: np.ndarray, thre
 def _run_tiles_numpy(
     tiles: np.ndarray, eigenvectors_t: np.ndarray, intermediate: np.ndarray, column_offset: int,
     omega: np.ndarray, physical: np.ndarray, population: np.ndarray, hbar_factor: float,
-    threshold: float, sigma: float, scales: np.ndarray,
-) -> tuple[np.ndarray, np.ndarray]:
+    threshold: float, sigma: float, scales: np.ndarray, symmetric: bool = False,
+) -> tuple[np.ndarray, np.ndarray, tuple[int, np.ndarray, np.ndarray]]:
     """Reduce int64 ``(tiles,7)`` plans into block-local scalar outputs.
 
     ``eigenvectors_t`` is ``(n,n)`` in inverse square-root mass units and
@@ -169,12 +215,20 @@ def _run_tiles_numpy(
     A ``(populations,n)`` occupation stack with ``(populations,)`` hbar
     factors returns ``(populations,block,2)``; each slice repeats the
     single-occupation arithmetic exactly.
+    With ``symmetric`` IFC3, an absorption pair with row mode above the
+    initial mode is also credited to the row mode, using the swapped
+    occupation difference. The third result ``(offset, partner, partner_counts)``
+    holds those ``(span,2)`` or ``(populations,span,2)`` values and int64
+    absorption counts for modes ``offset:offset+span``.
     """
     is_stack = np.ndim(population) == 2
     populations = population if is_stack else population[None]
     hbar_factors = np.reshape(hbar_factor, -1) if is_stack else (hbar_factor,)
     reduced = np.zeros((populations.shape[0], intermediate.shape[0], 2), dtype=np.float64)
     counts = np.zeros((intermediate.shape[0], 2), dtype=np.int64)
+    offset, span = _partner_span(tiles, symmetric)
+    partner = np.zeros((populations.shape[0], span, 2), dtype=np.float64)
+    partner_counts = np.zeros(span, dtype=np.int64)
     for slot, initial, channel, row_start, row_stop, column_start, column_stop in tiles:
         potential = eigenvectors_t[row_start:row_stop] @ intermediate[
             slot, :, column_start - column_offset:column_stop - column_offset
@@ -202,8 +256,25 @@ def _run_tiles_numpy(
                 population_delta = 0.5 * (1 + occupation[row_modes] + occupation[column_modes])
             reduced[index, slot, 0] += np.sum(phase * population_delta)
             reduced[index, slot, 1] += np.sum(((squared * factor) * phase) * population_delta)
+        if symmetric and channel:
+            above = row_modes > initial
+            targets = row_modes[above] - offset
+            for index, (occupation, factor) in enumerate(zip(populations, hbar_factors)):
+                partner_delta = occupation[initial] - occupation[column_modes[above]]
+                np.add.at(partner[index, :, 0], targets, phase[above] * partner_delta)
+                np.add.at(partner[index, :, 1], targets, ((squared[above] * factor) * phase[above]) * partner_delta)
+            np.add.at(partner_counts, targets, 1)
         counts[slot, channel] += row.size
-    return (reduced if is_stack else reduced[0]), counts
+    return (reduced if is_stack else reduced[0]), counts, (offset, partner if is_stack else partner[0], partner_counts)
+
+
+def _partner_span(tiles: np.ndarray, symmetric: bool) -> tuple[int, int]:
+    """Return the first mode and count spanned by absorption rows of int64 ``(tiles,7)``."""
+    absorption = tiles[tiles[:, 2] == 1] if symmetric else tiles[:0]
+    if not absorption.size:
+        return 0, 0
+    offset = int(absorption[:, 3].min())
+    return offset, int(absorption[:, 4].max()) - offset
 
 
 def _load_tile_reducer() -> Callable[..., tuple[np.ndarray, np.ndarray]]:
@@ -229,7 +300,10 @@ def _project(
     stack, e.g. several temperatures or statistics, with ``(populations,)``
     hbar factors shares the occupation-independent contractions and returns
     ``(populations,n,2)``; each slice equals the single-occupation result
-    bit for bit, and the channel counts do not depend on occupation. A worker count of
+    bit for bit, and the channel counts do not depend on occupation. IFC3
+    symmetric under exchange of its first two indices (``_is_ij_symmetric``)
+    evaluates each absorption pair once; results then differ from the full
+    evaluation by summation order only, and counts are unchanged. A worker count of
     None honors CPU affinity. BLAS thread limits are process-global contexts.
     Concurrent projections can therefore interfere with each other's limits.
     """
@@ -274,7 +348,14 @@ def _project(
     blocks = [mode_indices[start:start + mode_block] for start in range(0, mode_indices.size, mode_block)]
     angular_sigma = 2 * np.pi * sigma
     threshold = 2 * angular_sigma
-    tables = [_plan_tiles(block, omega, physical, threshold) for block in blocks]
+    with ThreadPoolExecutor(workers) as pool, threadpool_limits(1):
+        symmetric = _is_ij_symmetric(layout, pool)
+    _logging.info(
+        "Amorphous pair-first projection: IFC3 %s under i<->j exchange",
+        "is symmetric; absorption pairs are evaluated once" if symmetric else "is not symmetric",
+    )
+    # Every physical mode is an initial mode, so each partner credit has a recipient.
+    tables = [_plan_tiles(block, omega, physical, threshold, symmetric) for block in blocks]
     if not any(table.size for table in tables):
         return result()
     eigenvectors = np.ascontiguousarray(eigenvectors)
@@ -345,11 +426,16 @@ def _project(
                     """Reduce one ordered group of int64 ``(tiles,7)`` plans."""
                     return tile_reducer(
                         part, eigenvectors_t, intermediate, trim_start, omega, physical, population,
-                        hbar_factor, threshold, angular_sigma, scales,
+                        hbar_factor, threshold, angular_sigma, scales, symmetric,
                     )
 
-                for partial, partial_counts in pool.map(reduce_tiles, np.split(tiles, cuts)):
+                for partial, partial_counts, (offset, partner, partner_counts) in pool.map(
+                    reduce_tiles, np.split(tiles, cuts)
+                ):
                     reduced[:, block] += partial if is_stack else partial[None]
                     counts[block] += partial_counts
+                    span = slice(offset, offset + partner_counts.size)
+                    reduced[:, span] += partner if is_stack else partner[None]
+                    counts[span, 1] += partner_counts
             _logging.info("Amorphous pair-first projection: columns %d/%d", column_stop, n_modes)
     return result()

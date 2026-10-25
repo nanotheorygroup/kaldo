@@ -3,9 +3,10 @@
 Scalar amorphous calculations automatically reduce three-phonon phase space
 and anharmonic linewidths during projection. They avoid constructing and
 retaining a sparse tensor for every allowed triplet. The calculation uses
-float64 throughout, without permutation symmetry or additional IFC
-thresholding; changes in contraction and summation order permit roundoff
-differences from the previous projector.
+float64 throughout, without additional IFC thresholding. Exchange symmetry of
+the first two IFC3 indices is used only after it is verified (see below);
+changes in contraction and summation order permit roundoff differences from
+the previous projector.
 
 ## When the projection is selected
 
@@ -46,6 +47,30 @@ Phase space has inverse-angular-frequency units, or ps with dimensionless
 radians, and retains the package's occupation and Gaussian normalization.
 Classical values include the internal inverse-hbar population scaling and
 cannot be compared directly with quantum phase-space magnitudes.
+
+## Exchange symmetry of the first two IFC3 indices
+
+The Gamma-folded IFC3 of a force field with full permutation symmetry
+satisfies `Phi[i, j, k] == Phi[j, i, k]`, so the absorption amplitude
+`V(nu, r, c)` equals `V(r, nu, c)` and the two absorption processes
+`omega_nu + omega_r = omega_c` of modes `nu` and `r` share one Gaussian and
+one `|V|^2`. When the IFC3 has this symmetry, each such pair is evaluated
+once from the lower mode and also credited to the higher mode with the
+occupation difference `n_nu - n_c`; emission is evaluated in full. This
+halves the absorption tile reductions; the contractions that precede them
+are unchanged. Results then differ from the full evaluation by summation
+order only, and selected-pair counts are unchanged. On the 216-atom a-Si
+fixture with 26 stacked occupations and 32 workers, one projection took
+41.5 s instead of 48.1 s.
+
+There is no option for this. Before planning, the projector contracts the
+third index with two fixed random vectors `c` and requires the pair values
+`Psi[i, j] = sum_k Phi[i, j, k] c[k]` to be symmetric for every pair, to
+`1e-12` relative to `sum_k |Phi| |c|` over both index orders; a pair whose
+transpose is absent must vanish. An asymmetry in any pair, including one
+confined to a single entry, fails this check with probability one, and the
+projector then evaluates every absorption pair. The check costs two sparse
+products over the IFC3 and is logged with its outcome.
 
 ## Memory and CPU workers
 
@@ -236,4 +261,5 @@ neither tolerance is relaxed. Total conductivity diagonals in W/(m K) are
 
 The standalone 261 s/27.1 GiB prototype used permutation symmetry and float32
 IFC storage. Those numbers do not measure this float64 implementation, which
-retains its authoritative source and assumes no permutation symmetry.
+retains its authoritative source. The measurements in this section predate
+the verified exchange symmetry above and used the full evaluation.

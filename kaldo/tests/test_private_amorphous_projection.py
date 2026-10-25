@@ -1,5 +1,6 @@
 """Contracts for the private pair-first Gamma projection implementation."""
 
+from concurrent.futures import ThreadPoolExecutor
 import importlib
 from types import SimpleNamespace
 
@@ -162,11 +163,40 @@ def test_pair_layout_rejects_unsupported_source_without_mutation(case):
         third._gamma_pair_csr()
 
 
+def _is_ij_symmetric(layout) -> bool:
+    projection = importlib.import_module("kaldo.controllers._amorphous_projection")
+    with ThreadPoolExecutor(2) as pool:
+        return projection._is_ij_symmetric(layout, pool)
+
+
+@pytest.mark.parametrize("is_dense", [False, True])
+def test_pair_symmetry_check_detects_any_exchange_asymmetry(is_dense):
+    random = np.random.default_rng(608)
+    values = random.normal(size=(9,) * 3)
+    values[random.random(values.shape) < 0.7] = 0
+    values += values.transpose(1, 0, 2)
+    pair = np.argwhere(np.any(values != 0, axis=2) & ~np.eye(9, dtype=bool))[0]
+    perturbed = values.copy()
+    perturbed[pair[0], pair[1], np.flatnonzero(values[pair[0], pair[1]])[0]] *= 1 + 1e-9
+    missing = values.copy()
+    missing[pair[1], pair[0]] = 0
+
+    def check(tensor):
+        return _is_ij_symmetric(_third(tensor if is_dense else COO.from_numpy(tensor))._gamma_pair_csr())
+
+    assert check(values)
+    assert check(np.zeros_like(values))
+    assert not check(perturbed)
+    assert not check(missing)
+    assert not check(random.normal(size=(9,) * 3))
+
+
 @pytest.mark.parametrize("temperature", [50.0, 600.0])
 @pytest.mark.parametrize("is_classic", [False, True])
 @pytest.mark.parametrize("workers", [1, 2])
+@pytest.mark.parametrize("symmetric", [False, True])
 def test_pair_first_matches_dense_reference_with_tail_blocks(
-    monkeypatch, temperature, is_classic, workers, projection_backend,
+    monkeypatch, temperature, is_classic, workers, symmetric, projection_backend,
 ):
     projection = importlib.import_module("kaldo.controllers._amorphous_projection")
     for name, value in (("_COLUMN_BLOCK", 4), ("_MODE_BLOCK", 2), ("_ROW_BLOCK", 2), ("_STAGE1_COLUMNS", 3)):
@@ -174,6 +204,8 @@ def test_pair_first_matches_dense_reference_with_tail_blocks(
     random = np.random.default_rng(602)
     values = random.normal(size=(9,) * 3)
     values[random.random(values.shape) < 0.7] = 0
+    if symmetric:
+        values += values.transpose(1, 0, 2)
     phonons = _projection_input(values, bandwidth=0.19)
     phonons.frequency[0] = [0, 1, 1, 2, 3, 3, 4, 6, 7]
     phonons.physical_mode[0, [0, 4]] = False
@@ -190,8 +222,11 @@ def test_pair_first_matches_dense_reference_with_tail_blocks(
         [0 if phase is None else len(phase.values) for phase in channels[:2]] for channels in phases
     ])
 
+    layout = _third(COO.from_numpy(values))._gamma_pair_csr()
+    assert _is_ij_symmetric(layout) == symmetric
+
     actual, counts = projection._project(
-        _third(COO.from_numpy(values))._gamma_pair_csr(), phonons._rescaled_eigenvectors[0],
+        layout, phonons._rescaled_eigenvectors[0],
         2 * np.pi * phonons.frequency[0], phonons.physical_mode[0], phonons.third_bandwidth,
         population, hbar_factor, workers,
     )
@@ -199,6 +234,26 @@ def test_pair_first_matches_dense_reference_with_tail_blocks(
     np.testing.assert_array_equal(counts, expected_counts)
     np.testing.assert_allclose(actual[:, 0], expected[:, 0], rtol=1e-12, atol=1e-12)
     np.testing.assert_allclose(actual[:, 1], expected[:, 1], rtol=1e-12, atol=1e-13)
+
+
+@pytest.mark.parametrize("workers", [1, 3])
+def test_symmetric_pair_credits_match_full_evaluation(monkeypatch, workers, projection_backend):
+    projection = importlib.import_module("kaldo.controllers._amorphous_projection")
+    for name, value in (("_COLUMN_BLOCK", 4), ("_MODE_BLOCK", 3), ("_ROW_BLOCK", 2), ("_STAGE1_COLUMNS", 3)):
+        monkeypatch.setattr(projection, name, value)
+    arguments, populations, hbar_factors = _stack_input(symmetric=True)
+    planned = []
+    plan_tiles = projection._plan_tiles
+    monkeypatch.setattr(projection, "_plan_tiles", lambda *args: planned.append(args[-1]) or plan_tiles(*args))
+    symmetric, symmetric_counts = projection._project(*arguments, populations, hbar_factors, workers)
+    assert planned and all(planned)
+    monkeypatch.setattr(projection, "_is_ij_symmetric", lambda *args: False)
+    full, full_counts = projection._project(*arguments, populations, hbar_factors, workers)
+
+    assert not any(planned[len(planned) // 2:])
+    np.testing.assert_array_equal(symmetric_counts, full_counts)
+    np.testing.assert_allclose(symmetric[..., 0], full[..., 0], rtol=1e-12, atol=1e-12)
+    np.testing.assert_allclose(symmetric[..., 1], full[..., 1], rtol=1e-12, atol=1e-13)
 
 
 @pytest.mark.parametrize("case", ["zero_width", "no_physical", "no_pairs", "zero_ifc"])
@@ -385,11 +440,13 @@ def test_pair_first_rejects_invalid_worker_counts(workers):
         )
 
 
-def _stack_input() -> tuple:
+def _stack_input(symmetric: bool = False) -> tuple:
     """Return 9-mode inputs, ``(populations,n)`` occupations and hbar factors."""
     random = np.random.default_rng(607)
     values = random.normal(size=(9,) * 3)
     values[random.random(values.shape) < 0.7] = 0
+    if symmetric:
+        values += values.transpose(1, 0, 2)
     phonons = _projection_input(values, bandwidth=0.19)
     phonons.frequency[0] = [0, 1, 1, 2, 3, 3, 4, 6, 7]
     phonons.physical_mode[0, [0, 4]] = False
@@ -408,11 +465,14 @@ def _stack_input() -> tuple:
 
 
 @pytest.mark.parametrize("workers", [1, 2])
-def test_pair_first_population_stack_equals_separate_projections(monkeypatch, workers, projection_backend):
+@pytest.mark.parametrize("symmetric", [False, True])
+def test_pair_first_population_stack_equals_separate_projections(
+    monkeypatch, workers, symmetric, projection_backend,
+):
     projection = importlib.import_module("kaldo.controllers._amorphous_projection")
     for name, value in (("_COLUMN_BLOCK", 4), ("_MODE_BLOCK", 2), ("_ROW_BLOCK", 2), ("_STAGE1_COLUMNS", 3)):
         monkeypatch.setattr(projection, name, value)
-    arguments, populations, hbar_factors = _stack_input()
+    arguments, populations, hbar_factors = _stack_input(symmetric)
     separate = [
         projection._project(*arguments, population, hbar_factor, workers)
         for population, hbar_factor in zip(populations, hbar_factors)

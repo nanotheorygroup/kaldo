@@ -75,8 +75,9 @@ def _gemm_into(
 def _reduce_tiles(
     tiles: np.ndarray, eigenvectors_t: np.ndarray, intermediate: np.ndarray, column_offset: int,
     omega: np.ndarray, physical: np.ndarray, populations: np.ndarray, hbar_factors: np.ndarray,
-    threshold: float, sigma: float, scales: np.ndarray, potential_buffer: np.ndarray,
-    reduced: np.ndarray, counts: np.ndarray,
+    threshold: float, sigma: float, scales: np.ndarray, symmetric: bool, partner_offset: int,
+    potential_buffer: np.ndarray, reduced: np.ndarray, counts: np.ndarray,
+    partner: np.ndarray, partner_counts: np.ndarray,
 ) -> None:
     """Fuse operands with the shapes and units checked by ``_run_tiles``.
 
@@ -84,7 +85,10 @@ def _reduce_tiles(
     contractions. Dimensionless ``populations(populations,n)`` pair with
     ``hbar_factors(populations,)``; ``reduced(populations,block,2)`` and
     ``counts(block,2)`` are owned outputs. Each occupation keeps the
-    sequential per-tile sums of the single-occupation reduction.
+    sequential per-tile sums of the single-occupation reduction. With
+    ``symmetric`` IFC3, absorption pairs whose row mode exceeds the initial
+    mode are also credited to ``partner(populations,span,2)`` and
+    ``partner_counts(span,)`` at row ``mode - partner_offset``.
     """
     transpose = np.array([ord("N")], dtype=np.uint8)
     dimensions = np.empty(6, dtype=np.int32)
@@ -119,6 +123,7 @@ def _reduce_tiles(
                     squared = potential[row, column] ** 2
                     squared /= omega[row_mode] * omega[column_mode]
                     squared *= scales[initial]
+                    is_partner = symmetric and channel == 1 and row_mode > initial
                     for index in range(n_populations):
                         row_population = populations[index, row_mode]
                         column_population = populations[index, column_mode]
@@ -126,8 +131,15 @@ def _reduce_tiles(
                             population_delta = row_population - column_population
                         else:
                             population_delta = 0.5 * (1 + row_population + column_population)
+                        weight = (squared * hbar_factors[index]) * phase
                         phase_sums[index] += phase * population_delta
-                        gamma_sums[index] += ((squared * hbar_factors[index]) * phase) * population_delta
+                        gamma_sums[index] += weight * population_delta
+                        if is_partner:
+                            partner_delta = populations[index, initial] - column_population
+                            partner[index, row_mode - partner_offset, 0] += phase * partner_delta
+                            partner[index, row_mode - partner_offset, 1] += weight * partner_delta
+                    if is_partner:
+                        partner_counts[row_mode - partner_offset] += 1
                     selected += 1
         for index in range(n_populations):
             reduced[index, slot, 0] += phase_sums[index]
@@ -138,8 +150,8 @@ def _reduce_tiles(
 def _run_tiles(
     tiles: np.ndarray, eigenvectors_t: np.ndarray, intermediate: np.ndarray, column_offset: int,
     omega: np.ndarray, physical: np.ndarray, population: np.ndarray, hbar_factor: float,
-    threshold: float, sigma: float, scales: np.ndarray,
-) -> tuple[np.ndarray, np.ndarray]:
+    threshold: float, sigma: float, scales: np.ndarray, symmetric: bool = False,
+) -> tuple[np.ndarray, np.ndarray, tuple[int, np.ndarray, np.ndarray]]:
     """Check one job before fused native projection, with no shared writes.
 
     Int64 ``tiles(tiles,7)`` hold slot, mode, channel, row and column bounds.
@@ -152,6 +164,9 @@ def _run_tiles(
     Return ``(block,2)`` phase-space/THz and int64 channel counts. A
     contiguous ``(populations,n)`` occupation stack with finite float64
     ``hbar_factor(populations,)`` returns ``(populations,block,2)``.
+    Boolean ``symmetric`` asserts i<->j-symmetric IFC3; the third result
+    ``(offset, partner, partner_counts)`` then credits absorption pairs to
+    their row modes, as in ``_run_tiles_numpy``.
     """
     _validate_matrix(eigenvectors_t, "eigenvectors_t")
     n_modes = eigenvectors_t.shape[0]
@@ -198,6 +213,8 @@ def _run_tiles(
         raise ValueError("tile table contains invalid slots, modes, channels or bounds")
     if not np.isfinite(sigma) or sigma <= 0 or not np.isfinite(threshold) or threshold < 0:
         raise ValueError("native Gaussian sigma must be positive and threshold nonnegative")
+    if not isinstance(symmetric, (bool, np.bool_)):
+        raise TypeError("symmetric must be a boolean")
     is_stack = isinstance(population, np.ndarray) and population.ndim == 2
     if (
         not isinstance(population, np.ndarray) or population.shape[-1:] != (n_modes,)
@@ -217,11 +234,16 @@ def _run_tiles(
         populations, hbar_factors = population[None], np.array([hbar_factor], dtype=np.float64)
     reduced = np.zeros((populations.shape[0], intermediate.shape[0], 2), dtype=np.float64)
     counts = np.zeros((intermediate.shape[0], 2), dtype=np.int64)
+    absorption = tiles[tiles[:, 2] == 1] if symmetric else tiles[:0]
+    offset = int(absorption[:, 3].min()) if absorption.size else 0
+    span = int(absorption[:, 4].max()) - offset if absorption.size else 0
+    partner = np.zeros((populations.shape[0], span, 2), dtype=np.float64)
+    partner_counts = np.zeros(span, dtype=np.int64)
     if tiles.size and threshold != 0:
         area = int(np.max((tiles[:, 4] - tiles[:, 3]) * (tiles[:, 6] - tiles[:, 5])))
         _reduce_tiles(
             np.ascontiguousarray(tiles), eigenvectors_t, intermediate, column_offset, omega, physical,
-            populations, hbar_factors, threshold, sigma, scales, np.empty(area, dtype=np.float64),
-            reduced, counts,
+            populations, hbar_factors, threshold, sigma, scales, bool(symmetric), offset,
+            np.empty(area, dtype=np.float64), reduced, counts, partner, partner_counts,
         )
-    return (reduced if is_stack else reduced[0]), counts
+    return (reduced if is_stack else reduced[0]), counts, (offset, partner if is_stack else partner[0], partner_counts)
