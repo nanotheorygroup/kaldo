@@ -71,10 +71,17 @@ class QGrid:
 
     shape: tuple[int, int, int]
     order: str = "C"
+    shift: tuple[float, float, float] = (0.0, 0.0, 0.0)
     addresses: NDArray[np.int64] = field(init=False, repr=False)
 
     def __post_init__(self):
         """Validate the mesh and materialize its deterministic addresses."""
+        supplied_shift = np.asarray(self.shift, dtype=np.float64)
+        if supplied_shift.shape != (3,) or not np.all(
+            (supplied_shift == 0.0) | (supplied_shift == 0.5)
+        ):
+            raise ValueError("shift must contain three values, each 0.0 or 0.5")
+        object.__setattr__(self, "shift", tuple(float(x) for x in supplied_shift))
         supplied_shape = np.asarray(self.shape)
         if supplied_shape.shape != (3,) or not np.allclose(
             supplied_shape, np.rint(supplied_shape), rtol=0, atol=1e-12
@@ -98,9 +105,19 @@ class QGrid:
         return len(self.addresses)
 
     @property
+    def is_shifted(self):
+        """Whether the mesh is offset by half a step along any axis."""
+        return any(self.shift)
+
+    @property
+    def _twice_shift(self):
+        """Exact integer twice-shift, used for address arithmetic."""
+        return np.rint(2 * np.asarray(self.shift)).astype(np.int64)
+
+    @property
     def fractional_points(self):
         """Reduced reciprocal coordinates in the declared storage order."""
-        points = self.addresses / np.asarray(self.shape)
+        points = (self.addresses + np.asarray(self.shift, dtype=np.float64)) / np.asarray(self.shape)
         points.setflags(write=False)
         return points
 
@@ -110,8 +127,12 @@ class QGrid:
         return int(np.ravel_multi_index(tuple(address), self.shape, order=self.order))
 
     def partner_id(self, point_id):
-        """Return the id of the exact time-reversed mesh point, ``-q``."""
-        return self.address_to_id(-self.addresses[int(point_id)])
+        """Return the id of the exact time-reversed mesh point, ``-q``.
+
+        On a shifted mesh ``-(a + s) = (-a - 2s) - (-s)``, so the address is
+        ``-a - 2s`` modulo the shape.
+        """
+        return self.address_to_id(-self.addresses[int(point_id)] - self._twice_shift)
 
     def momentum_partner_ids(self, point_id, is_plus):
         """Return all third-phonon partner ids using exact mesh arithmetic.
@@ -119,12 +140,36 @@ class QGrid:
         For every mesh address ``q'``, the returned address is ``q+q'`` when
         ``is_plus=True`` and ``q-q'`` otherwise.  This preserves
         the momentum convention used by :class:`kaldo.phonons.Phonons` without
-        a floating-point fractional-coordinate round trip.
+        a floating-point fractional-coordinate round trip.  A shifted mesh is
+        not closed under addition; use :meth:`shifted_partner_ids` instead.
         """
+        if self.is_shifted:
+            raise ValueError(
+                "a shifted grid is not closed under q+-q'; use shifted_partner_ids"
+            )
         sign = 1 if is_plus else -1
         target = self.addresses[int(point_id)] + sign * self.addresses
         target = np.mod(target, np.asarray(self.shape, dtype=np.int64))
         return np.ravel_multi_index(target.T, self.shape, order=self.order)
+
+    def partner_grid(self):
+        """Return the unshifted mesh holding ``q+q'`` and ``q-q'`` sums."""
+        return QGrid(self.shape, order=self.order)
+
+    def shifted_partner_ids(self, point_id, is_plus):
+        """Return ids on :meth:`partner_grid` of ``q+q'`` or ``q-q'``.
+
+        For shifted ``q=(a+s)/n`` and ``q'=(b+s)/n`` the sum has address
+        ``a+b+2s`` and the difference ``a-b`` on the unshifted mesh, for every
+        ``q'`` of this mesh.
+        """
+        a = self.addresses[int(point_id)]
+        if is_plus:
+            target = a + self.addresses + self._twice_shift
+        else:
+            target = a - self.addresses
+        target = np.mod(target, np.asarray(self.shape, dtype=np.int64))
+        return np.ravel_multi_index(target.T, self.shape, order=self.order).astype(np.int64)
 
 
 @dataclass(frozen=True)
