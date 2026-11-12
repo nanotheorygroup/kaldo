@@ -80,7 +80,8 @@ def test_partner_grid_is_real_and_gamma_acoustic_masked(shifted_phonons):
     assert partner.eigenvectors.dtype == np.float64
     assert partner.eigenvectors.shape == (8, shifted_phonons.n_modes, shifted_phonons.n_modes)
     assert not partner.physical[0, :3].any()
-    assert harmonics.physical.all(axis=None) or harmonics.physical.shape == (8, shifted_phonons.n_modes)
+    # No shifted point is Gamma, so only the default min_frequency=0 window can mask modes.
+    np.testing.assert_array_equal(harmonics.physical, harmonics.frequency >= 0.)
 
 
 def test_representatives_and_time_reversal_partners(shifted_phonons):
@@ -114,3 +115,12 @@ def test_frequency_window_masks_physical_modes(amorphous_fc):
     cut = float(np.median(wide.frequency))
     narrow = compute_shifted_harmonics(amorphous_fc.second, grid, "auto", cut, None, 1)
     np.testing.assert_array_equal(narrow.physical, wide.physical & (wide.frequency >= cut))
+
+
+def test_shifted_harmonics_reject_active_nac(amorphous_fc, tmp_path, monkeypatch):
+    # The a-Si fixture has no polar data, so explicit is_nac=True is rejected upstream; force the resolution instead.
+    monkeypatch.setattr("kaldo.phonons._resolve_nac_activation", lambda atoms, requested: True)
+    phonons = Phonons(forceconstants=amorphous_fc, kpts=(2, 2, 2), kpts_shift=SHIFT, temperature=300,
+                      storage="memory", folder=str(tmp_path))
+    with pytest.raises(NotImplementedError, match="NAC"):
+        phonons.frequency

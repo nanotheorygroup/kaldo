@@ -16,6 +16,7 @@ from kaldo.grid import QGrid
 from kaldo.observables.harmonic_with_q import (
     HarmonicWithQ,
     resolve_ifc_interpolation,
+    _resolve_nac_activation,
 )
 from kaldo.observables.harmonic_with_q_temp import HarmonicWithQTemp, CLASSICAL_HBAR_SCALE
 from kaldo.forceconstants import ForceConstants
@@ -828,6 +829,8 @@ class Phonons(Storable):
             if self.forceconstants.distance_threshold is not None:
                 raise NotImplementedError(
                     "harmonic properties on a shifted q-grid do not support forceconstants.distance_threshold")
+            if _resolve_nac_activation(self.forceconstants.second.atoms, self.is_nac):
+                raise NotImplementedError("harmonic properties on a shifted q-grid do not support NAC (is_nac)")
             self._shifted_harmonics_cache = _shifted_harmonics.compute_shifted_harmonics(
                 self.forceconstants.second, self._reciprocal_grid, self.ifc_interpolation, self.min_frequency,
                 self.max_frequency, self.n_workers, is_nw=self.is_nw)
@@ -1097,7 +1100,8 @@ class Phonons(Storable):
         """
         if self._is_shifted_grid:
             shifted = self._shifted_harmonics
-            return np.concatenate([shifted.eigenvalues[:, np.newaxis, :].astype(complex), shifted.eigenvectors], axis=1)
+            eigenvalues = shifted.eigenvalues[:, np.newaxis, :].astype(np.complex128)
+            return np.concatenate([eigenvalues, shifted.eigenvectors], axis=1)
         type = complex if (not self._is_amorphous) else float
         q_points = self._reciprocal_grid.fractional_points
         shape = (self.n_k_points, self.n_modes + 1, self.n_modes)
