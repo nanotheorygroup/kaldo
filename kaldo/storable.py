@@ -202,6 +202,9 @@ class Storable:
         if hasattr(self, 'kpts') and np.prod(self.kpts) > 1:
             kpts = self.kpts
             base_folder += '/' + str(kpts[0]) + '_' + str(kpts[1]) + '_' + str(kpts[2])
+            shift = getattr(self, 'kpts_shift', None)
+            if shift is not None and np.any(np.abs(shift) > 1e-12):
+                base_folder += '_shift_' + '_'.join(format(float(x), 'g') for x in shift)
         # Otherwise check if it's a single q-point system
         elif hasattr(self, 'q_point'):
             q_point = self.q_point

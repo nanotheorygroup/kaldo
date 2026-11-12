@@ -148,6 +148,7 @@ class Conductivity(Storable):
         # initalize info from phonons object
         self.folder = self.phonons.folder
         self.kpts = self.phonons.kpts
+        self.kpts_shift = self.phonons.kpts_shift
         self.n_k_points = self.phonons.n_k_points
         self.n_modes = self.phonons.n_modes
         self.n_phonons = self.phonons.n_phonons
@@ -242,6 +243,9 @@ class Conductivity(Storable):
             (n_k_points, n_modes, 3, 3) float
         """
         method = self.method
+        if method != 'rta' and self.phonons._is_shifted_grid:
+            raise ValueError("method=%r needs a q-grid closed under q +- q'; shifted grids "
+                             "support only method='rta'" % (method,))
         match method:
             case 'qhgk':
                 cond, diff = self.calculate_conductivity_and_diffusivity_qhgk()

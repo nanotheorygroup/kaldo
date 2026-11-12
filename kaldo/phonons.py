@@ -523,6 +523,16 @@ class Phonons(Storable):
         Reduced reciprocal direction used to evaluate the non-analytic term
         exactly at Gamma, where it depends on the approach direction.
         Default: (1, 0, 0)
+    kpts_shift : tuple of 3 floats, optional
+        Monkhorst-Pack shift of the q-grid in units of the grid spacing; each
+        component must be 0 or 0.5. The default (0, 0, 0) leaves the grid
+        unchanged. A shifted grid is not closed under q +- q', so only
+        ``Conductivity(method='rta')`` is supported on it. Anharmonic
+        properties are available only for ``kpts=(2, 2, 2)``,
+        ``kpts_shift=(0.5, 0.5, 0.5)`` on a single-cell (non-supercell)
+        amorphous system with Gaussian broadening, fixed ``third_bandwidth``,
+        ``is_balanced=False``, no isotopes, no q-symmetry and no NAC.
+        Default: (0, 0, 0)
     use_q_symmetry : bool, optional
         Reduce the per-k-point projection cost by computing only the
         irreducible Brillouin zone (IBZ) representatives via spglib and
@@ -578,6 +588,7 @@ class Phonons(Storable):
                  *,
                  is_classic: bool = False,
                  kpts: tuple[int, int, int] = (1, 1, 1),
+                 kpts_shift: tuple[float, float, float] = (0, 0, 0),
                  min_frequency: float = 0.,
                  max_frequency: float | None = None,
                  third_bandwidth: float | None = None,
@@ -614,7 +625,20 @@ class Phonons(Storable):
         self.folder = folder
         self.kpts = np.array(kpts)
         self._grid_type = grid_type
-        self._reciprocal_grid = QGrid(tuple(self.kpts), order=self._grid_type)
+        shift = np.asarray(kpts_shift, dtype=np.float64)
+        if shift.shape != (3,) or not np.all(
+                (np.abs(shift) < 1e-12) | (np.abs(shift - 0.5) < 1e-12)):
+            raise ValueError(f"kpts_shift must be three values, each 0 or 0.5, got {kpts_shift!r}")
+        self.kpts_shift = np.where(np.abs(shift) < 1e-12, 0.0, 0.5).astype(np.float64)
+        if self._is_shifted_grid:
+            for name, enabled in (("is_unfolding", is_unfolding),
+                                  ("is_symmetrizing_frequency", is_symmetrizing_frequency),
+                                  ("is_antisymmetrizing_velocity", is_antisymmetrizing_velocity)):
+                if enabled:
+                    raise NotImplementedError(f"{name} is not supported with a shifted q-grid (kpts_shift)")
+            logging.warning("kpts_shift=%s samples q-points that are not closed under q +- q'; "
+                            "only Conductivity(method='rta') is supported on this grid.", tuple(kpts_shift))
+        self._reciprocal_grid = QGrid(tuple(self.kpts), order=self._grid_type, shift=tuple(self.kpts_shift))
         # _ifc_interpolation is an internal diagnostic override used by the
         # test suite; the public control is the boolean above.
         if _ifc_interpolation is None:
@@ -790,6 +814,37 @@ class Phonons(Storable):
             + "_"
             + "_".join(digest[:16] for digest in digests)
         )
+
+    @property
+    def _is_shifted_grid(self):
+        """True when the q-grid carries a nonzero Monkhorst-Pack shift."""
+        return bool(np.any(np.abs(self.kpts_shift) > 1e-12))
+
+    def _check_shifted_anharmonic_support(self):
+        """Raise NotImplementedError naming the first option unsupported on the shifted anharmonic path."""
+        def reject(option):
+            raise NotImplementedError(
+                f"anharmonic properties on a shifted q-grid do not support {option}")
+
+        if (tuple(int(k) for k in self.kpts) != (2, 2, 2)
+                or not np.allclose(self.kpts_shift, 0.5, rtol=0., atol=1e-12)):
+            reject("anything but kpts=(2, 2, 2) with kpts_shift=(0.5, 0.5, 0.5)")
+        if self.forceconstants.supercell_grid.size != 1:
+            reject("a force-constant supercell larger than one cell (supercell)")
+        if self.forceconstants.third.translation_support.size != 1:
+            reject("third-order force constants with translation support beyond one cell (supercell)")
+        if self.broadening_shape != 'gauss':
+            reject("broadening_shape other than 'gauss'")
+        if self.third_bandwidth is None:
+            reject("third_bandwidth=None (a fixed third_bandwidth is required)")
+        if self.is_balanced:
+            reject("is_balanced=True")
+        if self.include_isotopes:
+            reject("include_isotopes=True")
+        if self._use_q_symmetry:
+            reject("use_q_symmetry=True")
+        if self.is_nac:
+            reject("NAC (is_nac)")
 
     def _get_folder_path_components(self, label):
         """Get folder path components for Phonons-specific attributes."""
