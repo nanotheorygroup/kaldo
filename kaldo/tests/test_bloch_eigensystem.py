@@ -112,6 +112,17 @@ def test_eigenvectors_span_reference(forceconstants, plan):
     np.testing.assert_allclose(overlap[isolated], 1.0, rtol=0, atol=1e-8)
 
 
+@pytest.mark.parametrize("q", [(0.5, 0.5, 0.0), (0.5, 0.0, 0.5)])
+def test_trim_eigenvectors_span_reference(forceconstants, plan, q):
+    eigenvalues, eigenvectors = _solve(plan, q)
+    assert eigenvectors.dtype == np.float64
+    reference = np.asarray(_reference(forceconstants, q)._eigensystem)[1:]
+    overlap = np.abs(np.einsum("im,im->m", reference.conj(), eigenvectors))
+    isolated = _nondegenerate(eigenvalues)
+    assert isolated.sum() > 0.9 * eigenvalues.size
+    np.testing.assert_allclose(overlap[isolated], 1.0, rtol=0, atol=1e-8)
+
+
 def test_velocity_matches_reference(forceconstants, plan):
     eigenvalues, eigenvectors = _solve(plan, _GENERIC_Q)
     frequency = _bloch_eigensystem.frequency_from_eigenvalues(eigenvalues)

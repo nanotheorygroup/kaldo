@@ -105,9 +105,13 @@ class _HarmonicIFCInterpolation:
     @classmethod
     def build(cls, second, requested_mode):
         """Resolve provenance, fold only on request, and prepare pair images."""
+        return cls._from_values(second, np.asarray(second.dynmat)[0], requested_mode)
+
+    @classmethod
+    def _from_values(cls, second, values, requested_mode):
+        """Build the plan from mass-weighted ``values(i, alpha, translation, j, beta)`` in (rad/ps)^2."""
         support = second.translation_support
         resolved = resolve_ifc_interpolation(second, requested_mode)
-        values = np.asarray(second.dynmat)[0]
         if values.shape[2] != support.size:
             raise ValueError(
                 "second-order IFC translation axis does not match its "

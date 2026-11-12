@@ -23,9 +23,8 @@ from scipy.linalg import lapack
 from threadpoolctl import threadpool_limits
 
 from kaldo.controllers._amorphous_eigensystem import _MKL, _diagonalize, _resolve_workers
-from kaldo.grid import TranslationSupport, WignerSeitzImages
 from kaldo.helpers.logger import get_logger
-from kaldo.observables.harmonic_with_q import _HarmonicIFCInterpolation, resolve_ifc_interpolation
+from kaldo.observables.harmonic_with_q import _HarmonicIFCInterpolation
 from kaldo.observables.harmonic_with_q_temp import CLASSICAL_HBAR_SCALE
 
 _logging = get_logger()
@@ -42,13 +41,10 @@ _LAYOUT_KEY = "_bloch_row_layout"
 def harmonic_plan(second, requested_mode: str) -> _HarmonicIFCInterpolation:
     """Build the ordinary-IFC Fourier plan without reading ``second.dynmat``.
 
-    Mirrors ``_HarmonicIFCInterpolation.build`` (periodic folding, Wigner--Seitz
-    images and the pair-displacement rule) with the mass weighting of
-    ``SecondOrder.calculate_dynmat`` evaluated in NumPy: ``value / sqrt(m_i) /
-    sqrt(m_j) * units.mol / (10 * units.J)`` in (rad/ps)^2.
+    The mass weighting of ``SecondOrder.calculate_dynmat`` is evaluated in NumPy, ``value / sqrt(m_i) / sqrt(m_j)
+    * units.mol / (10 * units.J)`` in (rad/ps)^2, and handed to the folding and image logic shared with
+    ``_HarmonicIFCInterpolation.build``.
     """
-    support = second.translation_support
-    resolved = resolve_ifc_interpolation(second, requested_mode)
     value = second.value
     if hasattr(value, "todense"):
         value = value.todense()
@@ -57,40 +53,7 @@ def harmonic_plan(second, requested_mode: str) -> _HarmonicIFCInterpolation:
     values = value / sqrt_mass[:, np.newaxis, np.newaxis, np.newaxis, np.newaxis]
     values /= sqrt_mass[np.newaxis, np.newaxis, np.newaxis, :, np.newaxis]
     values *= _EV_TO_TENJOVERMOL
-    if values.shape[2] != support.size:
-        raise ValueError(
-            "second-order IFC translation axis does not match its "
-            f"TranslationSupport: {values.shape[2]} != {support.size}"
-        )
-
-    class_ids = np.asarray(support.class_ids)
-    identity_folding = support.size == support.supercell.size and np.array_equal(class_ids, np.arange(support.size))
-    if resolved in ("periodic", "wigner-seitz") and not identity_folding:
-        folded = np.zeros(
-            (values.shape[0], values.shape[1], support.supercell.size, values.shape[3], values.shape[4]),
-            dtype=np.float64,
-        )
-        for source_id, class_id in enumerate(support.class_ids):
-            folded[:, :, class_id, :, :] += values[:, :, source_id, :, :]
-        if support.provenance == "file" and support.size != support.supercell.size:
-            _logging.warning(
-                "ifc_interpolation=%r folds %d file-provided translations into %d periodic classes by explicit "
-                "user request.", requested_mode, support.size, support.supercell.size,
-            )
-        values = folded
-    if resolved in ("periodic", "wigner-seitz"):
-        # An identity folding is a copy in ``build``; skipping it saves one IFC-sized array (0.0 + x == x).
-        support = TranslationSupport.periodic(support.supercell, order=support.supercell.order)
-
-    positions = np.array(second.atoms.positions, dtype=np.float64, copy=True)
-    cell = np.array(second.atoms.cell, dtype=np.float64, copy=True)
-    images = (
-        WignerSeitzImages.build(support, positions, cell, pbc=second.atoms.pbc) if resolved == "wigner-seitz" else None
-    )
-    include_pair_displacement = not (
-        resolved == "periodic" and getattr(second, "ifc_interpolation_hint", None) == "periodic"
-    )
-    return _HarmonicIFCInterpolation(values, support, positions, cell, resolved, images, include_pair_displacement)
+    return _HarmonicIFCInterpolation._from_values(second, values, requested_mode)
 
 
 class _RowLayout:
