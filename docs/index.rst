@@ -41,6 +41,7 @@ Read the κALDo 2.0 paper in `Computer Physics Communications <https://doi.org/1
    docsource/non_analytic_corrections.md
    docsource/amorphous_third_order.md
    docsource/amorphous_eigensystem.md
+   docsource/shifted_grid_rta.md
 
 
 .. toctree::

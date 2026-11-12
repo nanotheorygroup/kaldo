@@ -23,6 +23,7 @@ from kaldo.forceconstants import ForceConstants
 import kaldo.controllers.anharmonic as aha
 from kaldo.controllers import _amorphous_projection
 from kaldo.controllers import _bloch_eigensystem, _shifted_harmonics
+from kaldo.controllers._shifted_projection import project_shifted
 import tensorflow as tf
 import kaldo.controllers.isotopic as isotopic
 from concurrent.futures import as_completed
@@ -1473,7 +1474,7 @@ class Phonons(Storable):
     def _ps_and_gamma(self):
         store_format = self._store_formats.get('_ps_gamma_and_gamma_tensor', 'numpy') \
             if self.storage == 'formatted' else self.storage
-        if is_calculated('_ps_gamma_and_gamma_tensor', self, '<temperature>/<statistics>/<third_bandwidth>/<broadening_shape>/<broadening_kernel>/<is_balanced>/<use_q_symmetry>', \
+        if not self._is_shifted_grid and is_calculated('_ps_gamma_and_gamma_tensor', self, '<temperature>/<statistics>/<third_bandwidth>/<broadening_shape>/<broadening_kernel>/<is_balanced>/<use_q_symmetry>', \
                          format=store_format):
             ps_and_gamma = self._ps_gamma_and_gamma_tensor[:, :2]
         else:
@@ -1861,6 +1862,18 @@ class Phonons(Storable):
         # population carries (see harmonic_with_q_temp.CLASSICAL_HBAR_SCALE)
         # by scaling the potential with the matching factor.
         hbar_factor = CLASSICAL_HBAR_SCALE if self.is_classic else 1
+
+        if self._is_shifted_grid:
+            self._check_shifted_anharmonic_support()
+            if is_gamma_tensor_enabled:
+                raise ValueError("a shifted q-grid is not closed under q +- q'; no collision matrix is available")
+            partner = self._shifted_harmonics.partner()
+            partner_population = _bloch_eigensystem.population(
+                partner.frequency, partner.physical, self.temperature, self.is_classic)
+            return project_shifted(
+                self.forceconstants.third, self._shifted_harmonics, self._reciprocal_grid, self.ifc_interpolation,
+                self.third_bandwidth, population_flat.reshape(8, self.n_modes).astype(np.float64),
+                partner_population, hbar_factor, self.n_workers)
 
         if (
             self._is_amorphous and not is_gamma_tensor_enabled
