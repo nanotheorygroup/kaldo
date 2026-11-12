@@ -8,11 +8,12 @@ eigenvectors and the Wigner-Seitz ``q''`` leg are real. For a single-cell source
     A[nu,nu',nu''] = sum_{i,j,k} PhiG[i,j,k] alpha_ij(q') beta_ik(q'') e_i(q nu) e_j(q' nu') e_k(q'' nu'')
 
 with mass-rescaled eigenvectors, in three stages: a real sparse contraction ``C[(i,j),nu''] = sum_k PhiG beta e``
-shared by the passes of one ``q''``; ``I[nu,j,nu''] = sum_i e_i(q nu) alpha_ij(q') C`` in real and imaginary planes;
-and energy-window tiles ``A = e(q')^T I``. Both channels use the same tiles: kALDo's decay at ``-q'`` (conjugated
-``e`` and phases, ``q'' = q - (-q')``) equals this absorption-form amplitude, with equal frequency and occupation
-at ``+-q'``, so summing over all ``q'`` counts each absorption and each decay exactly once. Only time-reversal
-representatives of ``q`` are projected; ``Gamma(-q) = Gamma(q)`` fills the others.
+shared by the passes of one ``q''``; ``I[nu,j,nu''] = sum_i e_i(q nu) alpha_ij(q') C`` in real, imaginary and
+summed planes; and energy-window tiles ``A = e(q')^T I`` (three real GEMMs per tile, Gauss). Both channels use the
+same tiles: kALDo's decay at ``-q'`` (conjugated ``e`` and phases, ``q'' = q - (-q')``) equals this absorption-form
+amplitude, with equal frequency and occupation at ``+-q'``, so summing over all ``q'`` counts each absorption and
+each decay exactly once. Only time-reversal representatives of ``q`` are projected; ``Gamma(-q) = Gamma(q)`` fills
+the others.
 """
 
 from concurrent.futures import ThreadPoolExecutor
@@ -25,7 +26,7 @@ import numpy as np
 from psutil import virtual_memory
 from threadpoolctl import threadpool_limits
 
-from kaldo.controllers._shifted_kernels import leg_tables, plan_tiles, reduce_tiles_split, stage1
+from kaldo.controllers._shifted_kernels import leg_tables, plan_tiles, reduce_tiles_split, stage1, stage2, stage2_plan
 from kaldo.controllers.anharmonic import GAMMA_TO_THZ
 from kaldo.helpers.logger import get_logger
 
@@ -36,7 +37,8 @@ _DELTA_THRESHOLD = 2  # Gaussian cutoff in widths, as kALDo's crystal delta
 _WORKSPACE_FRACTION = 0.25
 _WORKSPACE_MULTIPLIER = 8
 _MIN_WORKSPACE_BYTES = 128 * 1024 ** 2
-_GATHER_ARRAYS = 6  # stage-2 per-worker (pair rows, block) float64 temporaries
+_WEIGHT_ARRAYS = 2  # stage-2 per-worker (pair rows, block) float64 weights
+_PLANES = 3  # stage-2 re, im and re + im planes (Gauss three-multiplication tiles)
 
 
 def project_shifted(
@@ -131,7 +133,8 @@ def project_shifted(
     _logging.info("Shifted projection started: %d passes over %d partner points, workers=%d",
                   len(passes), n_partner, workers)
     layout = third._gamma_pair_csr()
-    pair_atom_i = (layout.pair_i // 3).astype(np.int32)
+    pair_plan = stage2_plan(layout.j_ptr, layout.pair_i, len(third.atoms))
+    pair_atom_i = pair_plan.pair_atom_i
     alpha, beta = leg_tables(third, layout, np.asarray(grid.fractional_points, dtype=np.float64), partner_points,
                              mode)
     with ThreadPoolExecutor(workers) as pool:
@@ -145,14 +148,14 @@ def project_shifted(
     if not max_row_span:
         return _finish(reduced, grid, representatives, all_initial, is_stack)
 
+    fixed_bytes = alpha.nbytes + beta.nbytes + sum(table.nbytes for table in tables) + pair_plan.pair_i.nbytes
     width, block = _block_sizes(
-        layout, n_modes, workers, max_row_span, max(1, int(np.max(np.diff(layout.j_ptr)))), populations.shape[0],
-        harmonics.eigenvectors.nbytes + partner.eigenvectors.nbytes,
+        layout, n_modes, workers, max_row_span, max(1, pair_plan.max_rows), populations.shape[0],
+        harmonics.eigenvectors.nbytes + partner.eigenvectors.nbytes, fixed_bytes,
     )
     _logging.info("Shifted projection: columns=%d, modes=%d", width, block)
     contracted_buffer = np.empty(layout.pair_i.size * width, dtype=np.float64)
-    planes = [np.empty(block * n_modes * width, dtype=np.float64) for _ in range(2)]
-    edges = np.linspace(0, n_modes, min(n_modes, workers * 4) + 1, dtype=int)
+    planes = [np.empty(block * n_modes * width, dtype=np.float64) for _ in range(_PLANES)]
     timings = dict(stage1=0., stage2=0., stage3=0.)
     selected_pairs = 0
 
@@ -180,6 +183,7 @@ def project_shifted(
                     rows = (harmonics.eigenvectors[q_prime] * inverse_sqrt_mass).T
                     rows_re, rows_im = np.ascontiguousarray(rows.real), np.ascontiguousarray(rows.imag)
                     del rows
+                    rows_sum = rows_re + rows_im
                     pop_rows = np.ascontiguousarray(populations[:, q_prime])
                     pop_cols = np.ascontiguousarray(partner_populations[:, b])
                     modes_q = initial_modes[q]
@@ -191,34 +195,44 @@ def project_shifted(
                         tiles[:, 0] -= slot_start
                         block_modes = modes_q[slot_start:slot_start + block]
                         trim_start, trim_stop = int(tiles[:, 5].min()), int(tiles[:, 6].max())
-                        inter_re, inter_im = (plane[:block_modes.size * n_modes * (trim_stop - trim_start)].reshape(
-                            block_modes.size, n_modes, trim_stop - trim_start) for plane in planes)
+                        inter_re, inter_im, inter_sum = (
+                            plane[:block_modes.size * n_modes * (trim_stop - trim_start)].reshape(
+                                block_modes.size, n_modes, trim_stop - trim_start) for plane in planes)
                         tick = time.perf_counter()
-                        _stage2(
-                            pool, edges, layout, pair_atom_i, alpha[q_prime],
-                            harmonics.eigenvectors[q][:, block_modes] * inverse_sqrt_mass,
+                        initial = harmonics.eigenvectors[q][:, block_modes] * inverse_sqrt_mass
+                        stage2(
+                            pair_plan, alpha[q_prime], np.ascontiguousarray(initial.real),
+                            np.ascontiguousarray(initial.imag),
                             contracted[:, trim_start - column_start:trim_stop - column_start], inter_re, inter_im,
+                            inter_sum, pool, workers * 4,
                         )
+                        del initial
                         timings["stage2"] += time.perf_counter() - tick
                         tick = time.perf_counter()
                         areas = np.cumsum((tiles[:, 4] - tiles[:, 3]) * (tiles[:, 6] - tiles[:, 5]))
                         jobs = min(tiles.shape[0], workers * 4)
                         cuts = np.unique(np.searchsorted(areas, np.linspace(0, areas[-1], jobs + 1)[1:-1]))
 
-                        def reduce_part(part, q=q, q_prime=q_prime, inter_re=inter_re, inter_im=inter_im,
-                                        trim_start=trim_start, rows_re=rows_re, rows_im=rows_im,
-                                        pop_rows=pop_rows, pop_cols=pop_cols):
+                        def reduce_part(part, q=q, q_prime=q_prime, b=b, inter_re=inter_re, inter_im=inter_im,
+                                        inter_sum=inter_sum, trim_start=trim_start, rows_re=rows_re, rows_im=rows_im,
+                                        rows_sum=rows_sum, pop_rows=pop_rows, pop_cols=pop_cols):
                             """Reduce one group of tiles of this pass and mode block."""
                             return reduce_tiles_split(
                                 part, rows_re, rows_im, inter_re, inter_im, trim_start, omega[q], omega[q_prime],
                                 partner_omega[b], physical[q_prime], partner_physical[b], pop_rows, pop_cols,
-                                hbar_factors, threshold, angular_sigma, scales[q],
+                                hbar_factors, threshold, angular_sigma, scales[q], rows_sum=rows_sum,
+                                inter_sum=inter_sum,
                             )
 
                         for partial, counts in pool.map(reduce_part, np.split(tiles, cuts)):
                             reduced[:, q, block_modes] += partial
                             selected_pairs += int(counts.sum())
                         timings["stage3"] += time.perf_counter() - tick
+                _logging.info(
+                    "Shifted projection: partner point %d/%d, columns %d-%d of %d done after %.1f s "
+                    "(stage1 %.1f s, stage2 %.1f s, tiles %.1f s)", b + 1, n_partner, column_start, column_stop,
+                    n_modes, time.perf_counter() - started, timings["stage1"], timings["stage2"], timings["stage3"],
+                )
             _logging.info("Shifted projection: partner point %d/%d done after %.1f s", b + 1, n_partner,
                           time.perf_counter() - started)
     _logging.info(
@@ -285,12 +299,13 @@ class _numba_threads:
         numba.set_num_threads(self._previous)
 
 
-def _block_sizes(layout, n_modes, workers, max_row_span, max_pair_rows, n_populations, input_bytes):
+def _block_sizes(layout, n_modes, workers, max_row_span, max_pair_rows, n_populations, input_bytes, fixed_bytes=0):
     """Return column width and initial-mode block whose float64 scratch fits the memory budget.
 
-    Scratch counts the stage-1 output ``(pairs, w)``, the stage-2 re/im planes ``2 (block, n, w)``, one pass's
-    re/im ``q'`` rows ``2 (n, n)``, the stage-1 columns and initial vectors, and per worker the tile buffers
-    ``2 (max_row_span, w)``, the stage-2 gathers and the reducer output. The budget is a fraction of available
+    Scratch counts the stage-1 output ``(pairs, w)``, the stage-2 re/im/sum planes ``3 (block, n, w)``, one pass's
+    re/im/sum ``q'`` rows ``3 (n, n)`` plus their complex ``(n, n)`` temporary, the stage-1 columns and initial
+    vectors, and per worker the tile buffers ``3 (max_row_span, w)``, the stage-2 weights and the reducer output.
+    ``fixed_bytes`` (leg tables, tile tables) is added to every requirement. The budget is a fraction of available
     memory, capped relative to the IFC3 and eigenvector inputs but never below the 1 x 1 requirement.
     """
     width, block = min(_COLUMN_BLOCK, n_modes), min(_MODE_BLOCK, n_modes)
@@ -298,14 +313,14 @@ def _block_sizes(layout, n_modes, workers, max_row_span, max_pair_rows, n_popula
 
     def required_bytes(column_count, mode_count):
         entries = (
-            pairs * column_count + 2 * mode_count * n_modes * column_count + 2 * n_modes * n_modes
+            pairs * column_count + _PLANES * mode_count * n_modes * column_count + 5 * n_modes * n_modes
             + n_modes * column_count + 4 * n_modes * mode_count
             + workers * (
-                2 * max_row_span * column_count + _GATHER_ARRAYS * max_pair_rows * mode_count
+                _PLANES * max_row_span * column_count + _WEIGHT_ARRAYS * max_pair_rows * mode_count
                 + 2 * n_populations * mode_count
             )
         )
-        return int(entries * np.dtype(np.float64).itemsize)
+        return int(entries * np.dtype(np.float64).itemsize) + int(fixed_bytes)
 
     input_bytes += sum(
         matrix.data.nbytes + matrix.indices.nbytes + matrix.indptr.nbytes for _, _, matrix in layout.chunks
@@ -330,33 +345,6 @@ def _clip_columns(table, column_start, column_stop):
     np.maximum(tiles[:, 5], column_start, out=tiles[:, 5])
     np.minimum(tiles[:, 6], column_stop, out=tiles[:, 6])
     return tiles
-
-
-def _stage2(pool, edges, layout, pair_atom_i, alpha_q, initial, contracted, inter_re, inter_im):
-    """Fill ``inter[nu, j, :] = sum_i e_i(q nu) alpha_ij(q') C[(i,j), :]`` as float64 re/im planes.
-
-    ``initial`` is the complex ``(n, block)`` mass-rescaled initial vectors, ``alpha_q`` the complex ``(N,N)``
-    q' leg, ``contracted`` the real stage-1 output ``(pairs, w)`` and the planes ``(block, n, w)``.
-    """
-    initial_re, initial_im = np.ascontiguousarray(initial.real), np.ascontiguousarray(initial.imag)
-
-    def contract_partners(bounds):
-        """Contract the pair rows of partner indices ``j`` in ``[start, stop)``."""
-        for partner_j in range(*bounds):
-            start, stop = layout.j_ptr[partner_j:partner_j + 2]
-            if stop == start:
-                inter_re[:, partner_j] = 0.
-                inter_im[:, partner_j] = 0.
-                continue
-            leg = alpha_q[pair_atom_i[start:stop], partner_j // 3][:, np.newaxis]
-            leg_re, leg_im = leg.real, leg.imag
-            gathered_re, gathered_im = initial_re[layout.pair_i[start:stop]], initial_im[layout.pair_i[start:stop]]
-            weight_re = gathered_re * leg_re - gathered_im * leg_im
-            weight_im = gathered_re * leg_im + gathered_im * leg_re
-            np.matmul(weight_re.T, contracted[start:stop], out=inter_re[:, partner_j, :])
-            np.matmul(weight_im.T, contracted[start:stop], out=inter_im[:, partner_j, :])
-
-    list(pool.map(contract_partners, zip(edges[:-1], edges[1:])))
 
 
 def _finish(reduced, grid, representatives, all_initial, is_stack):

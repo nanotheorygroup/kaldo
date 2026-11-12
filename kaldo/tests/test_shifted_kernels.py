@@ -157,6 +157,51 @@ def test_stage1_matches_scipy():
     np.testing.assert_allclose(out, dense @ columns, rtol=1e-13, atol=1e-14)
 
 
+def _stage2_layout(random):
+    """Pair rows for 4 atoms: shared Cartesian rows, one partner with its own rows and one empty partner."""
+    n_atoms = 4
+    rows_of = []
+    for atom in range(n_atoms):
+        shared = np.sort(random.choice(3 * n_atoms, size=random.integers(3, 7), replace=False))
+        rows_of += [shared, shared, shared]
+    rows_of[4] = np.sort(random.choice(3 * n_atoms, size=5, replace=False))  # atom 1, y differs from x
+    rows_of[8] = np.zeros(0, dtype=np.int64)  # atom 2, z has no pair rows
+    j_ptr = np.concatenate(([0], np.cumsum([rows.size for rows in rows_of]))).astype(np.int64)
+    return n_atoms, j_ptr, np.concatenate(rows_of).astype(np.int32)
+
+
+def test_stage2_matches_dense_contraction():
+    from concurrent.futures import ThreadPoolExecutor
+
+    random = np.random.default_rng(616)
+    n_atoms, j_ptr, pair_i = _stage2_layout(random)
+    n_modes, block, width, trim = 3 * n_atoms, 5, 9, slice(2, 8)
+    plan = _kernels().stage2_plan(j_ptr, pair_i, n_atoms)
+    assert plan.reuse.tolist() == [False, True, True, False, False, False, False, True, False, False, True, True]
+    alpha = random.normal(size=(n_atoms, n_atoms)) + 1j * random.normal(size=(n_atoms, n_atoms))
+    initial = random.normal(size=(n_modes, block)) + 1j * random.normal(size=(n_modes, block))
+    contracted = random.normal(size=(pair_i.size, width))[:, trim]  # row stride wider than the width
+    planes = [np.full((block, n_modes, trim.stop - trim.start), np.nan) for _ in range(3)]
+    with ThreadPoolExecutor(2) as pool:
+        _kernels().stage2(plan, alpha, np.ascontiguousarray(initial.real), np.ascontiguousarray(initial.imag),
+                          contracted, *planes, pool, 3)
+    partner_j = np.repeat(np.arange(n_modes), np.diff(j_ptr))
+    weights = initial[pair_i] * alpha[pair_i // 3, partner_j // 3][:, np.newaxis]
+    expected = np.zeros((block, n_modes, contracted.shape[1]), dtype=np.complex128)
+    np.add.at(expected.transpose(1, 0, 2), partner_j, np.einsum("pn,pw->pnw", weights, contracted))
+    np.testing.assert_allclose(planes[0], expected.real, rtol=1e-12, atol=1e-13)
+    np.testing.assert_allclose(planes[1], expected.imag, rtol=1e-12, atol=1e-13)
+    np.testing.assert_array_equal(planes[2], planes[0] + planes[1])
+    assert np.all(planes[0][:, 8] == 0) and np.all(planes[2][:, 8] == 0)
+
+
+def test_stage2_plan_rejects_bad_layout():
+    with pytest.raises(ValueError, match="j_ptr"):
+        _kernels().stage2_plan(np.array([0, 2, 1, 3, 3, 3, 3]), np.zeros(3, dtype=np.int32), 2)
+    with pytest.raises(ValueError, match="pair_i"):
+        _kernels().stage2_plan(np.array([0, 1, 1, 1, 1, 1, 1]), np.array([6], dtype=np.int32), 2)
+
+
 def test_stage1_rejects_mismatched_operands():
     columns = np.ones((6, 2))
     out = np.zeros((1, 2))

@@ -8,10 +8,12 @@ Gamma pair CSR with those tables (stage 1) and reduce complex energy-window
 tiles (stage 3) for the shifted-grid projection driver.
 """
 
+from typing import NamedTuple
+
 import numba
 import numpy as np
 
-from kaldo.controllers._projection_kernels import _BLAS_MAX, _gemm_into, _validate_matrix
+from kaldo.controllers._projection_kernels import _BLAS_MAX, _dgemm, _gemm_into, _validate_matrix
 from kaldo.grid import TranslationSupport, WignerSeitzImages
 from kaldo.observables.thirdorder import _IFC_INTERPOLATION_MODES, _GammaPairCSR
 
@@ -215,6 +217,145 @@ def _stage1_kernel(
     return invalid
 
 
+class Stage2Plan(NamedTuple):
+    """Validated pair layout for ``stage2``: int64 ``j_ptr (n+1,)``, int64 ``pair_i (pairs,)``, int32
+    ``pair_atom_i (pairs,)``, boolean ``reuse (n,)`` (partner ``j`` has the pair rows of ``j-1`` within one atom, so
+    its weights are reused), the largest pair-row count ``max_rows`` and the atom count."""
+    j_ptr: np.ndarray
+    pair_i: np.ndarray
+    pair_atom_i: np.ndarray
+    reuse: np.ndarray
+    max_rows: int
+    n_atoms: int
+
+
+def stage2_plan(j_ptr: np.ndarray, pair_i: np.ndarray, n_atoms: int) -> Stage2Plan:
+    """Validate the Gamma pair layout once and mark partners whose weights repeat their predecessor's.
+
+    The q' leg ``alpha_ij`` depends only on atoms, so the three Cartesian partners of one atom share stage-2
+    weights whenever their pair rows coincide (as they do for dense 3x3 IFC3 blocks).
+    """
+    j_ptr = np.ascontiguousarray(j_ptr, dtype=np.int64)
+    pair_i = np.ascontiguousarray(pair_i, dtype=np.int64)
+    n_modes = 3 * int(n_atoms)
+    if j_ptr.shape != (n_modes + 1,) or j_ptr[0] != 0 or j_ptr[-1] != pair_i.size or np.any(np.diff(j_ptr) < 0):
+        raise ValueError("j_ptr must be nondecreasing row pointers (3N+1,) over all pair rows")
+    if pair_i.ndim != 1 or (pair_i.size and (pair_i.min() < 0 or pair_i.max() >= n_modes)):
+        raise ValueError("pair_i must hold Cartesian indices of the N atoms")
+    counts = np.diff(j_ptr)
+    reuse = np.zeros(n_modes, dtype=np.bool_)
+    for partner_j in range(n_modes):
+        if partner_j % 3 and counts[partner_j] == counts[partner_j - 1]:
+            start, previous = j_ptr[partner_j], j_ptr[partner_j - 1]
+            reuse[partner_j] = np.array_equal(pair_i[start:start + counts[partner_j]],
+                                              pair_i[previous:previous + counts[partner_j]])
+    return Stage2Plan(j_ptr, pair_i, (pair_i // 3).astype(np.int32), reuse, int(counts.max(initial=0)),
+                      int(n_atoms))
+
+
+def stage2(
+    plan: Stage2Plan, alpha_q: np.ndarray, initial_re: np.ndarray, initial_im: np.ndarray, contracted: np.ndarray,
+    inter_re: np.ndarray, inter_im: np.ndarray, inter_sum: np.ndarray, pool, parts: int,
+) -> None:
+    """Fill ``inter[nu, j, :] = sum_i e_i(q nu) alpha_ij(q') C[(i,j), :]`` as float64 planes.
+
+    ``alpha_q`` is the complex128 ``(N,N)`` q' leg, ``initial_re/initial_im`` the float64 ``(n, block)``
+    mass-rescaled initial vectors, ``contracted`` the stage-1 output ``(pairs, w)`` (unit column stride, any row
+    stride) and ``inter_re``, ``inter_im`` and ``inter_sum = inter_re + inter_im`` contiguous ``(block, n, w)``
+    planes (eV/(Angstrom^3*amu)). Partners are split into ``parts`` contiguous groups of whole atoms run on
+    ``pool``. Per partner, two GEMMs with weights ``(rows, block)`` built from contiguous initial rows.
+    """
+    n_modes = plan.j_ptr.size - 1
+    block = initial_re.shape[1] if initial_re.ndim == 2 else -1
+    for name, vectors in (("initial_re", initial_re), ("initial_im", initial_im)):
+        if (
+            not isinstance(vectors, np.ndarray) or vectors.dtype != np.float64 or vectors.shape != (n_modes, block)
+            or not vectors.flags.c_contiguous
+        ):
+            raise TypeError(name + " must be contiguous float64 (n, block)")
+    if not 0 < block <= _BLAS_MAX:
+        raise ValueError("stage-2 block must be positive")
+    if not isinstance(alpha_q, np.ndarray) or alpha_q.dtype != np.complex128 or alpha_q.shape != (plan.n_atoms,) * 2:
+        raise TypeError("alpha_q must be complex128 (N,N)")
+    _validate_matrix(contracted, "contracted")
+    if contracted.shape[0] != plan.pair_i.size:
+        raise ValueError("contracted must hold one row per pair")
+    width = contracted.shape[1]
+    for name, plane in (("inter_re", inter_re), ("inter_im", inter_im), ("inter_sum", inter_sum)):
+        if (
+            not isinstance(plane, np.ndarray) or plane.dtype != np.float64 or plane.shape != (block, n_modes, width)
+            or not plane.flags.c_contiguous or n_modes * width > _BLAS_MAX
+        ):
+            raise TypeError(name + " must be contiguous float64 (block, n, w) with an LP64 row stride")
+    edges = np.unique(np.linspace(0, plan.n_atoms, max(1, min(int(parts), plan.n_atoms)) + 1).astype(np.int64))
+
+    def run(bounds):
+        weights = np.empty((2, max(plan.max_rows, 1) * block), dtype=np.float64)
+        _stage2_kernel(3 * int(bounds[0]), 3 * int(bounds[1]), plan.j_ptr, plan.pair_i, plan.pair_atom_i, plan.reuse,
+                       alpha_q, initial_re, initial_im, contracted, inter_re, inter_im, inter_sum, weights)
+
+    list(pool.map(run, zip(edges[:-1], edges[1:])))
+
+
+@numba.njit(nogil=True)
+def _gemm_tn(
+    weights: np.ndarray, right: np.ndarray, output: np.ndarray, flags: np.ndarray, dimensions: np.ndarray,
+    scalars: np.ndarray,
+) -> None:
+    """Row-major ``output(M,N) = weights(K,M)^T right(K,N)`` as column-major ``dgemm('N','T')``."""
+    dimensions[0] = right.shape[1]
+    dimensions[1] = weights.shape[1]
+    dimensions[2] = weights.shape[0]
+    dimensions[3] = right.strides[0] // right.itemsize
+    dimensions[4] = weights.strides[0] // weights.itemsize
+    dimensions[5] = output.strides[0] // output.itemsize
+    _dgemm(
+        flags[0:].ctypes, flags[1:].ctypes, dimensions[0:].ctypes, dimensions[1:].ctypes, dimensions[2:].ctypes,
+        scalars[0:].ctypes, right.ctypes, dimensions[3:].ctypes, weights.ctypes, dimensions[4:].ctypes,
+        scalars[1:].ctypes, output.ctypes, dimensions[5:].ctypes,
+    )
+
+
+@numba.njit(nogil=True, error_model="numpy")
+def _stage2_kernel(
+    j_start: int, j_stop: int, j_ptr: np.ndarray, pair_i: np.ndarray, pair_atom_i: np.ndarray, reuse: np.ndarray,
+    alpha_q: np.ndarray, initial_re: np.ndarray, initial_im: np.ndarray, contracted: np.ndarray,
+    inter_re: np.ndarray, inter_im: np.ndarray, inter_sum: np.ndarray, weights: np.ndarray,
+) -> None:
+    """Run checked ``stage2`` partners ``[j_start, j_stop)``; ``weights`` is ``(2, max_rows * block)`` scratch."""
+    flags = np.array([ord("N"), ord("T")], dtype=np.uint8)
+    dimensions = np.empty(6, dtype=np.int32)
+    assign = np.array([1., 0.])
+    block = initial_re.shape[1]
+    for partner_j in range(j_start, j_stop):
+        start, stop = j_ptr[partner_j], j_ptr[partner_j + 1]
+        rows = stop - start
+        if rows == 0:
+            inter_re[:, partner_j] = 0.
+            inter_im[:, partner_j] = 0.
+            inter_sum[:, partner_j] = 0.
+            continue
+        weight_re = weights[0, :rows * block].reshape((rows, block))
+        weight_im = weights[1, :rows * block].reshape((rows, block))
+        if partner_j == j_start or not reuse[partner_j]:
+            atom_j = partner_j // 3
+            for row in range(rows):
+                leg = alpha_q[pair_atom_i[start + row], atom_j]
+                leg_re, leg_im = leg.real, leg.imag
+                source_re, source_im = initial_re[pair_i[start + row]], initial_im[pair_i[start + row]]
+                target_re, target_im = weight_re[row], weight_im[row]
+                for nu in range(block):
+                    target_re[nu] = source_re[nu] * leg_re - source_im[nu] * leg_im
+                    target_im[nu] = source_re[nu] * leg_im + source_im[nu] * leg_re
+        slab = contracted[start:stop]
+        out_re, out_im, out_sum = inter_re[:, partner_j], inter_im[:, partner_j], inter_sum[:, partner_j]
+        _gemm_tn(weight_re, slab, out_re, flags, dimensions, assign)
+        _gemm_tn(weight_im, slab, out_im, flags, dimensions, assign)
+        for nu in range(block):
+            for column in range(out_sum.shape[1]):
+                out_sum[nu, column] = out_re[nu, column] + out_im[nu, column]
+
+
 def plan_tiles(
     modes: np.ndarray, omega_initial: np.ndarray, omega_rows: np.ndarray, omega_cols: np.ndarray,
     physical_rows: np.ndarray, physical_cols: np.ndarray, threshold: float,
@@ -256,6 +397,7 @@ def reduce_tiles_split(
     column_offset: int, omega_initial: np.ndarray, omega_rows: np.ndarray, omega_cols: np.ndarray,
     physical_rows: np.ndarray, physical_cols: np.ndarray, pop_rows: np.ndarray, pop_cols: np.ndarray,
     hbar_factors: np.ndarray, threshold: float, sigma: float, scales: np.ndarray,
+    rows_sum: np.ndarray | None = None, inter_sum: np.ndarray | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Reduce complex energy-window tiles into phase space and linewidth sums.
 
@@ -265,8 +407,11 @@ def reduce_tiles_split(
     ``(n,n)`` hold transposed q' eigenvectors (inverse square-root mass) and
     ``inter_re/inter_im`` ``(block,n,w)`` the stage-2 intermediate
     (eV/(Angstrom^3*amu)). Per tile, ``|A|^2 = Re^2 + Im^2`` of
-    ``A = rows[row] . inter[slot,:,column]`` comes from four GEMMs into two
-    preallocated buffers. Frequencies ``(n,)`` and ``threshold``/``sigma``
+    ``A = rows[row] . inter[slot,:,column]`` comes from three GEMMs (Gauss):
+    ``T1 = Lr Rr``, ``T2 = Li Ri``, ``T3 = (Lr + Li)(Rr + Ri)``, ``Re = T1 - T2``
+    and ``Im = T3 - T1 - T2``. ``rows_sum = rows_re + rows_im`` and
+    ``inter_sum = inter_re + inter_im`` may be passed precomputed (same
+    layouts); they are formed here otherwise. Frequencies ``(n,)`` and ``threshold``/``sigma``
     are rad/ps; channel 1 selects ``w + w' - w''`` with ``n' - n''`` and
     channel 0 ``w - w' - w''`` with ``(1 + n' + n'')/2``. Dimensionless
     ``pop_rows/pop_cols`` ``(P,n)`` pair with ``hbar_factors (P,)``;
@@ -289,6 +434,20 @@ def reduce_tiles_split(
             raise ValueError(name + " must be aligned with an LP64 block dimension")
         if inter.shape[0]:
             _validate_matrix(inter[0], name)
+    if rows_sum is None:
+        rows_sum = rows_re + rows_im
+    if inter_sum is None:
+        inter_sum = inter_re + inter_im
+    _validate_matrix(rows_sum, "rows_sum")
+    if rows_sum.shape != rows_re.shape:
+        raise ValueError("rows_sum must match rows_re")
+    if (
+        not isinstance(inter_sum, np.ndarray) or inter_sum.dtype != np.float64 or inter_sum.shape != inter_re.shape
+        or not inter_sum.flags.aligned
+    ):
+        raise TypeError("inter_sum must be float64 with the shape of inter_re")
+    if inter_sum.shape[0]:
+        _validate_matrix(inter_sum[0], "inter_sum")
     block, width = inter_re.shape[0], inter_re.shape[2]
     for name, vector, dtype in (
         ("omega_initial", omega_initial, np.float64), ("omega_rows", omega_rows, np.float64),
@@ -333,28 +492,25 @@ def reduce_tiles_split(
         tiles = np.ascontiguousarray(tiles)
         area = int(np.max((tiles[:, 4] - tiles[:, 3]) * (tiles[:, 6] - tiles[:, 5])))
         _reduce_split_kernel(
-            tiles, rows_re, rows_im, inter_re, inter_im, int(column_offset), omega_initial, omega_rows,
-            omega_cols, physical_rows, physical_cols, pop_rows, pop_cols, hbar_factors, float(threshold),
-            float(sigma), scales, np.empty(area, dtype=np.float64), np.empty(area, dtype=np.float64), reduced,
-            counts,
+            tiles, rows_re, rows_im, rows_sum, inter_re, inter_im, inter_sum, int(column_offset), omega_initial,
+            omega_rows, omega_cols, physical_rows, physical_cols, pop_rows, pop_cols, hbar_factors, float(threshold),
+            float(sigma), scales, np.empty((3, area), dtype=np.float64), reduced, counts,
         )
     return reduced, counts
 
 
 @numba.njit(nogil=True, error_model="numpy")
 def _reduce_split_kernel(
-    tiles: np.ndarray, rows_re: np.ndarray, rows_im: np.ndarray, inter_re: np.ndarray, inter_im: np.ndarray,
-    column_offset: int, omega_initial: np.ndarray, omega_rows: np.ndarray, omega_cols: np.ndarray,
-    physical_rows: np.ndarray, physical_cols: np.ndarray, pop_rows: np.ndarray, pop_cols: np.ndarray,
-    hbar_factors: np.ndarray, threshold: float, sigma: float, scales: np.ndarray,
-    real_buffer: np.ndarray, imag_buffer: np.ndarray, reduced: np.ndarray, counts: np.ndarray,
+    tiles: np.ndarray, rows_re: np.ndarray, rows_im: np.ndarray, rows_sum: np.ndarray, inter_re: np.ndarray,
+    inter_im: np.ndarray, inter_sum: np.ndarray, column_offset: int, omega_initial: np.ndarray,
+    omega_rows: np.ndarray, omega_cols: np.ndarray, physical_rows: np.ndarray, physical_cols: np.ndarray,
+    pop_rows: np.ndarray, pop_cols: np.ndarray, hbar_factors: np.ndarray, threshold: float, sigma: float,
+    scales: np.ndarray, buffers: np.ndarray, reduced: np.ndarray, counts: np.ndarray,
 ) -> None:
-    """Fuse checked ``reduce_tiles_split`` operands; buffers hold ``max_tile_area`` float64."""
+    """Fuse checked ``reduce_tiles_split`` operands; ``buffers`` is ``(3, max_tile_area)`` float64."""
     transpose = np.array([ord("N")], dtype=np.uint8)
     dimensions = np.empty(6, dtype=np.int32)
     assign = np.array([1., 0.])
-    subtract = np.array([-1., 1.])
-    accumulate = np.array([1., 1.])
     normalization = 1 / np.sqrt(np.pi * sigma ** 2)
     sigma_squared = sigma ** 2
     n_populations = pop_rows.shape[0]
@@ -363,15 +519,16 @@ def _reduce_split_kernel(
     for tile in tiles:
         slot, initial, channel, row_start, row_stop, column_start, column_stop = tile
         rows, columns = row_stop - row_start, column_stop - column_start
-        real = real_buffer[:rows * columns].reshape((rows, columns))
-        imag = imag_buffer[:rows * columns].reshape((rows, columns))
-        left_re, left_im = rows_re[row_start:row_stop], rows_im[row_start:row_stop]
-        right_re = inter_re[slot, :, column_start - column_offset:column_stop - column_offset]
-        right_im = inter_im[slot, :, column_start - column_offset:column_stop - column_offset]
-        _gemm_into(left_re, right_re, real, transpose, dimensions, assign)
-        _gemm_into(left_im, right_im, real, transpose, dimensions, subtract)
-        _gemm_into(left_re, right_im, imag, transpose, dimensions, assign)
-        _gemm_into(left_im, right_re, imag, transpose, dimensions, accumulate)
+        real_real = buffers[0, :rows * columns].reshape((rows, columns))
+        imag_imag = buffers[1, :rows * columns].reshape((rows, columns))
+        sum_sum = buffers[2, :rows * columns].reshape((rows, columns))
+        lower, upper = column_start - column_offset, column_stop - column_offset
+        _gemm_into(rows_re[row_start:row_stop], inter_re[slot, :, lower:upper], real_real, transpose, dimensions,
+                   assign)
+        _gemm_into(rows_im[row_start:row_stop], inter_im[slot, :, lower:upper], imag_imag, transpose, dimensions,
+                   assign)
+        _gemm_into(rows_sum[row_start:row_stop], inter_sum[slot, :, lower:upper], sum_sum, transpose, dimensions,
+                   assign)
         phase_sums[:] = 0.
         gamma_sums[:] = 0.
         selected = 0
@@ -385,7 +542,9 @@ def _reduce_split_kernel(
                 difference = base - omega_cols[column_mode]
                 if physical_cols[column_mode] and abs(difference) < threshold:
                     phase = normalization * np.exp(-difference * difference / sigma_squared)
-                    squared = real[row, column] ** 2 + imag[row, column] ** 2
+                    real = real_real[row, column] - imag_imag[row, column]
+                    imag = sum_sum[row, column] - real_real[row, column] - imag_imag[row, column]
+                    squared = real * real + imag * imag
                     squared /= omega_rows[row_mode] * omega_cols[column_mode]
                     squared *= scales[initial]
                     for index in range(n_populations):
