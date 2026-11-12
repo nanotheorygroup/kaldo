@@ -21,6 +21,7 @@ from kaldo.observables.harmonic_with_q_temp import HarmonicWithQTemp, CLASSICAL_
 from kaldo.forceconstants import ForceConstants
 import kaldo.controllers.anharmonic as aha
 from kaldo.controllers import _amorphous_projection
+from kaldo.controllers import _bloch_eigensystem, _shifted_harmonics
 import tensorflow as tf
 import kaldo.controllers.isotopic as isotopic
 from concurrent.futures import as_completed
@@ -820,6 +821,18 @@ class Phonons(Storable):
         """True when the q-grid carries a nonzero Monkhorst-Pack shift."""
         return bool(np.any(np.abs(self.kpts_shift) > 1e-12))
 
+    @property
+    def _shifted_harmonics(self):
+        """Shifted-grid harmonics, computed once per Phonons object without TensorFlow."""
+        if getattr(self, "_shifted_harmonics_cache", None) is None:
+            if self.forceconstants.distance_threshold is not None:
+                raise NotImplementedError(
+                    "harmonic properties on a shifted q-grid do not support forceconstants.distance_threshold")
+            self._shifted_harmonics_cache = _shifted_harmonics.compute_shifted_harmonics(
+                self.forceconstants.second, self._reciprocal_grid, self.ifc_interpolation, self.min_frequency,
+                self.max_frequency, self.n_workers, is_nw=self.is_nw)
+        return self._shifted_harmonics_cache
+
     def _check_shifted_anharmonic_support(self):
         """Raise NotImplementedError naming the first option unsupported on the shifted anharmonic path."""
         def reject(option):
@@ -929,6 +942,8 @@ class Phonons(Storable):
         physical_mode : np array(n_k_points, n_modes)
             bool
         """
+        if self._is_shifted_grid:
+            return self._shifted_harmonics.physical.copy()
         q_points = self._reciprocal_grid.fractional_points
         physical_mode = np.zeros((self.n_k_points, self.n_modes), dtype=bool)
 
@@ -966,6 +981,8 @@ class Phonons(Storable):
         frequency : np array(n_k_points, n_modes)
              frequency in THz
         """
+        if self._is_shifted_grid:
+            return self._shifted_harmonics.frequency.copy()
         q_points = self._reciprocal_grid.fractional_points
         frequency = np.zeros((self.n_k_points, self.n_modes))
 
@@ -1038,6 +1055,8 @@ class Phonons(Storable):
              velocity in 100m/s or A/ps
         """
 
+        if self._is_shifted_grid:
+            return self._shifted_harmonics.velocity.copy()
         q_points = self._reciprocal_grid.fractional_points
         velocity = np.zeros((self.n_k_points, self.n_modes, 3))
 
@@ -1076,6 +1095,9 @@ class Phonons(Storable):
 
             If the system is not amorphous, these values are stored as complex numbers.
         """
+        if self._is_shifted_grid:
+            shifted = self._shifted_harmonics
+            return np.concatenate([shifted.eigenvalues[:, np.newaxis, :].astype(complex), shifted.eigenvectors], axis=1)
         type = complex if (not self._is_amorphous) else float
         q_points = self._reciprocal_grid.fractional_points
         shape = (self.n_k_points, self.n_modes + 1, self.n_modes)
@@ -1121,6 +1143,9 @@ class Phonons(Storable):
         c_v : np.array(n_k_points, n_modes)
             heat capacity in J/K for each k point and each mode
         """
+        if self._is_shifted_grid:
+            return _bloch_eigensystem.heat_capacity(
+                self.frequency, self.physical_mode, self.temperature, self.is_classic)
         q_points = self._reciprocal_grid.fractional_points
         c_v = np.zeros((self.n_k_points, self.n_modes))
         for ik in range(len(q_points)):
@@ -1199,6 +1224,9 @@ class Phonons(Storable):
         population : np.array(n_k_points, n_modes)
             population for each k point and each mode
         """
+        if self._is_shifted_grid:
+            return _bloch_eigensystem.population(
+                self.frequency, self.physical_mode, self.temperature, self.is_classic)
         q_points = self._reciprocal_grid.fractional_points
         population = np.zeros((self.n_k_points, self.n_modes))
         for ik in range(len(q_points)):
