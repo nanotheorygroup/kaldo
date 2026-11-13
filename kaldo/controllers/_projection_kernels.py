@@ -1,4 +1,4 @@
-"""Private checked float64 BLAS bridge and fused Gaussian tile reduction."""
+"""Private checked float64/float32 BLAS bridge and fused Gaussian tile reduction."""
 
 import ctypes
 
@@ -10,34 +10,41 @@ from scipy.linalg import cython_blas as _cython_blas
 _BLAS_MAX = np.iinfo(np.int32).max
 
 
-def _load_dgemm() -> ctypes._CFuncPtr:
-    """Resolve a process-local SciPy LP64 float64 GEMM function pointer."""
+def _load_gemm(kind: str) -> ctypes._CFuncPtr:
+    """Resolve a process-local SciPy LP64 GEMM function pointer: ``'d'`` float64 or ``'s'`` float32."""
+    c_scalar = {"d": "double*", "s": "float*"}[kind]
     try:
         capsule_name = ctypes.pythonapi.PyCapsule_GetName
         capsule_name.argtypes = [ctypes.py_object]
         capsule_name.restype = ctypes.c_char_p
-        signature = capsule_name(_cython_blas.__pyx_capi__["dgemm"]).decode().replace(" ", "")
-        scalar = "__pyx_t_5scipy_6linalg_11cython_blas_d*"
+        signature = capsule_name(_cython_blas.__pyx_capi__[kind + "gemm"]).decode().replace(" ", "")
+        scalar = f"__pyx_t_5scipy_6linalg_11cython_blas_{kind}*"
         arguments = ["char*", "char*", "int*", "int*", "int*", scalar, scalar,
                      "int*", scalar, "int*", scalar, scalar, "int*"]
         expected = "void(" + ",".join(arguments) + ")"
-        if signature not in (expected, expected.replace(scalar, "double*")):
-            raise ValueError("unsupported SciPy dgemm capsule signature")
-        address = _get_cython_function_address("scipy.linalg.cython_blas", "dgemm")
+        if signature not in (expected, expected.replace(scalar, c_scalar)):
+            raise ValueError(f"unsupported SciPy {kind}gemm capsule signature")
+        address = _get_cython_function_address("scipy.linalg.cython_blas", kind + "gemm")
         if not address:
-            raise ValueError("null SciPy dgemm address")
+            raise ValueError(f"null SciPy {kind}gemm address")
         return ctypes.CFUNCTYPE(None, *([ctypes.c_void_p] * 13))(address)
     except (AttributeError, KeyError, TypeError, ValueError) as error:
-        raise ImportError("SciPy float64 LP64 BLAS bridge is unavailable") from error
+        raise ImportError(f"SciPy {c_scalar[:-1]} LP64 BLAS bridge is unavailable") from error
+
+
+def _load_dgemm() -> ctypes._CFuncPtr:
+    """Resolve a process-local SciPy LP64 float64 GEMM function pointer."""
+    return _load_gemm("d")
 
 
 _dgemm = _load_dgemm()
+_sgemm = _load_gemm("s")
 
 
-def _validate_matrix(matrix: np.ndarray, name: str) -> None:
-    """Validate a float64 ``(rows,columns)`` matrix before native access."""
-    if not isinstance(matrix, np.ndarray) or matrix.ndim != 2 or matrix.dtype != np.float64:
-        raise TypeError(name + " must be a two-dimensional float64 array")
+def _validate_matrix(matrix: np.ndarray, name: str, dtype: type = np.float64) -> None:
+    """Validate a ``dtype`` (default float64) ``(rows,columns)`` matrix before native access."""
+    if not isinstance(matrix, np.ndarray) or matrix.ndim != 2 or matrix.dtype != dtype:
+        raise TypeError(name + f" must be a two-dimensional {np.dtype(dtype).name} array")
     if any(dimension > _BLAS_MAX for dimension in matrix.shape):
         raise ValueError(name + " dimensions exceed LP64 BLAS bounds")
     if matrix.size and (

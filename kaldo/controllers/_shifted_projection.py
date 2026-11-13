@@ -23,6 +23,7 @@ import time
 import ase.units as units
 import numba
 import numpy as np
+import psutil
 from psutil import virtual_memory
 from threadpoolctl import threadpool_limits
 
@@ -39,11 +40,13 @@ _WORKSPACE_MULTIPLIER = 8
 _MIN_WORKSPACE_BYTES = 128 * 1024 ** 2
 _WEIGHT_ARRAYS = 2  # stage-2 per-worker (pair rows, block) float64 weights
 _PLANES = 3  # stage-2 re, im and re + im planes (Gauss three-multiplication tiles)
+_STAGE2_PARTS_PER_WORKER = 8  # atom groups per stage-2 thread (load balance; 4 measured 14% slower)
 
 
 def project_shifted(
     third, harmonics, grid, mode: str, sigma_thz: float, population: np.ndarray, partner_population: np.ndarray,
     hbar_factor: float | np.ndarray, n_workers: int | None = None, all_initial: bool = False,
+    pair_swapped: bool = True, precision: str = "float32",
 ) -> np.ndarray:
     """Return three-phonon phase space and linewidth (THz) of every mode on a shifted grid.
 
@@ -68,9 +71,20 @@ def project_shifted(
         Package hbar compensation (``CLASSICAL_HBAR_SCALE`` for classical occupations, else 1); ``(P,)`` for
         stacks.
     n_workers : int or None
-        Worker threads; None honours CPU affinity. Results do not depend on it beyond summation order.
+        Worker threads; None honours CPU affinity. Stage 2 (BLAS-bound) uses at most one per physical core, since
+        hyperthread siblings slow its GEMMs (measured 598 vs 846 GFLOP/s on 32 cores); the tiles use all. Results
+        do not depend on it beyond summation order.
     all_initial : bool
         Project every initial point instead of copying non-representatives from their time-reversal partner.
+    pair_swapped : bool
+        Evaluate each pass ``(q, q'')`` once for both legs: ``|A(q nu, q' nu', q'')|^2`` equals the amplitude of
+        the pass with initial point ``q'`` (or its time-reversal partner) and partner ``q`` up to the i <-> j
+        asymmetry of the IFC3, so the q' linewidths are reduced from the same tiles (a third tile channel,
+        ``w'' = w' - w``, carries their decays). 20 of 32 passes remain on a 2x2x2 grid; passes whose mirror is
+        themselves (``q' = +-q``) are evaluated as before.
+    precision : {'float32', 'float64'}
+        GEMM precision of stages 2 and 3. Stage 1, the leg weights and ``|A|^2`` with its reduction stay float64;
+        float32 GEMMs changed every linewidth of a-Si 216 by at most 3e-7 relative and run about 2.5 times faster.
 
     Returns
     -------
@@ -109,17 +123,14 @@ def project_shifted(
         population, partner_population, hbar_factor, physical, partner_physical,
     )
     workers = _worker_count(n_workers)
+    if precision not in ("float32", "float64"):
+        raise ValueError("shifted projection precision must be 'float32' or 'float64'")
+    gemm_dtype = np.dtype(precision)
+    stage2_workers = min(workers, _physical_cores())
 
     representatives = np.asarray(harmonics.representatives, dtype=np.int64)
     initial_points = np.arange(n_points, dtype=np.int64) if all_initial else representatives
-    q_prime_of = {}
-    for q in initial_points.tolist():
-        sums = np.asarray(grid.shifted_partner_ids(q, True), dtype=np.int64)
-        if np.unique(sums).size != n_partner or sums.size != n_points:
-            raise ValueError("q + q' must map the shifted grid one-to-one onto its partner grid")
-        q_prime_of[q] = np.empty(n_partner, dtype=np.int64)
-        q_prime_of[q][sums] = np.arange(n_points)  # Ruling R2: invert q' -> q + q'
-    passes = [(q, b, int(q_prime_of[q][b])) for b in range(n_partner) for q in initial_points.tolist()]
+    passes = _passes(grid, initial_points, n_partner, pair_swapped)
 
     reduced = np.zeros((populations.shape[0], n_points, n_modes, 2), dtype=np.float64)
     angular_sigma = 2 * np.pi * float(sigma_thz)
@@ -130,8 +141,8 @@ def project_shifted(
     masses = np.asarray(third.atoms.get_masses(), dtype=np.float64)
     inverse_sqrt_mass = np.repeat(1 / np.sqrt(masses), 3)[:, np.newaxis]
 
-    _logging.info("Shifted projection started: %d passes over %d partner points, workers=%d",
-                  len(passes), n_partner, workers)
+    _logging.info("Shifted projection started: %d passes over %d partner points, workers=%d (stage 2: %d), %s GEMMs",
+                  len(passes), n_partner, workers, stage2_workers, precision)
     layout = third._gamma_pair_csr()
     pair_plan = stage2_plan(layout.j_ptr, layout.pair_i, len(third.atoms))
     pair_atom_i = pair_plan.pair_atom_i
@@ -140,7 +151,7 @@ def project_shifted(
     with ThreadPoolExecutor(workers) as pool:
         tables = list(pool.map(lambda job: plan_tiles(
             initial_modes[job[0]], omega[job[0]], omega[job[2]], partner_omega[job[1]], physical[job[2]],
-            partner_physical[job[1]], threshold,
+            partner_physical[job[1]], threshold, channels=(0, 1) if job[3] is None else (0, 1, 2),
         ), passes))
     max_row_span = max((int(np.max(table[:, 4] - table[:, 3])) for table in tables if table.size), default=0)
     _logging.info("Shifted projection: legs and %d tiles planned in %.2f s",
@@ -151,20 +162,24 @@ def project_shifted(
     fixed_bytes = alpha.nbytes + beta.nbytes + sum(table.nbytes for table in tables) + pair_plan.pair_i.nbytes
     width, block = _block_sizes(
         layout, n_modes, workers, max_row_span, max(1, pair_plan.max_rows), populations.shape[0],
-        harmonics.eigenvectors.nbytes + partner.eigenvectors.nbytes, fixed_bytes,
+        harmonics.eigenvectors.nbytes + partner.eigenvectors.nbytes, fixed_bytes, gemm_dtype.itemsize,
     )
     _logging.info("Shifted projection: columns=%d, modes=%d", width, block)
     contracted_buffer = np.empty(layout.pair_i.size * width, dtype=np.float64)
-    planes = [np.empty(block * n_modes * width, dtype=np.float64) for _ in range(_PLANES)]
+    gemm_buffer = contracted_buffer if gemm_dtype == np.float64 else np.empty(contracted_buffer.size, gemm_dtype)
+    planes = [np.empty(block * n_modes * width, dtype=gemm_dtype) for _ in range(_PLANES)]
     timings = dict(stage1=0., stage2=0., stage3=0.)
     selected_pairs = 0
 
-    with ThreadPoolExecutor(workers) as pool, threadpool_limits(1), _numba_threads(workers):
+    with (
+        ThreadPoolExecutor(workers) as pool, ThreadPoolExecutor(stage2_workers) as stage2_pool, threadpool_limits(1),
+        _numba_threads(workers),
+    ):
         for b in range(n_partner):
-            b_passes = [(index, q, q_prime) for index, (q, pass_b, q_prime) in enumerate(passes) if pass_b == b]
+            b_passes = [(index, *job) for index, job in enumerate(passes) if job[1] == b]
             for column_start in range(0, n_modes, width):
                 column_stop = min(n_modes, column_start + width)
-                column_tiles = [_clip_columns(tables[index], column_start, column_stop) for index, _, _ in b_passes]
+                column_tiles = [_clip_columns(tables[index], column_start, column_stop) for index, *_ in b_passes]
                 if not any(tiles.size for tiles in column_tiles):
                     continue
                 tick = time.perf_counter()
@@ -175,17 +190,23 @@ def project_shifted(
                 for start, _, matrix in layout.chunks:
                     stage1(matrix.indptr, matrix.indices, matrix.data, start, pair_atom_i, beta[b], columns,
                            contracted)
+                if gemm_buffer is not contracted_buffer:
+                    contracted = gemm_buffer[:contracted.size].reshape(contracted.shape)
+                    np.copyto(contracted, contracted_buffer[:contracted.size].reshape(contracted.shape))
                 timings["stage1"] += time.perf_counter() - tick
 
-                for (_, q, q_prime), tiles_q in zip(b_passes, column_tiles):
+                for (_, q, _, q_prime, mirror), tiles_q in zip(b_passes, column_tiles):
                     if not tiles_q.size:
                         continue
                     rows = (harmonics.eigenvectors[q_prime] * inverse_sqrt_mass).T
-                    rows_re, rows_im = np.ascontiguousarray(rows.real), np.ascontiguousarray(rows.imag)
+                    rows_re = np.ascontiguousarray(rows.real, dtype=gemm_dtype)
+                    rows_im = np.ascontiguousarray(rows.imag, dtype=gemm_dtype)
                     del rows
                     rows_sum = rows_re + rows_im
                     pop_rows = np.ascontiguousarray(populations[:, q_prime])
                     pop_cols = np.ascontiguousarray(partner_populations[:, b])
+                    row_side = {} if mirror is None else dict(
+                        pop_initial=np.ascontiguousarray(populations[:, q]), scales_rows=scales[q_prime])
                     modes_q = initial_modes[q]
                     for slot_start in range(0, modes_q.size, block):
                         in_block = (tiles_q[:, 0] >= slot_start) & (tiles_q[:, 0] < slot_start + block)
@@ -203,8 +224,8 @@ def project_shifted(
                         stage2(
                             pair_plan, alpha[q_prime], np.ascontiguousarray(initial.real),
                             np.ascontiguousarray(initial.imag),
-                            contracted[:, trim_start - column_start:trim_stop - column_start], *partner_major, pool,
-                            workers * 4,
+                            contracted[:, trim_start - column_start:trim_stop - column_start], *partner_major,
+                            stage2_pool, stage2_workers * _STAGE2_PARTS_PER_WORKER,
                         )
                         del initial
                         inter_re, inter_im, inter_sum = (plane.transpose(1, 0, 2) for plane in partner_major)
@@ -216,17 +237,19 @@ def project_shifted(
 
                         def reduce_part(part, q=q, q_prime=q_prime, b=b, inter_re=inter_re, inter_im=inter_im,
                                         inter_sum=inter_sum, trim_start=trim_start, rows_re=rows_re, rows_im=rows_im,
-                                        rows_sum=rows_sum, pop_rows=pop_rows, pop_cols=pop_cols):
+                                        rows_sum=rows_sum, pop_rows=pop_rows, pop_cols=pop_cols, row_side=row_side):
                             """Reduce one group of tiles of this pass and mode block."""
                             return reduce_tiles_split(
                                 part, rows_re, rows_im, inter_re, inter_im, trim_start, omega[q], omega[q_prime],
                                 partner_omega[b], physical[q_prime], partner_physical[b], pop_rows, pop_cols,
                                 hbar_factors, threshold, angular_sigma, scales[q], rows_sum=rows_sum,
-                                inter_sum=inter_sum,
+                                inter_sum=inter_sum, **row_side,
                             )
 
-                        for partial, counts in pool.map(reduce_part, np.split(tiles, cuts)):
+                        for partial, partial_rows, counts in pool.map(reduce_part, np.split(tiles, cuts)):
                             reduced[:, q, block_modes] += partial
+                            if mirror is not None:
+                                reduced[:, mirror] += partial_rows
                             selected_pairs += int(counts.sum())
                         timings["stage3"] += time.perf_counter() - tick
                 _logging.info(
@@ -241,6 +264,42 @@ def project_shifted(
         time.perf_counter() - started, timings["stage1"], timings["stage2"], timings["stage3"], selected_pairs,
     )
     return _finish(reduced, grid, representatives, all_initial, is_stack)
+
+
+def _passes(grid, initial_points, n_partner, pair_swapped):
+    """Return ``(q, b, q', mirror)`` passes over partner points ``b`` with ``q + q' = b``, ``b``-major.
+
+    ``mirror`` is the initial point whose linewidths a pass also reduces from its rows: the mirror of ``(q, b)``
+    is ``(m, b)`` with ``m = q'``, or its time-reversal partner when ``q'`` is not projected; its own partner
+    point is ``+-q``. Of each mirrored pair the pass with the lower initial id is kept; a pass that mirrors
+    itself keeps ``mirror=None``, as do all passes without ``pair_swapped``.
+    """
+    n_points = grid.size
+    q_prime_of = {}
+    for q in initial_points.tolist():
+        sums = np.asarray(grid.shifted_partner_ids(q, True), dtype=np.int64)
+        if np.unique(sums).size != n_partner or sums.size != n_points:
+            raise ValueError("q + q' must map the shifted grid one-to-one onto its partner grid")
+        q_prime_of[q] = np.empty(n_partner, dtype=np.int64)
+        q_prime_of[q][sums] = np.arange(n_points)  # Ruling R2: invert q' -> q + q'
+    passes = [(q, b, int(q_prime_of[q][b])) for b in range(n_partner) for q in initial_points.tolist()]
+    if not pair_swapped:
+        return [(q, b, q_prime, None) for q, b, q_prime in passes]
+    initial_points = set(initial_points.tolist())
+
+    def initial_of(point):
+        return point if point in initial_points else grid.partner_id(point)
+
+    kept = []
+    for q, b, q_prime in passes:
+        mirror = initial_of(q_prime)
+        if mirror == q:
+            kept.append((q, b, q_prime, None))
+        elif q < mirror:
+            if mirror not in initial_points or initial_of(int(q_prime_of[mirror][b])) != q:
+                raise ValueError("shifted passes do not pair under the leg swap")
+            kept.append((q, b, q_prime, mirror))
+    return kept
 
 
 def _occupations(population, partner_population, hbar_factor, physical, partner_physical):
@@ -286,6 +345,22 @@ def _worker_count(n_workers):
     return int(workers)
 
 
+def _physical_cores():
+    """Return the number of distinct physical cores among the CPUs this process may run on."""
+    cpus = sorted(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else []
+    try:
+        cores = set()
+        for cpu in cpus:
+            topology = f"/sys/devices/system/cpu/cpu{cpu}/topology/"
+            with open(topology + "physical_package_id") as package, open(topology + "core_id") as core:
+                cores.add((package.read().strip(), core.read().strip()))
+        if cores:
+            return len(cores)
+    except OSError:
+        pass
+    return max(1, psutil.cpu_count(logical=False) or os.cpu_count() or 1)
+
+
 class _numba_threads:
     """Context limiting Numba's parallel kernels (stage 1) to the worker count of this thread."""
 
@@ -300,28 +375,32 @@ class _numba_threads:
         numba.set_num_threads(self._previous)
 
 
-def _block_sizes(layout, n_modes, workers, max_row_span, max_pair_rows, n_populations, input_bytes, fixed_bytes=0):
-    """Return column width and initial-mode block whose float64 scratch fits the memory budget.
+def _block_sizes(layout, n_modes, workers, max_row_span, max_pair_rows, n_populations, input_bytes, fixed_bytes=0,
+                 gemm_itemsize=8):
+    """Return column width and initial-mode block whose scratch fits the memory budget.
 
-    Scratch counts the stage-1 output ``(pairs, w)``, the stage-2 re/im/sum planes ``3 (block, n, w)``, one pass's
-    re/im/sum ``q'`` rows ``3 (n, n)`` plus their complex ``(n, n)`` temporary, the stage-1 columns and initial
-    vectors, and per worker the tile buffers ``3 (max_row_span, w)``, the stage-2 weights and the reducer output.
-    ``fixed_bytes`` (leg tables, tile tables) is added to every requirement. The budget is a fraction of available
-    memory, capped relative to the IFC3 and eigenvector inputs but never below the 1 x 1 requirement.
+    Float64 scratch counts the stage-1 output ``(pairs, w)``, the complex ``(n, n)`` temporary of one pass's ``q'``
+    rows, the stage-1 columns and initial vectors, and per worker the reducer outputs. GEMM-dtype scratch
+    (``gemm_itemsize`` bytes) counts the stage-2 re/im/sum planes ``3 (block, n, w)``, the re/im/sum ``q'`` rows
+    ``3 (n, n)``, a GEMM copy of the stage-1 output when narrower than float64, and per worker the tile buffers
+    ``3 (max_row_span, w)`` and the stage-2 weights. ``fixed_bytes`` (leg tables, tile tables) is added to every
+    requirement. The budget is a fraction of available memory, capped relative to the IFC3 and eigenvector inputs
+    but never below the 1 x 1 requirement.
     """
     width, block = min(_COLUMN_BLOCK, n_modes), min(_MODE_BLOCK, n_modes)
     pairs = layout.pair_i.size
 
     def required_bytes(column_count, mode_count):
-        entries = (
-            pairs * column_count + _PLANES * mode_count * n_modes * column_count + 5 * n_modes * n_modes
-            + n_modes * column_count + 4 * n_modes * mode_count
-            + workers * (
-                _PLANES * max_row_span * column_count + _WEIGHT_ARRAYS * max_pair_rows * mode_count
-                + 2 * n_populations * mode_count
-            )
+        float64_entries = (
+            pairs * column_count + 2 * n_modes * n_modes + n_modes * column_count + 4 * n_modes * mode_count
+            + workers * 2 * n_populations * (mode_count + n_modes)
         )
-        return int(entries * np.dtype(np.float64).itemsize) + int(fixed_bytes)
+        gemm_entries = (
+            (pairs * column_count if gemm_itemsize < 8 else 0) + _PLANES * mode_count * n_modes * column_count
+            + 3 * n_modes * n_modes
+            + workers * (_PLANES * max_row_span * column_count + _WEIGHT_ARRAYS * max_pair_rows * mode_count)
+        )
+        return int(float64_entries * 8 + gemm_entries * gemm_itemsize) + int(fixed_bytes)
 
     input_bytes += sum(
         matrix.data.nbytes + matrix.indices.nbytes + matrix.indptr.nbytes for _, _, matrix in layout.chunks

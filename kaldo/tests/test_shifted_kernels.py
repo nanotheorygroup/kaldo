@@ -170,7 +170,8 @@ def _stage2_layout(random):
     return n_atoms, j_ptr, np.concatenate(rows_of).astype(np.int32)
 
 
-def test_stage2_matches_dense_contraction():
+@pytest.mark.parametrize("dtype, rtol", [(np.float64, 1e-12), (np.float32, 1e-5)], ids=["float64", "float32"])
+def test_stage2_matches_dense_contraction(dtype, rtol):
     from concurrent.futures import ThreadPoolExecutor
 
     random = np.random.default_rng(616)
@@ -180,8 +181,8 @@ def test_stage2_matches_dense_contraction():
     assert plan.reuse.tolist() == [False, True, True, False, False, False, False, True, False, False, True, True]
     alpha = random.normal(size=(n_atoms, n_atoms)) + 1j * random.normal(size=(n_atoms, n_atoms))
     initial = random.normal(size=(n_modes, block)) + 1j * random.normal(size=(n_modes, block))
-    contracted = random.normal(size=(pair_i.size, width))[:, trim]  # row stride wider than the width
-    planes = [np.full((n_modes, block, trim.stop - trim.start), np.nan) for _ in range(3)]
+    contracted = random.normal(size=(pair_i.size, width)).astype(dtype)[:, trim]  # row stride wider than the width
+    planes = [np.full((n_modes, block, trim.stop - trim.start), np.nan, dtype=dtype) for _ in range(3)]
     with ThreadPoolExecutor(2) as pool:
         _kernels().stage2(plan, alpha, np.ascontiguousarray(initial.real), np.ascontiguousarray(initial.imag),
                           contracted, *planes, pool, 3)
@@ -189,8 +190,8 @@ def test_stage2_matches_dense_contraction():
     weights = initial[pair_i] * alpha[pair_i // 3, partner_j // 3][:, np.newaxis]
     expected = np.zeros((n_modes, block, contracted.shape[1]), dtype=np.complex128)
     np.add.at(expected, partner_j, np.einsum("pn,pw->pnw", weights, contracted))
-    np.testing.assert_allclose(planes[0], expected.real, rtol=1e-12, atol=1e-13)
-    np.testing.assert_allclose(planes[1], expected.imag, rtol=1e-12, atol=1e-13)
+    np.testing.assert_allclose(planes[0], expected.real, rtol=rtol, atol=rtol)
+    np.testing.assert_allclose(planes[1], expected.imag, rtol=rtol, atol=rtol)
     np.testing.assert_array_equal(planes[2], planes[0] + planes[1])
     assert np.all(planes[0][8] == 0) and np.all(planes[2][8] == 0)
 
@@ -219,8 +220,13 @@ def test_stage1_rejects_mismatched_operands():
             _kernels().stage1(np.array([0, 4], dtype=np.int32), indices, np.ones(4), *arguments[3:], columns, out)
 
 
-def _split_job(seed: int = 615) -> dict:
-    """Random complex operands; frequencies in rad/ps sorted ascending per q."""
+def _channel_target(channel, omega, omega_row):
+    """The conserved ``omega''`` of a tile channel, in the kernels' floating-point order."""
+    return omega_row - omega if channel == 2 else omega + (2 * channel - 1) * omega_row
+
+
+def _split_job(seed: int = 615, swapped: bool = False) -> dict:
+    """Random complex operands; frequencies in rad/ps sorted ascending per q. ``swapped`` adds the row side."""
     random = np.random.default_rng(seed)
     n_modes, block, width, offset = 12, 3, 8, 3
     omega_initial = np.sort(random.uniform(0.5, 6., n_modes))
@@ -233,13 +239,14 @@ def _split_job(seed: int = 615) -> dict:
     modes = np.array([2, 6, 10], dtype=np.int64)
     threshold = 1.5
     tiles = _kernels().plan_tiles(modes, omega_initial, omega_rows, omega_cols, physical_rows, physical_cols,
-                                  threshold)
+                                  threshold, channels=(0, 1, 2) if swapped else (0, 1))
     selected = (tiles[:, 5] < offset + width) & (tiles[:, 6] > offset)
     tiles = tiles[selected].copy()
     np.maximum(tiles[:, 5], offset, out=tiles[:, 5])
     np.minimum(tiles[:, 6], offset + width, out=tiles[:, 6])
-    populations = random.uniform(0.1, 2., size=(2, 2, n_modes))
-    return dict(
+    populations = random.uniform(0.1, 2., size=(3, 2, n_modes))
+    row_side = dict(pop_initial=populations[2], scales_rows=random.uniform(0.5, 1.5, n_modes)) if swapped else {}
+    return dict(**row_side,
         tiles=tiles, rows_re=random.normal(size=(n_modes, n_modes)), rows_im=random.normal(size=(n_modes, n_modes)),
         inter_re=random.normal(size=(block, n_modes, width)), inter_im=random.normal(size=(block, n_modes, width)),
         column_offset=offset, omega_initial=omega_initial, omega_rows=omega_rows, omega_cols=omega_cols,
@@ -249,36 +256,44 @@ def _split_job(seed: int = 615) -> dict:
     )
 
 
-def _split_reference(job: dict) -> tuple[np.ndarray, np.ndarray]:
-    """Straightforward |A|^2 Gaussian reduction of each tile with complex NumPy."""
-    rows = job["rows_re"] + 1j * job["rows_im"]
-    inter = job["inter_re"] + 1j * job["inter_im"]
-    n_populations, block = job["pop_rows"].shape[0], inter.shape[0]
+def _split_reference(job: dict) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Straightforward |A|^2 Gaussian reduction of each tile with complex NumPy, for both legs when swapped."""
+    rows = job["rows_re"].astype(np.float64) + 1j * job["rows_im"]  # complex128 even for float32 operands
+    inter = job["inter_re"].astype(np.float64) + 1j * job["inter_im"]
+    n_populations, block, n_modes = job["pop_rows"].shape[0], inter.shape[0], rows.shape[0]
     reduced = np.zeros((n_populations, block, 2))
-    counts = np.zeros((block, 2), dtype=np.int64)
+    reduced_rows = np.zeros((n_populations, n_modes, 2))
+    counts = np.zeros((block, 3), dtype=np.int64)
+    swapped = "pop_initial" in job
     sigma = job["sigma"]
     for slot, initial, channel, row_start, row_stop, column_start, column_stop in job["tiles"]:
         for row, column in itertools.product(range(row_start, row_stop), range(column_start, column_stop)):
             if not (job["physical_rows"][row] and job["physical_cols"][column]):
                 continue
-            sign = 1 if channel else -1
-            difference = job["omega_initial"][initial] + sign * job["omega_rows"][row] - job["omega_cols"][column]
+            difference = (_channel_target(channel, job["omega_initial"][initial], job["omega_rows"][row])
+                          - job["omega_cols"][column])
             if abs(difference) >= job["threshold"]:
                 continue
-            amplitude = rows[row] @ inter[slot, :, column - job["column_offset"]]
+            amplitude = abs(rows[row] @ inter[slot, :, column - job["column_offset"]]) ** 2
             phase = np.exp(-difference ** 2 / sigma ** 2) / np.sqrt(np.pi * sigma ** 2)
-            squared = abs(amplitude) ** 2 / (job["omega_rows"][row] * job["omega_cols"][column])
-            squared *= job["scales"][initial]
-            for index in range(n_populations):
-                row_population, column_population = job["pop_rows"][index, row], job["pop_cols"][index, column]
-                if channel:
-                    delta = row_population - column_population
-                else:
-                    delta = 0.5 * (1 + row_population + column_population)
-                reduced[index, slot, 0] += phase * delta
-                reduced[index, slot, 1] += squared * job["hbar_factors"][index] * phase * delta
+            column_population = job["pop_cols"][:, column]
+            if channel != 2:  # the initial mode's absorption (1) or decay (0)
+                squared = amplitude / (job["omega_rows"][row] * job["omega_cols"][column]) * job["scales"][initial]
+                row_population = job["pop_rows"][:, row]
+                delta = row_population - column_population if channel else 0.5 * (1 + row_population
+                                                                                    + column_population)
+                reduced[:, slot, 0] += phase * delta
+                reduced[:, slot, 1] += squared * job["hbar_factors"] * phase * delta
+            if swapped and channel != 0:  # the row mode's absorption (1) or decay (2)
+                squared = amplitude / (job["omega_initial"][initial] * job["omega_cols"][column])
+                squared *= job["scales_rows"][row]
+                initial_population = job["pop_initial"][:, initial]
+                delta = (initial_population - column_population if channel == 1
+                         else 0.5 * (1 + initial_population + column_population))
+                reduced_rows[:, row, 0] += phase * delta
+                reduced_rows[:, row, 1] += squared * job["hbar_factors"] * phase * delta
             counts[slot, channel] += 1
-    return reduced, counts
+    return reduced, reduced_rows, counts
 
 
 def _partner_major(job: dict) -> dict:
@@ -299,18 +314,25 @@ def _partner_major(job: dict) -> dict:
     return job
 
 
+@pytest.mark.parametrize("dtype, rtol", [(np.float64, 1e-12), (np.float32, 1e-5)], ids=["float64", "float32"])
+@pytest.mark.parametrize("swapped", [False, True], ids=["initial-only", "swap-paired"])
 @pytest.mark.parametrize("layout", ["block-major", "partner-major"])
-def test_reduce_tiles_split_matches_numpy(layout):
-    job = _split_job()
+def test_reduce_tiles_split_matches_numpy(layout, swapped, dtype, rtol):
+    job = _split_job(swapped=swapped)
+    for name in ("rows_re", "rows_im", "inter_re", "inter_im"):
+        job[name] = job[name].astype(dtype)  # the reference reads the rounded values
     if layout == "partner-major":
         job = _partner_major(job)
-    assert job["tiles"].shape[0] > 0 and set(job["tiles"][:, 2]) == {0, 1}
-    reduced, counts = _kernels().reduce_tiles_split(**job)
-    expected, expected_counts = _split_reference(job)
-    assert counts.dtype == np.int64 and reduced.shape == expected.shape
+    channels = {0, 1, 2} if swapped else {0, 1}
+    assert job["tiles"].shape[0] > 0 and set(job["tiles"][:, 2]) == channels
+    reduced, reduced_rows, counts = _kernels().reduce_tiles_split(**job)
+    expected, expected_rows, expected_counts = _split_reference(job)
+    assert counts.dtype == np.int64 and reduced.shape == expected.shape and reduced_rows.shape == expected_rows.shape
     np.testing.assert_array_equal(counts, expected_counts)
-    assert np.all(expected_counts.sum(axis=0) > 0)
-    np.testing.assert_allclose(reduced, expected, rtol=1e-12, atol=1e-15)
+    assert np.all(expected_counts[:, sorted(channels)].sum(axis=0) > 0)
+    np.testing.assert_allclose(reduced, expected, rtol=rtol, atol=1e-15)
+    np.testing.assert_allclose(reduced_rows, expected_rows, rtol=rtol, atol=1e-15)
+    assert np.any(expected_rows[..., 1] > 0) == swapped
 
 
 def test_reduce_tiles_split_rejects_bad_tiles():
@@ -323,16 +345,25 @@ def test_reduce_tiles_split_rejects_bad_tiles():
     job["rows_im"] = np.asfortranarray(job["rows_im"])
     with pytest.raises((TypeError, ValueError)):
         _kernels().reduce_tiles_split(**job)
+    job = _split_job()
+    job["inter_im"] = job["inter_im"].astype(np.float32)  # GEMM operands must share one dtype
+    with pytest.raises(TypeError):
+        _kernels().reduce_tiles_split(**job)
+    job = _split_job(swapped=True)
+    del job["pop_initial"], job["scales_rows"]
+    with pytest.raises(ValueError, match="tile"):  # channel 2 without the row side
+        _kernels().reduce_tiles_split(**job)
 
 
-def _plan_tiles_definition(modes, omega_initial, omega_rows, omega_cols, physical_rows, physical_cols, threshold):
+def _plan_tiles_definition(modes, omega_initial, omega_rows, omega_cols, physical_rows, physical_cols, threshold,
+                           channels):
     """The vectorized ``searchsorted`` definition of ``plan_tiles`` (rows grouped in blocks of 128)."""
     plans = []
     padding = threshold * 1e-6 + 1e-12
     physical_before = np.concatenate(([0], np.cumsum(physical_cols, dtype=np.int64)))
     for slot, initial in enumerate(modes):
-        for channel in (0, 1):
-            targets = omega_initial[initial] + (2 * channel - 1) * omega_rows
+        for channel in channels:
+            targets = _channel_target(channel, omega_initial[initial], omega_rows)
             lower = np.searchsorted(omega_cols, targets - threshold - padding, side="left")
             upper = np.searchsorted(omega_cols, targets + threshold + padding, side="right")
             rows = np.flatnonzero((physical_before[upper] > physical_before[lower]) & physical_rows)
@@ -343,8 +374,9 @@ def _plan_tiles_definition(modes, omega_initial, omega_rows, omega_cols, physica
     return np.asarray(plans, dtype=np.int64).reshape(-1, 7)
 
 
+@pytest.mark.parametrize("channels", [(0, 1), (0, 1, 2)])
 @pytest.mark.parametrize("threshold", [0.0, 0.05, 0.9, 30.])
-def test_plan_tiles_equals_searchsorted_definition(threshold):
+def test_plan_tiles_equals_searchsorted_definition(threshold, channels):
     random = np.random.default_rng(617)
     n_modes = 700
     omega_initial = np.sort(random.uniform(0., 20., n_modes))
@@ -358,7 +390,7 @@ def test_plan_tiles_equals_searchsorted_definition(threshold):
     physical_cols = random.random(n_modes) > 0.1
     physical_cols[400:450] = False
     modes = np.array([0, 3, 77, 350, 699], dtype=np.int64)
-    arguments = (modes, omega_initial, omega_rows, omega_cols, physical_rows, physical_cols, threshold)
+    arguments = (modes, omega_initial, omega_rows, omega_cols, physical_rows, physical_cols, threshold, channels)
     tiles = _kernels().plan_tiles(*arguments)
     expected = _plan_tiles_definition(*arguments)
     assert tiles.dtype == np.int64 and tiles.shape[1] == 7
@@ -380,16 +412,16 @@ def test_plan_tiles_encloses_every_selected_pair():
     modes = np.array([3, 77, 150, 299], dtype=np.int64)
     threshold = 0.9
     tiles = _kernels().plan_tiles(modes, omega_initial, omega_rows, omega_cols, physical_rows, physical_cols,
-                                  threshold)
+                                  threshold, channels=(0, 1, 2))
     assert tiles.dtype == np.int64 and tiles.shape[1] == 7
-    cover = np.zeros((modes.size, 2, n_modes, n_modes), dtype=np.int64)
+    cover = np.zeros((modes.size, 3, n_modes, n_modes), dtype=np.int64)
     for slot, initial, channel, row_start, row_stop, column_start, column_stop in tiles:
         assert initial == modes[slot]
         assert np.count_nonzero(physical_rows[row_start:row_stop]) <= 128
         cover[slot, channel, row_start:row_stop, column_start:column_stop] += 1
     for slot, initial in enumerate(modes):
-        for channel in (0, 1):
-            difference = (omega_initial[initial] + (2 * channel - 1) * omega_rows[:, None]) - omega_cols[None, :]
+        for channel in (0, 1, 2):
+            difference = _channel_target(channel, omega_initial[initial], omega_rows[:, None]) - omega_cols[None, :]
             selected = (np.abs(difference) < threshold) & physical_rows[:, None] & physical_cols[None, :]
             assert selected.any()
             np.testing.assert_array_equal(cover[slot, channel][selected], 1)

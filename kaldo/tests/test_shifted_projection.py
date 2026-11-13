@@ -4,7 +4,10 @@ The route evaluates one absorption-form pass per ``(q, q')`` with ``q'' = q + q'
 grid and applies both channel selections to it; non-representative initial points are copied from their time
 reversal partner. The reference (:mod:`kaldo.tests._three_phonon_reference`) instead evaluates kALDo's crystal
 formulas literally, each channel with its own ``q''`` and conjugations, so agreement tests the channel pairing,
-the factorized Wigner-Seitz legs, the conjugation conventions and the normalization together.
+the factorized Wigner-Seitz legs, the conjugation conventions and the normalization together. The exact
+configuration (``EXACT``: every pass evaluated, float64 GEMMs) is held to rounding; swap pairing reads the q'
+linewidths off the transposed amplitude, which differs from the literal one by the IFC3's i <-> j asymmetry
+(measured <= 4e-10 relative in the linewidths of a-Si 216), and the default float32 GEMMs moved them by <= 2e-7.
 """
 
 import numpy as np
@@ -22,6 +25,10 @@ MODE = "auto"
 INITIAL_Q = (0, 3)
 INITIAL_MODES = np.array([5, 100, 333, 640], dtype=np.int64)
 HOLE_MIN_FREQUENCY = 2.0
+EXACT = dict(pair_swapped=False, precision="float64")
+PAIRED = dict(pair_swapped=True, precision="float64")
+SWAP_RTOL = 1e-8  # IFC3 i <-> j asymmetry bound, 25x the a-Si 216 maximum
+FLOAT32_RTOL = 1e-5  # accepted linewidth error of float32 GEMMs (a-Si 216 maximum 2e-7)
 
 
 class _Case:
@@ -44,16 +51,16 @@ class _Case:
             )
         self._routes = {}
 
-    def route(self, is_classic=False, n_workers=4, all_initial=False):
-        """Run (once) and return the ``(8*n, 2)`` route result."""
-        key = (is_classic, n_workers, all_initial)
+    def route(self, is_classic=False, n_workers=4, all_initial=False, **options):
+        """Run (once) and return the ``(8*n, 2)`` route result; ``options`` go to ``project_shifted``."""
+        key = (is_classic, n_workers, all_initial, tuple(sorted(options.items())))
         if key not in self._routes:
             from kaldo.controllers._shifted_projection import project_shifted
 
             population, partner_population = self.populations[is_classic]
             self._routes[key] = project_shifted(
                 self.third, self.harmonics, self.grid, MODE, THIRD_BANDWIDTH_THZ, population, partner_population,
-                _hbar_factor(is_classic), n_workers=n_workers, all_initial=all_initial,
+                _hbar_factor(is_classic), n_workers=n_workers, all_initial=all_initial, **options,
             )
         return self._routes[key]
 
@@ -125,13 +132,29 @@ def _rows(case, index_k):
 
 @pytest.mark.parametrize("is_classic", [False, True], ids=["quantum", "classical"])
 def test_route_matches_reference(case, is_classic):
-    route = case.route(is_classic)
+    route = case.route(is_classic, **EXACT)
     n_modes = case.harmonics.frequency.shape[1]
     assert route.shape == (8 * n_modes, 2) and route.dtype == np.float64
     for index_k in INITIAL_Q:
         ref = case.reference(is_classic, index_k)
         assert np.all(ref > 0), "every selected initial mode must scatter, or the comparison is vacuous"
         np.testing.assert_allclose(route[_rows(case, index_k)], ref, rtol=1e-10, atol=1e-14)
+
+
+def test_default_route_matches_reference(case):
+    route = case.route()
+    for index_k in INITIAL_Q:
+        np.testing.assert_allclose(route[_rows(case, index_k)], case.reference(False, index_k), rtol=FLOAT32_RTOL,
+                                   atol=1e-14)
+
+
+def test_swap_pairing_matches_every_pass(case):
+    exact, paired = case.route(**EXACT), case.route(**PAIRED)
+    n_modes = case.harmonics.frequency.shape[1]
+    assert np.count_nonzero(exact[:, 1]) > 0.9 * 8 * n_modes
+    np.testing.assert_array_equal(paired == 0, exact == 0)
+    np.testing.assert_allclose(paired[:, 0], exact[:, 0], rtol=1e-12, atol=0)  # selection is identical
+    np.testing.assert_allclose(paired[:, 1], exact[:, 1], rtol=SWAP_RTOL, atol=0)
 
 
 def test_route_matches_reference_with_mask_holes(hole_case):
@@ -143,20 +166,36 @@ def test_route_matches_reference_with_mask_holes(hole_case):
         ref = hole_case.reference(False, index_k)
         assert np.all(ref[1:] > 0)
         np.testing.assert_array_equal(ref[0], 0.)
-        np.testing.assert_allclose(route[_rows(hole_case, index_k)], ref, rtol=1e-10, atol=1e-14)
+        np.testing.assert_allclose(route[_rows(hole_case, index_k)], ref, rtol=FLOAT32_RTOL, atol=1e-14)
     n_modes = harmonics.frequency.shape[1]
     np.testing.assert_array_equal(route.reshape(8, n_modes, 2)[~harmonics.physical], 0.)
 
 
+@pytest.mark.parametrize("all_initial, expected", [(False, (32, 20, 8)), (True, (64, 36, 8))],
+                         ids=["representatives", "all-initial"])
+def test_swap_pairing_covers_every_pass_once(case, all_initial, expected):
+    from kaldo.controllers._shifted_projection import _passes
+
+    initial_points = np.arange(8) if all_initial else np.asarray(case.harmonics.representatives)
+    every = _passes(case.grid, initial_points, 8, pair_swapped=False)
+    paired = _passes(case.grid, initial_points, 8, pair_swapped=True)
+    assert (len(every), len(paired), sum(mirror is None for *_, mirror in paired)) == expected
+    covered = [(q, b) for q, b, _, _ in paired] + [(mirror, b) for _, b, _, mirror in paired if mirror is not None]
+    assert sorted(covered) == sorted((q, b) for q, b, _, _ in every)
+    initial_of = {point: point if point in initial_points else case.grid.partner_id(point) for point in range(8)}
+    assert all(mirror == initial_of[q_prime] for _, _, q_prime, mirror in paired if mirror is not None)
+
+
 @pytest.mark.performance  # projects twice the passes, or on one worker (minutes)
-def test_time_reversal_replication_matches_full_projection(case):
-    replicated = case.route()
-    full = case.route(all_initial=True)
+@pytest.mark.parametrize("options, rtol", [(EXACT, 1e-12), (PAIRED, SWAP_RTOL)], ids=["exact", "paired"])
+def test_time_reversal_replication_matches_full_projection(case, options, rtol):
+    replicated = case.route(**options)
+    full = case.route(all_initial=True, **options)
     n_modes = case.harmonics.frequency.shape[1]
     replicas = sorted(set(range(8)) - set(case.harmonics.representatives.tolist()))
     assert len(replicas) == 4
     assert np.all(full.reshape(8, n_modes, 2)[replicas][:, INITIAL_MODES] > 0)
-    np.testing.assert_allclose(full, replicated, rtol=1e-12, atol=0)
+    np.testing.assert_allclose(full, replicated, rtol=rtol, atol=0)
 
 
 @pytest.mark.performance  # projects twice the passes, or on one worker (minutes)

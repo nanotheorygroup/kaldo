@@ -13,12 +13,13 @@ from typing import NamedTuple
 import numba
 import numpy as np
 
-from kaldo.controllers._projection_kernels import _BLAS_MAX, _dgemm, _gemm_into, _validate_matrix
+from kaldo.controllers._projection_kernels import _BLAS_MAX, _dgemm, _sgemm, _validate_matrix
 from kaldo.grid import TranslationSupport, WignerSeitzImages
 from kaldo.observables.thirdorder import _IFC_INTERPOLATION_MODES, _GammaPairCSR
 
 _ROW_BLOCK = 128  # rows per tile, as in _amorphous_projection._plan_tiles
 _IMAGINARY_TOLERANCE = 1e-12
+_GEMM_DTYPES = (np.dtype(np.float64), np.dtype(np.float32))
 
 
 def leg_tables(
@@ -262,8 +263,10 @@ def stage2(
     ``alpha_q`` is the complex128 ``(N,N)`` q' leg, ``initial_re/initial_im`` the float64 ``(n, block)``
     mass-rescaled initial vectors, ``contracted`` the stage-1 output ``(pairs, w)`` (unit column stride, any row
     stride) and ``inter_re``, ``inter_im`` and ``inter_sum = inter_re + inter_im`` contiguous ``(n, block, w)``
-    planes (eV/(Angstrom^3*amu)); partner-major planes make each GEMM output one contiguous slab (measured 17%
-    faster than ``(block, n, w)`` at 1920 atoms), and ``plane.transpose(1, 0, 2)`` is the ``(block, n, w)`` view
+    planes (eV/(Angstrom^3*amu)). ``contracted`` and the planes share one GEMM dtype, float64 or float32; float32
+    weights are rounded from float64 products. Partner-major planes make each GEMM output one contiguous slab
+    (measured 17% faster than ``(block, n, w)`` at 1920 atoms), and ``plane.transpose(1, 0, 2)`` is the
+    ``(block, n, w)`` view
     ``reduce_tiles_split`` reads. Partners are split into ``parts`` contiguous groups of whole atoms run on
     ``pool``. Per partner, two GEMMs with weights ``(rows, block)`` built from contiguous initial rows.
     """
@@ -279,20 +282,24 @@ def stage2(
         raise ValueError("stage-2 block must be positive")
     if not isinstance(alpha_q, np.ndarray) or alpha_q.dtype != np.complex128 or alpha_q.shape != (plan.n_atoms,) * 2:
         raise TypeError("alpha_q must be complex128 (N,N)")
-    _validate_matrix(contracted, "contracted")
+    dtype = getattr(contracted, "dtype", None)
+    if dtype not in _GEMM_DTYPES:
+        raise TypeError("contracted must be float64 or float32")
+    _validate_matrix(contracted, "contracted", dtype)
     if contracted.shape[0] != plan.pair_i.size:
         raise ValueError("contracted must hold one row per pair")
     width = contracted.shape[1]
     for name, plane in (("inter_re", inter_re), ("inter_im", inter_im), ("inter_sum", inter_sum)):
         if (
-            not isinstance(plane, np.ndarray) or plane.dtype != np.float64 or plane.shape != (n_modes, block, width)
+            not isinstance(plane, np.ndarray) or plane.dtype != dtype or plane.shape != (n_modes, block, width)
             or not plane.flags.c_contiguous or block * width > _BLAS_MAX
         ):
-            raise TypeError(name + " must be contiguous float64 (n, block, w) with an LP64 slot stride")
+            raise TypeError(name + " must be contiguous (n, block, w) of the contracted dtype with an LP64 slot "
+                                   "stride")
     edges = np.unique(np.linspace(0, plan.n_atoms, max(1, min(int(parts), plan.n_atoms)) + 1).astype(np.int64))
 
     def run(bounds):
-        weights = np.empty((2, max(plan.max_rows, 1) * block), dtype=np.float64)
+        weights = np.empty((2, max(plan.max_rows, 1) * block), dtype=dtype)
         _stage2_kernel(3 * int(bounds[0]), 3 * int(bounds[1]), plan.j_ptr, plan.pair_i, plan.pair_atom_i, plan.reuse,
                        alpha_q, initial_re, initial_im, contracted, inter_re, inter_im, inter_sum, weights)
 
@@ -304,18 +311,54 @@ def _gemm_tn(
     weights: np.ndarray, right: np.ndarray, output: np.ndarray, flags: np.ndarray, dimensions: np.ndarray,
     scalars: np.ndarray,
 ) -> None:
-    """Row-major ``output(M,N) = weights(K,M)^T right(K,N)`` as column-major ``dgemm('N','T')``."""
+    """Row-major ``output(M,N) = weights(K,M)^T right(K,N)`` as column-major ``?gemm('N','T')``.
+
+    Operands share one dtype; 4-byte items call ``sgemm``, others ``dgemm`` (``scalars`` of the same dtype).
+    """
     dimensions[0] = right.shape[1]
     dimensions[1] = weights.shape[1]
     dimensions[2] = weights.shape[0]
     dimensions[3] = right.strides[0] // right.itemsize
     dimensions[4] = weights.strides[0] // weights.itemsize
     dimensions[5] = output.strides[0] // output.itemsize
-    _dgemm(
-        flags[0:].ctypes, flags[1:].ctypes, dimensions[0:].ctypes, dimensions[1:].ctypes, dimensions[2:].ctypes,
-        scalars[0:].ctypes, right.ctypes, dimensions[3:].ctypes, weights.ctypes, dimensions[4:].ctypes,
-        scalars[1:].ctypes, output.ctypes, dimensions[5:].ctypes,
-    )
+    if output.itemsize == 4:
+        _sgemm(
+            flags[0:].ctypes, flags[1:].ctypes, dimensions[0:].ctypes, dimensions[1:].ctypes, dimensions[2:].ctypes,
+            scalars[0:].ctypes, right.ctypes, dimensions[3:].ctypes, weights.ctypes, dimensions[4:].ctypes,
+            scalars[1:].ctypes, output.ctypes, dimensions[5:].ctypes,
+        )
+    else:
+        _dgemm(
+            flags[0:].ctypes, flags[1:].ctypes, dimensions[0:].ctypes, dimensions[1:].ctypes, dimensions[2:].ctypes,
+            scalars[0:].ctypes, right.ctypes, dimensions[3:].ctypes, weights.ctypes, dimensions[4:].ctypes,
+            scalars[1:].ctypes, output.ctypes, dimensions[5:].ctypes,
+        )
+
+
+@numba.njit(nogil=True)
+def _gemm_nn(
+    left: np.ndarray, right: np.ndarray, output: np.ndarray, flags: np.ndarray, dimensions: np.ndarray,
+    scalars: np.ndarray,
+) -> None:
+    """Row-major ``output(M,N) = left(M,K) right(K,N)``; dtype dispatch as ``_gemm_tn`` (``flags`` holds 'N')."""
+    dimensions[0] = right.shape[1]
+    dimensions[1] = left.shape[0]
+    dimensions[2] = left.shape[1]
+    dimensions[3] = right.strides[0] // right.itemsize
+    dimensions[4] = left.strides[0] // left.itemsize
+    dimensions[5] = output.strides[0] // output.itemsize
+    if output.itemsize == 4:
+        _sgemm(
+            flags.ctypes, flags.ctypes, dimensions[0:].ctypes, dimensions[1:].ctypes, dimensions[2:].ctypes,
+            scalars[0:].ctypes, right.ctypes, dimensions[3:].ctypes, left.ctypes, dimensions[4:].ctypes,
+            scalars[1:].ctypes, output.ctypes, dimensions[5:].ctypes,
+        )
+    else:
+        _dgemm(
+            flags.ctypes, flags.ctypes, dimensions[0:].ctypes, dimensions[1:].ctypes, dimensions[2:].ctypes,
+            scalars[0:].ctypes, right.ctypes, dimensions[3:].ctypes, left.ctypes, dimensions[4:].ctypes,
+            scalars[1:].ctypes, output.ctypes, dimensions[5:].ctypes,
+        )
 
 
 @numba.njit(nogil=True, error_model="numpy")
@@ -327,7 +370,8 @@ def _stage2_kernel(
     """Run checked ``stage2`` partners ``[j_start, j_stop)``; ``weights`` is ``(2, max_rows * block)`` scratch."""
     flags = np.array([ord("N"), ord("T")], dtype=np.uint8)
     dimensions = np.empty(6, dtype=np.int32)
-    assign = np.array([1., 0.])
+    assign = np.zeros(2, dtype=weights.dtype)
+    assign[0] = 1
     block = initial_re.shape[1]
     for partner_j in range(j_start, j_stop):
         start, stop = j_ptr[partner_j], j_ptr[partner_j + 1]
@@ -360,7 +404,7 @@ def _stage2_kernel(
 
 def plan_tiles(
     modes: np.ndarray, omega_initial: np.ndarray, omega_rows: np.ndarray, omega_cols: np.ndarray,
-    physical_rows: np.ndarray, physical_cols: np.ndarray, threshold: float,
+    physical_rows: np.ndarray, physical_cols: np.ndarray, threshold: float, channels: tuple[int, ...] = (0, 1),
 ) -> np.ndarray:
     """Plan int64 ``(tiles,7)`` slot/mode/channel/row/column spans in rad/ps.
 
@@ -368,11 +412,15 @@ def plan_tiles(
     rows index ``omega_rows`` (q') and columns ``omega_cols`` (q''), each
     ``(n,)`` in rad/ps and sorted ascending. Boolean ``physical_rows`` and
     ``physical_cols`` are ``(n,)`` masks. Columns conservatively enclose
-    ``|omega + (2 channel - 1) omega' - omega''| < threshold``; a row is kept
-    when it is physical and its window holds a physical column. Exact strict
-    selection is left to ``reduce_tiles_split``. Tiles of one slot and
-    channel are disjoint.
+    ``|target - omega''| < threshold`` with the channel targets
+    ``omega - omega'`` (0), ``omega + omega'`` (1) and ``omega' - omega``
+    (2); a row is kept when it is physical and its window
+    holds a physical column. Exact strict selection is left to
+    ``reduce_tiles_split``. Tiles of one slot and channel are disjoint.
     """
+    channels = np.asarray(channels, dtype=np.int64)
+    if channels.ndim != 1 or np.any((channels < 0) | (channels > 2)):
+        raise ValueError("tile channels must be 0, 1 or 2")
     for name, omega in (("omega_rows", omega_rows), ("omega_cols", omega_cols)):
         if np.any(omega[1:] < omega[:-1]):
             raise ValueError(name + " must be sorted ascending")
@@ -383,16 +431,25 @@ def plan_tiles(
     physical_before = np.concatenate(([0], np.cumsum(physical_cols, dtype=np.int64)))
     padding = threshold * 1e-6 + 1e-12
     arguments = (modes, omega_initial, omega_rows, omega_cols, physical_rows, physical_before, float(threshold),
-                 float(padding))
+                 float(padding), channels)
     plans = np.empty((_plan_tiles_kernel(*arguments, np.empty((0, 7), dtype=np.int64)), 7), dtype=np.int64)
     _plan_tiles_kernel(*arguments, plans)
     return plans
 
 
+@numba.njit(nogil=True, inline="always")
+def _channel_target(channel: int, omega: float, omega_row: float) -> float:
+    """The ``omega''`` a channel conserves: ``omega - omega'`` (0), ``omega + omega'`` (1), ``omega' - omega`` (2)."""
+    if channel == 2:
+        return omega_row - omega
+    return omega + (2 * channel - 1) * omega_row
+
+
 @numba.njit(nogil=True, error_model="numpy")
 def _plan_tiles_kernel(
     modes: np.ndarray, omega_initial: np.ndarray, omega_rows: np.ndarray, omega_cols: np.ndarray,
-    physical_rows: np.ndarray, physical_before: np.ndarray, threshold: float, padding: float, plans: np.ndarray,
+    physical_rows: np.ndarray, physical_before: np.ndarray, threshold: float, padding: float, channels: np.ndarray,
+    plans: np.ndarray,
 ) -> int:
     """Count ``plan_tiles`` rows, and write them when ``plans`` has room; return the count.
 
@@ -406,12 +463,11 @@ def _plan_tiles_kernel(
     count = 0
     for slot in range(modes.size):
         initial = modes[slot]
-        for channel in range(2):
-            sign = 2 * channel - 1
+        for channel in channels:
             low_pointer, high_pointer = 0, 0
             for step in range(n_rows):
                 row = step if channel else n_rows - 1 - step  # ascending targets
-                target = omega_initial[initial] + sign * omega_rows[row]
+                target = _channel_target(channel, omega_initial[initial], omega_rows[row])
                 low_value = (target - threshold) - padding
                 high_value = (target + threshold) + padding
                 while low_pointer < n_cols and omega_cols[low_pointer] < low_value:
@@ -444,8 +500,9 @@ def reduce_tiles_split(
     column_offset: int, omega_initial: np.ndarray, omega_rows: np.ndarray, omega_cols: np.ndarray,
     physical_rows: np.ndarray, physical_cols: np.ndarray, pop_rows: np.ndarray, pop_cols: np.ndarray,
     hbar_factors: np.ndarray, threshold: float, sigma: float, scales: np.ndarray,
-    rows_sum: np.ndarray | None = None, inter_sum: np.ndarray | None = None,
-) -> tuple[np.ndarray, np.ndarray]:
+    rows_sum: np.ndarray | None = None, inter_sum: np.ndarray | None = None, pop_initial: np.ndarray | None = None,
+    scales_rows: np.ndarray | None = None,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Reduce complex energy-window tiles into phase space and linewidth sums.
 
     ``tiles`` is int64 ``(t,7)``: slot, initial, channel, row_start,
@@ -459,45 +516,62 @@ def reduce_tiles_split(
     ``T1 = Lr Rr``, ``T2 = Li Ri``, ``T3 = (Lr + Li)(Rr + Ri)``, ``Re = T1 - T2``
     and ``Im = T3 - T1 - T2``. ``rows_sum = rows_re + rows_im`` and
     ``inter_sum = inter_re + inter_im`` may be passed precomputed (same
-    layouts); they are formed here otherwise. Precomputed sums are trusted,
+    layouts); they are formed here otherwise. All planes share one GEMM
+    dtype: float64, or float32 with ``|A|^2`` formed in float64 from the
+    float32 products. Precomputed sums are trusted,
     not checked: a sum that differs from ``re + im`` silently corrupts ``Im``.
     Frequencies ``(n,)`` and ``threshold``/``sigma``
     are rad/ps; channel 1 selects ``w + w' - w''`` with ``n' - n''`` and
     channel 0 ``w - w' - w''`` with ``(1 + n' + n'')/2``. Dimensionless
     ``pop_rows/pop_cols`` ``(P,n)`` pair with ``hbar_factors (P,)``;
     ``scales (n,)`` carries the package hbar/frequency conversion of the
-    initial mode. Returns float64 ``(P,block,2)`` phase space and THz
-    linewidth sums, and int64 ``(block,2)`` selected-pair counts per channel.
+    initial mode.
+
+    Swap pairing: ``|A(q nu, q' nu', q'')|^2`` is also the amplitude of the
+    pass whose initial point is ``q'`` (or its time-reversal partner) and
+    whose partner is ``q``. Given the dimensionless initial-point occupations
+    ``pop_initial (P,n)`` and the row conversions ``scales_rows (n,)``, the
+    rows' linewidths are reduced too, for that pass: channel 1 with
+    ``n - n''`` and channel 2 (``w' - w - w''``, decay of the row mode) with
+    ``(1 + n + n'')/2``, each ``|A|^2`` divided by ``w w''``. Channel 2 tiles
+    contribute only to rows, channel 0 only to the initial modes.
+
+    Returns float64 ``(P,block,2)`` phase space and THz linewidth sums of the
+    initial slots, float64 ``(P,n,2)`` sums of the row modes (zero without
+    swap pairing), and int64 ``(block,3)`` selected-pair counts per channel.
     """
+    gemm_dtype = getattr(rows_re, "dtype", None)
+    if gemm_dtype not in _GEMM_DTYPES:
+        raise TypeError("rows_re must be float64 or float32")
     for name, matrix in (("rows_re", rows_re), ("rows_im", rows_im)):
-        _validate_matrix(matrix, name)
+        _validate_matrix(matrix, name, gemm_dtype)
     n_modes = rows_re.shape[0]
     if rows_re.shape != (n_modes, n_modes) or rows_im.shape != rows_re.shape:
         raise ValueError("rows_re and rows_im must be square with equal shapes")
     for name, inter in (("inter_re", inter_re), ("inter_im", inter_im)):
         if (
-            not isinstance(inter, np.ndarray) or inter.ndim != 3 or inter.dtype != np.float64
+            not isinstance(inter, np.ndarray) or inter.ndim != 3 or inter.dtype != gemm_dtype
             or inter.shape[1] != n_modes or inter.shape != inter_re.shape
         ):
-            raise TypeError(name + " must have float64 shape (block,n,w) matching rows and the other plane")
+            raise TypeError(name + " must have the rows dtype and shape (block,n,w) matching the other plane")
         if inter.shape[0] > _BLAS_MAX or not inter.flags.aligned:
             raise ValueError(name + " must be aligned with an LP64 block dimension")
         if inter.shape[0]:
-            _validate_matrix(inter[0], name)
+            _validate_matrix(inter[0], name, gemm_dtype)
     if rows_sum is None:
         rows_sum = rows_re + rows_im
     if inter_sum is None:
         inter_sum = inter_re + inter_im
-    _validate_matrix(rows_sum, "rows_sum")
+    _validate_matrix(rows_sum, "rows_sum", gemm_dtype)
     if rows_sum.shape != rows_re.shape:
         raise ValueError("rows_sum must match rows_re")
     if (
-        not isinstance(inter_sum, np.ndarray) or inter_sum.dtype != np.float64 or inter_sum.shape != inter_re.shape
+        not isinstance(inter_sum, np.ndarray) or inter_sum.dtype != gemm_dtype or inter_sum.shape != inter_re.shape
         or not inter_sum.flags.aligned
     ):
-        raise TypeError("inter_sum must be float64 with the shape of inter_re")
+        raise TypeError("inter_sum must match inter_re in dtype and shape")
     if inter_sum.shape[0]:
-        _validate_matrix(inter_sum[0], "inter_sum")
+        _validate_matrix(inter_sum[0], "inter_sum", gemm_dtype)
     block, width = inter_re.shape[0], inter_re.shape[2]
     for name, vector, dtype in (
         ("omega_initial", omega_initial, np.float64), ("omega_rows", omega_rows, np.float64),
@@ -521,6 +595,20 @@ def reduce_tiles_split(
         or hbar_factors.shape != pop_rows.shape[:1] or not np.all(np.isfinite(hbar_factors))
     ):
         raise ValueError("hbar_factors must be finite float64 (P,)")
+    swapped = pop_initial is not None or scales_rows is not None
+    if swapped:
+        if (
+            not isinstance(pop_initial, np.ndarray) or pop_initial.dtype != np.float64
+            or pop_initial.shape != pop_rows.shape or not pop_initial.flags.c_contiguous
+        ):
+            raise TypeError("pop_initial must be a contiguous float64 (P,n) stack matching pop_rows")
+        if (
+            not isinstance(scales_rows, np.ndarray) or scales_rows.dtype != np.float64
+            or scales_rows.shape != (n_modes,) or not scales_rows.flags.c_contiguous
+        ):
+            raise TypeError("scales_rows must be a contiguous float64 vector of length n")
+    else:
+        pop_initial, scales_rows = np.zeros_like(pop_rows), np.zeros(n_modes, dtype=np.float64)
     if not isinstance(tiles, np.ndarray) or tiles.dtype != np.int64 or tiles.ndim != 2 or tiles.shape[1] != 7:
         raise TypeError("tile table must have int64 shape (tiles,7)")
     if not isinstance(column_offset, (int, np.integer)) or column_offset < 0:
@@ -528,7 +616,7 @@ def reduce_tiles_split(
     if tiles.size and (
         np.any(tiles[:, 0] < 0) or np.any(tiles[:, 0] >= block)
         or np.any(tiles[:, 1] < 0) or np.any(tiles[:, 1] >= n_modes)
-        or np.any((tiles[:, 2] != 0) & (tiles[:, 2] != 1))
+        or np.any((tiles[:, 2] < 0) | (tiles[:, 2] > (2 if swapped else 1)))
         or np.any(tiles[:, 3] < 0) or np.any(tiles[:, 4] <= tiles[:, 3]) or np.any(tiles[:, 4] > n_modes)
         or np.any(tiles[:, 5] < column_offset) or np.any(tiles[:, 6] <= tiles[:, 5])
         or np.any(tiles[:, 6] > n_modes) or np.any(tiles[:, 6] - column_offset > width)
@@ -537,16 +625,18 @@ def reduce_tiles_split(
     if not np.isfinite(sigma) or sigma <= 0 or not np.isfinite(threshold) or threshold < 0:
         raise ValueError("Gaussian sigma must be positive and threshold nonnegative")
     reduced = np.zeros((pop_rows.shape[0], block, 2), dtype=np.float64)
-    counts = np.zeros((block, 2), dtype=np.int64)
+    reduced_rows = np.zeros((pop_rows.shape[0], n_modes, 2), dtype=np.float64)
+    counts = np.zeros((block, 3), dtype=np.int64)
     if tiles.size and threshold > 0:
         tiles = np.ascontiguousarray(tiles)
         area = int(np.max((tiles[:, 4] - tiles[:, 3]) * (tiles[:, 6] - tiles[:, 5])))
         _reduce_split_kernel(
             tiles, rows_re, rows_im, rows_sum, inter_re, inter_im, inter_sum, int(column_offset), omega_initial,
             omega_rows, omega_cols, physical_rows, physical_cols, pop_rows, pop_cols, hbar_factors, float(threshold),
-            float(sigma), scales, np.empty((3, area), dtype=np.float64), reduced, counts,
+            float(sigma), scales, pop_initial, scales_rows, swapped, np.empty((3, area), dtype=gemm_dtype), reduced,
+            reduced_rows, counts,
         )
-    return reduced, counts
+    return reduced, reduced_rows, counts
 
 
 @numba.njit(nogil=True, error_model="numpy")
@@ -555,12 +645,14 @@ def _reduce_split_kernel(
     inter_im: np.ndarray, inter_sum: np.ndarray, column_offset: int, omega_initial: np.ndarray,
     omega_rows: np.ndarray, omega_cols: np.ndarray, physical_rows: np.ndarray, physical_cols: np.ndarray,
     pop_rows: np.ndarray, pop_cols: np.ndarray, hbar_factors: np.ndarray, threshold: float, sigma: float,
-    scales: np.ndarray, buffers: np.ndarray, reduced: np.ndarray, counts: np.ndarray,
+    scales: np.ndarray, pop_initial: np.ndarray, scales_rows: np.ndarray, swapped: bool, buffers: np.ndarray,
+    reduced: np.ndarray, reduced_rows: np.ndarray, counts: np.ndarray,
 ) -> None:
-    """Fuse checked ``reduce_tiles_split`` operands; ``buffers`` is ``(3, max_tile_area)`` float64."""
+    """Fuse checked ``reduce_tiles_split`` operands; ``buffers`` is ``(3, max_tile_area)`` of the GEMM dtype."""
     transpose = np.array([ord("N")], dtype=np.uint8)
     dimensions = np.empty(6, dtype=np.int32)
-    assign = np.array([1., 0.])
+    assign = np.zeros(2, dtype=buffers.dtype)
+    assign[0] = 1
     normalization = 1 / np.sqrt(np.pi * sigma ** 2)
     sigma_squared = sigma ** 2
     n_populations = pop_rows.shape[0]
@@ -573,39 +665,55 @@ def _reduce_split_kernel(
         imag_imag = buffers[1, :rows * columns].reshape((rows, columns))
         sum_sum = buffers[2, :rows * columns].reshape((rows, columns))
         lower, upper = column_start - column_offset, column_stop - column_offset
-        _gemm_into(rows_re[row_start:row_stop], inter_re[slot, :, lower:upper], real_real, transpose, dimensions,
-                   assign)
-        _gemm_into(rows_im[row_start:row_stop], inter_im[slot, :, lower:upper], imag_imag, transpose, dimensions,
-                   assign)
-        _gemm_into(rows_sum[row_start:row_stop], inter_sum[slot, :, lower:upper], sum_sum, transpose, dimensions,
-                   assign)
+        _gemm_nn(rows_re[row_start:row_stop], inter_re[slot, :, lower:upper], real_real, transpose, dimensions, assign)
+        _gemm_nn(rows_im[row_start:row_stop], inter_im[slot, :, lower:upper], imag_imag, transpose, dimensions, assign)
+        _gemm_nn(rows_sum[row_start:row_stop], inter_sum[slot, :, lower:upper], sum_sum, transpose, dimensions,
+                 assign)
         phase_sums[:] = 0.
         gamma_sums[:] = 0.
         selected = 0
+        initial_side = channel != 2
+        rows_side = swapped and channel != 0
         for row in range(rows):
             row_mode = row_start + row
             if not physical_rows[row_mode]:
                 continue
-            base = omega_initial[initial] + (2 * channel - 1) * omega_rows[row_mode]
+            base = _channel_target(channel, omega_initial[initial], omega_rows[row_mode])
             for column in range(columns):
                 column_mode = column_start + column
                 difference = base - omega_cols[column_mode]
                 if physical_cols[column_mode] and abs(difference) < threshold:
                     phase = normalization * np.exp(-difference * difference / sigma_squared)
-                    real = real_real[row, column] - imag_imag[row, column]
-                    imag = sum_sum[row, column] - real_real[row, column] - imag_imag[row, column]
-                    squared = real * real + imag * imag
-                    squared /= omega_rows[row_mode] * omega_cols[column_mode]
-                    squared *= scales[initial]
-                    for index in range(n_populations):
-                        row_population = pop_rows[index, row_mode]
-                        column_population = pop_cols[index, column_mode]
-                        if channel:
-                            population_delta = row_population - column_population
-                        else:
-                            population_delta = 0.5 * (1 + row_population + column_population)
-                        phase_sums[index] += phase * population_delta
-                        gamma_sums[index] += ((squared * hbar_factors[index]) * phase) * population_delta
+                    product_rr = np.float64(real_real[row, column])
+                    product_ii = np.float64(imag_imag[row, column])
+                    real = product_rr - product_ii
+                    imag = np.float64(sum_sum[row, column]) - product_rr - product_ii
+                    amplitude = real * real + imag * imag
+                    if initial_side:
+                        squared = amplitude / (omega_rows[row_mode] * omega_cols[column_mode])
+                        squared *= scales[initial]
+                        for index in range(n_populations):
+                            row_population = pop_rows[index, row_mode]
+                            column_population = pop_cols[index, column_mode]
+                            if channel:
+                                population_delta = row_population - column_population
+                            else:
+                                population_delta = 0.5 * (1 + row_population + column_population)
+                            phase_sums[index] += phase * population_delta
+                            gamma_sums[index] += ((squared * hbar_factors[index]) * phase) * population_delta
+                    if rows_side:
+                        squared = amplitude / (omega_initial[initial] * omega_cols[column_mode])
+                        squared *= scales_rows[row_mode]
+                        for index in range(n_populations):
+                            initial_population = pop_initial[index, initial]
+                            column_population = pop_cols[index, column_mode]
+                            if channel == 1:
+                                population_delta = initial_population - column_population
+                            else:
+                                population_delta = 0.5 * (1 + initial_population + column_population)
+                            reduced_rows[index, row_mode, 0] += phase * population_delta
+                            reduced_rows[index, row_mode, 1] += (
+                                ((squared * hbar_factors[index]) * phase) * population_delta)
                     selected += 1
         for index in range(n_populations):
             reduced[index, slot, 0] += phase_sums[index]
