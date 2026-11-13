@@ -10,12 +10,13 @@ from dataclasses import dataclass
 
 from kaldo.grid import TranslationSupport, WignerSeitzImages
 from kaldo.observables.forceconstant import ForceConstant
+from kaldo.observables._ifc3_npz import load_third_npz
 from ase import Atoms
 import os
 import ase.io
 import hashlib
 import numpy as np
-from scipy.sparse import load_npz, save_npz
+from scipy.sparse import save_npz
 from scipy.sparse import csr_matrix as _csr_matrix
 from sparse import COO
 from kaldo.interfaces.eskm_io import import_from_files
@@ -601,18 +602,9 @@ class ThirdOrder(ForceConstant):
                               cell=unit_cell,
                               pbc=[1, 1, 1])
 
-                _third_order = (
-                    COO.from_scipy_sparse(
-                        load_npz(os.path.join(folder, THIRD_ORDER_FILE_SPARSE))
-                    )
-                    .reshape(
-                        (
-                            n_unit_atoms * 3,
-                            n_replicas * n_unit_atoms * 3,
-                            n_replicas * n_unit_atoms * 3,
-                        )
-                    )
-                    .astype(np.float64)
+                _third_order = load_third_npz(
+                    os.path.join(folder, THIRD_ORDER_FILE_SPARSE),
+                    (n_unit_atoms * 3, n_replicas * n_unit_atoms * 3, n_replicas * n_unit_atoms * 3),
                 )
                 third_order = ThirdOrder(
                     atoms=atoms,
