@@ -281,8 +281,29 @@ def _split_reference(job: dict) -> tuple[np.ndarray, np.ndarray]:
     return reduced, counts
 
 
-def test_reduce_tiles_split_matches_numpy():
+def _partner_major(job: dict) -> dict:
+    """Return ``job`` with the production operand layout of ``project_shifted``.
+
+    Stage 2 writes contiguous partner-major ``(n, block, w)`` planes; the reducer reads their ``(block, n, w)``
+    transposed views (leading dimension ``block*w``) together with precomputed ``re + im`` sums.
+    """
+    job = dict(job)
+    views = {}
+    for name in ("inter_re", "inter_im"):
+        plane = np.ascontiguousarray(job[name].transpose(1, 0, 2))
+        views[name] = plane.transpose(1, 0, 2)
+        assert not views[name].flags.c_contiguous and np.shares_memory(views[name], plane)
+    job.update(views)
+    job["inter_sum"] = np.ascontiguousarray((job["inter_re"] + job["inter_im"]).transpose(1, 0, 2)).transpose(1, 0, 2)
+    job["rows_sum"] = job["rows_re"] + job["rows_im"]
+    return job
+
+
+@pytest.mark.parametrize("layout", ["block-major", "partner-major"])
+def test_reduce_tiles_split_matches_numpy(layout):
     job = _split_job()
+    if layout == "partner-major":
+        job = _partner_major(job)
     assert job["tiles"].shape[0] > 0 and set(job["tiles"][:, 2]) == {0, 1}
     reduced, counts = _kernels().reduce_tiles_split(**job)
     expected, expected_counts = _split_reference(job)
@@ -302,6 +323,48 @@ def test_reduce_tiles_split_rejects_bad_tiles():
     job["rows_im"] = np.asfortranarray(job["rows_im"])
     with pytest.raises((TypeError, ValueError)):
         _kernels().reduce_tiles_split(**job)
+
+
+def _plan_tiles_definition(modes, omega_initial, omega_rows, omega_cols, physical_rows, physical_cols, threshold):
+    """The vectorized ``searchsorted`` definition of ``plan_tiles`` (rows grouped in blocks of 128)."""
+    plans = []
+    padding = threshold * 1e-6 + 1e-12
+    physical_before = np.concatenate(([0], np.cumsum(physical_cols, dtype=np.int64)))
+    for slot, initial in enumerate(modes):
+        for channel in (0, 1):
+            targets = omega_initial[initial] + (2 * channel - 1) * omega_rows
+            lower = np.searchsorted(omega_cols, targets - threshold - padding, side="left")
+            upper = np.searchsorted(omega_cols, targets + threshold + padding, side="right")
+            rows = np.flatnonzero((physical_before[upper] > physical_before[lower]) & physical_rows)
+            for offset in range(0, rows.size, 128):
+                row_start, row_stop = rows[offset], rows[min(offset + 128, rows.size) - 1] + 1
+                plans.append((slot, initial, channel, row_start, row_stop, min(lower[row_start], lower[row_stop - 1]),
+                              max(upper[row_start], upper[row_stop - 1])))
+    return np.asarray(plans, dtype=np.int64).reshape(-1, 7)
+
+
+@pytest.mark.parametrize("threshold", [0.0, 0.05, 0.9, 30.])
+def test_plan_tiles_equals_searchsorted_definition(threshold):
+    random = np.random.default_rng(617)
+    n_modes = 700
+    omega_initial = np.sort(random.uniform(0., 20., n_modes))
+    omega_rows = np.sort(random.uniform(0., 20., n_modes))
+    omega_cols = np.sort(random.uniform(0., 20., n_modes))
+    omega_cols[100:110] = omega_cols[100]  # degenerate columns
+    omega_rows[200:205] = omega_rows[200]  # degenerate rows
+    omega_cols[300] = omega_initial[350] + omega_rows[20] + 0.9  # a column exactly on a window edge
+    omega_cols.sort()
+    physical_rows = random.random(n_modes) > 0.1
+    physical_cols = random.random(n_modes) > 0.1
+    physical_cols[400:450] = False
+    modes = np.array([0, 3, 77, 350, 699], dtype=np.int64)
+    arguments = (modes, omega_initial, omega_rows, omega_cols, physical_rows, physical_cols, threshold)
+    tiles = _kernels().plan_tiles(*arguments)
+    expected = _plan_tiles_definition(*arguments)
+    assert tiles.dtype == np.int64 and tiles.shape[1] == 7
+    if threshold > 1:
+        assert np.any(tiles[:, 4] - tiles[:, 3] >= 128), "row blocks of 128 must be exercised"
+    np.testing.assert_array_equal(tiles, expected)
 
 
 def test_plan_tiles_encloses_every_selected_pair():

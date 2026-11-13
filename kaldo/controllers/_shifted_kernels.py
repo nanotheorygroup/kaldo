@@ -376,22 +376,67 @@ def plan_tiles(
     for name, omega in (("omega_rows", omega_rows), ("omega_cols", omega_cols)):
         if np.any(omega[1:] < omega[:-1]):
             raise ValueError(name + " must be sorted ascending")
-    plans = []
-    padding = threshold * 1e-6 + 1e-12
+    modes = np.ascontiguousarray(modes, dtype=np.int64)
+    omega_initial, omega_rows, omega_cols = (
+        np.ascontiguousarray(omega, dtype=np.float64) for omega in (omega_initial, omega_rows, omega_cols))
+    physical_rows = np.ascontiguousarray(physical_rows, dtype=np.bool_)
     physical_before = np.concatenate(([0], np.cumsum(physical_cols, dtype=np.int64)))
-    for slot, initial in enumerate(modes):
-        for channel in (0, 1):
-            targets = omega_initial[initial] + (2 * channel - 1) * omega_rows
-            lower = np.searchsorted(omega_cols, targets - threshold - padding, side="left")
-            upper = np.searchsorted(omega_cols, targets + threshold + padding, side="right")
-            rows = np.flatnonzero((physical_before[upper] > physical_before[lower]) & physical_rows)
-            for offset in range(0, rows.size, _ROW_BLOCK):
-                row_start = rows[offset]
-                row_stop = rows[min(offset + _ROW_BLOCK, rows.size) - 1] + 1
-                column_start = min(lower[row_start], lower[row_stop - 1])
-                column_stop = max(upper[row_start], upper[row_stop - 1])
-                plans.append((slot, initial, channel, row_start, row_stop, column_start, column_stop))
-    return np.asarray(plans, dtype=np.int64).reshape(-1, 7)
+    padding = threshold * 1e-6 + 1e-12
+    arguments = (modes, omega_initial, omega_rows, omega_cols, physical_rows, physical_before, float(threshold),
+                 float(padding))
+    plans = np.empty((_plan_tiles_kernel(*arguments, np.empty((0, 7), dtype=np.int64)), 7), dtype=np.int64)
+    _plan_tiles_kernel(*arguments, plans)
+    return plans
+
+
+@numba.njit(nogil=True, error_model="numpy")
+def _plan_tiles_kernel(
+    modes: np.ndarray, omega_initial: np.ndarray, omega_rows: np.ndarray, omega_cols: np.ndarray,
+    physical_rows: np.ndarray, physical_before: np.ndarray, threshold: float, padding: float, plans: np.ndarray,
+) -> int:
+    """Count ``plan_tiles`` rows, and write them when ``plans`` has room; return the count.
+
+    Targets are monotone in the sorted rows, so the ``searchsorted`` bounds (left for ``lower``, right for
+    ``upper``) are found by pointer walks in the same floating-point order as the vectorized definition.
+    """
+    n_rows, n_cols = omega_rows.size, omega_cols.size
+    lower = np.empty(n_rows, dtype=np.int64)
+    upper = np.empty(n_rows, dtype=np.int64)
+    write = plans.shape[0] > 0
+    count = 0
+    for slot in range(modes.size):
+        initial = modes[slot]
+        for channel in range(2):
+            sign = 2 * channel - 1
+            low_pointer, high_pointer = 0, 0
+            for step in range(n_rows):
+                row = step if channel else n_rows - 1 - step  # ascending targets
+                target = omega_initial[initial] + sign * omega_rows[row]
+                low_value = (target - threshold) - padding
+                high_value = (target + threshold) + padding
+                while low_pointer < n_cols and omega_cols[low_pointer] < low_value:
+                    low_pointer += 1
+                while high_pointer < n_cols and omega_cols[high_pointer] <= high_value:
+                    high_pointer += 1
+                lower[row], upper[row] = low_pointer, high_pointer
+            kept, row_start, row_last = 0, -1, -1
+            for row in range(n_rows + 1):
+                keep = row < n_rows and physical_rows[row]
+                keep = keep and physical_before[upper[row]] > physical_before[lower[row]]
+                if keep:
+                    if kept == 0:
+                        row_start = row
+                    row_last = row
+                    kept += 1
+                if kept and (kept == _ROW_BLOCK or row == n_rows):
+                    if write:
+                        plans[count, 0], plans[count, 1], plans[count, 2] = slot, initial, channel
+                        plans[count, 3], plans[count, 4] = row_start, row_last + 1
+                        plans[count, 5] = min(lower[row_start], lower[row_last])
+                        plans[count, 6] = max(upper[row_start], upper[row_last])
+                    count += 1
+                    kept = 0
+    return count
 
 
 def reduce_tiles_split(
@@ -414,7 +459,9 @@ def reduce_tiles_split(
     ``T1 = Lr Rr``, ``T2 = Li Ri``, ``T3 = (Lr + Li)(Rr + Ri)``, ``Re = T1 - T2``
     and ``Im = T3 - T1 - T2``. ``rows_sum = rows_re + rows_im`` and
     ``inter_sum = inter_re + inter_im`` may be passed precomputed (same
-    layouts); they are formed here otherwise. Frequencies ``(n,)`` and ``threshold``/``sigma``
+    layouts); they are formed here otherwise. Precomputed sums are trusted,
+    not checked: a sum that differs from ``re + im`` silently corrupts ``Im``.
+    Frequencies ``(n,)`` and ``threshold``/``sigma``
     are rad/ps; channel 1 selects ``w + w' - w''`` with ``n' - n''`` and
     channel 0 ``w - w' - w''`` with ``(1 + n' + n'')/2``. Dimensionless
     ``pop_rows/pop_cols`` ``(P,n)`` pair with ``hbar_factors (P,)``;
