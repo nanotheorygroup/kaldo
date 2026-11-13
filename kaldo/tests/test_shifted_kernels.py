@@ -181,18 +181,18 @@ def test_stage2_matches_dense_contraction():
     alpha = random.normal(size=(n_atoms, n_atoms)) + 1j * random.normal(size=(n_atoms, n_atoms))
     initial = random.normal(size=(n_modes, block)) + 1j * random.normal(size=(n_modes, block))
     contracted = random.normal(size=(pair_i.size, width))[:, trim]  # row stride wider than the width
-    planes = [np.full((block, n_modes, trim.stop - trim.start), np.nan) for _ in range(3)]
+    planes = [np.full((n_modes, block, trim.stop - trim.start), np.nan) for _ in range(3)]
     with ThreadPoolExecutor(2) as pool:
         _kernels().stage2(plan, alpha, np.ascontiguousarray(initial.real), np.ascontiguousarray(initial.imag),
                           contracted, *planes, pool, 3)
     partner_j = np.repeat(np.arange(n_modes), np.diff(j_ptr))
     weights = initial[pair_i] * alpha[pair_i // 3, partner_j // 3][:, np.newaxis]
-    expected = np.zeros((block, n_modes, contracted.shape[1]), dtype=np.complex128)
-    np.add.at(expected.transpose(1, 0, 2), partner_j, np.einsum("pn,pw->pnw", weights, contracted))
+    expected = np.zeros((n_modes, block, contracted.shape[1]), dtype=np.complex128)
+    np.add.at(expected, partner_j, np.einsum("pn,pw->pnw", weights, contracted))
     np.testing.assert_allclose(planes[0], expected.real, rtol=1e-12, atol=1e-13)
     np.testing.assert_allclose(planes[1], expected.imag, rtol=1e-12, atol=1e-13)
     np.testing.assert_array_equal(planes[2], planes[0] + planes[1])
-    assert np.all(planes[0][:, 8] == 0) and np.all(planes[2][:, 8] == 0)
+    assert np.all(planes[0][8] == 0) and np.all(planes[2][8] == 0)
 
 
 def test_stage2_plan_rejects_bad_layout():

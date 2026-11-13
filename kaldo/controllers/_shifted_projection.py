@@ -195,18 +195,19 @@ def project_shifted(
                         tiles[:, 0] -= slot_start
                         block_modes = modes_q[slot_start:slot_start + block]
                         trim_start, trim_stop = int(tiles[:, 5].min()), int(tiles[:, 6].max())
-                        inter_re, inter_im, inter_sum = (
+                        partner_major = [
                             plane[:block_modes.size * n_modes * (trim_stop - trim_start)].reshape(
-                                block_modes.size, n_modes, trim_stop - trim_start) for plane in planes)
+                                n_modes, block_modes.size, trim_stop - trim_start) for plane in planes]
                         tick = time.perf_counter()
                         initial = harmonics.eigenvectors[q][:, block_modes] * inverse_sqrt_mass
                         stage2(
                             pair_plan, alpha[q_prime], np.ascontiguousarray(initial.real),
                             np.ascontiguousarray(initial.imag),
-                            contracted[:, trim_start - column_start:trim_stop - column_start], inter_re, inter_im,
-                            inter_sum, pool, workers * 4,
+                            contracted[:, trim_start - column_start:trim_stop - column_start], *partner_major, pool,
+                            workers * 4,
                         )
                         del initial
+                        inter_re, inter_im, inter_sum = (plane.transpose(1, 0, 2) for plane in partner_major)
                         timings["stage2"] += time.perf_counter() - tick
                         tick = time.perf_counter()
                         areas = np.cumsum((tiles[:, 4] - tiles[:, 3]) * (tiles[:, 6] - tiles[:, 5]))
