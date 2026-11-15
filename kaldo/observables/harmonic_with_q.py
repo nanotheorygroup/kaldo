@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from functools import cached_property
+import weakref
 
 from kaldo.grid import TranslationSupport, WignerSeitzImages
 from kaldo.observables.observable import Observable
@@ -11,6 +12,7 @@ from opt_einsum import contract
 from kaldo.storable import FOLDER_NAME, lazy_property, Storable
 import tensorflow as tf
 from kaldo.helpers.logger import get_logger, log_size
+from kaldo.controllers import _amorphous_eigensystem
 from kaldo.controllers.nac import (
     normalize_bvk_supercell_matrix,
     ensure_kernel_cache,
@@ -386,6 +388,7 @@ class HarmonicWithQ(Observable, Storable):
         is_nac=None,
         nac_bvk_supercell_matrix=None,
         nac_q_direction=(1, 0, 0),
+        n_workers=1,
         *kargs,
         **kwargs,
     ):
@@ -410,6 +413,9 @@ class HarmonicWithQ(Observable, Storable):
         ``nac_q_direction`` is a reduced reciprocal direction used only for
         the directional Gamma limit. ``nac_bvk_supercell_matrix`` identifies
         the force-constant BvK grid; it is not a request to remesh IFCs.
+
+        ``n_workers`` sets the CPU threads of the real amorphous Gamma
+        eigensolver; ``None`` uses the CPU affinity count.
         """
         super().__init__(folder=folder, *kargs, **kwargs)
         # Input arguments
@@ -478,6 +484,7 @@ class HarmonicWithQ(Observable, Storable):
                 self._resolve_nac_bvk_supercell_matrix()
             )
         self.is_nw = is_nw
+        self.n_workers = n_workers
         if (q_point == [0, 0, 0]).all():
             if self.is_nw:
                 self.physical_mode[0, :4] = False
@@ -825,6 +832,8 @@ class HarmonicWithQ(Observable, Storable):
 
     def calculate_participation_ratio(self):
         n_atoms = self.n_modes // 3
+        if self._is_real_gamma():
+            return _amorphous_eigensystem.participation_ratio(self._eigensystem[1:])
         eigenvectors = self._eigensystem[1:, :]
         eigenvectors = tf.transpose(eigenvectors)
         eigenvectors = np.reshape(eigenvectors, (self.n_modes, n_atoms, 3))
@@ -962,10 +971,38 @@ class HarmonicWithQ(Observable, Storable):
             dynamical = dynamical.real
         return tf.convert_to_tensor(dynamical)
 
+    def _is_real_gamma(self):
+        """Whether the amorphous Gamma matrix takes the real dense eigensolver."""
+        return (
+            self.is_amorphous and (np.asarray(self.q_point) == 0).all()
+            and _amorphous_eigensystem.is_eligible(self.second, self.distance_threshold, self.is_nac)
+        )
+
+    def _calculate_real_gamma_eigensystem(self, only_eigenvals):
+        """Solve, or reuse, the eigensystem shared by this IFC2 source.
+
+        A weak reference on ``second`` lets the short-lived per-property
+        instances created by ``Phonons`` reuse an eigensystem that is still
+        alive elsewhere without retaining it.
+        """
+        value_ref, eigensystem_ref = getattr(self.second, "_gamma_eigensystem_ref", (None, None))
+        eigensystem = None
+        if value_ref is not None and value_ref() is self.second.value:
+            eigensystem = eigensystem_ref()
+        if eigensystem is not None:
+            return eigensystem[0].copy() if only_eigenvals else eigensystem
+        if only_eigenvals:
+            return _amorphous_eigensystem.gamma_eigenvalues(self.second, self.n_workers)
+        eigensystem = _amorphous_eigensystem.gamma_eigensystem(self.second, self.n_workers)
+        self.second._gamma_eigensystem_ref = (weakref.ref(self.second.value), weakref.ref(eigensystem))
+        return eigensystem
+
     def calculate_eigensystem(self, only_eigenvals):
         """Return eigenvalues, optionally together with column eigenvectors."""
         if self.is_nac:
             return self._calculate_nac_eigensystem(only_eigenvals=only_eigenvals)
+        if self._is_real_gamma():
+            return self._calculate_real_gamma_eigensystem(only_eigenvals)
         dyn_s = self._dynmat_fourier
 
         if only_eigenvals:

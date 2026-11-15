@@ -46,6 +46,14 @@ out-of-plane direction to 1, and for nanowires use a value greater than 1 for di
 .. hint::
    Kaldo assumes a q-grid that goes from 0 to :math:`\frac{2\pi}{a}` and will output with that convention.
 
+Scalar amorphous Gaussian calculations automatically use a float64 CPU
+projection that reduces phase space and linewidths without retaining every
+allowed triplet. Eligible calculations no longer implicitly create the
+per-triplet sparse cache; explicit sparse outputs remain available. On this
+route, ``n_workers`` controls CPU threads, with its default of 1 unchanged.
+See :doc:`Amorphous third-order projection <amorphous_third_order>` for
+eligibility, cache behavior, memory limits, and reproducible benchmarks.
+
 ***************************************
 Polar crystals and non-analytic effects
 ***************************************
